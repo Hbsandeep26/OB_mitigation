@@ -71,8 +71,26 @@ def get_sensex_qty():
 
 ENVIRONMENT = settings.get("ENVIRONMENT", "SANDBOX")
 
-WING_PERCENT = 0.05
+WING_PERCENT = 0.05  # Legacy fallback — now overridden by delta-based wing selection
 MAX_DELTA_SKEW = 0.15
+
+# --- VIX ADAPTIVE PROFILE THRESHOLDS ---
+VIX_LOW_THRESHOLD = 13    # Below this → tighten wings (8δ), conservative 12% target
+VIX_HIGH_THRESHOLD = 18   # Above this → widen wings (12δ), aggressive 25% target
+
+# --- OPENING RANGE GAP FILTER ---
+GAP_THRESHOLD_PCT = 0.008   # 0.8% gap triggers a cooldown pause
+GAP_SETTLE_MINUTES = 15     # Wait 15 minutes for gap to absorb
+
+# --- CIRCUIT BREAKER ---
+MAX_CONSECUTIVE_LOSSES = 2  # Halt session after 2 consecutive losses
+
+# --- ATM DRIFT GUARD (Stale Strike) ---
+ATM_DRIFT_MULTIPLIER = 1.5  # Exit if spot drifts > 1.5x wing width from ATM
+
+# --- RATCHET TRAILING STOP ---
+TRAIL_LOCK_FLOOR_PCT = 0.80   # Lock 80% of base target when trail activates
+TRAIL_RATCHET_FACTOR = 0.75   # Lock 75% of the high-water mark as it climbs
 
 
 # --- MARKET HOLIDAYS (YYYY-MM-DD) ---

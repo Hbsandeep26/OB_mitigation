@@ -11,7 +11,7 @@ import urllib.parse
 import psutil
 import datetime
 
-st.set_page_config(page_title="Iron Butterfly V3", layout="wide")
+st.set_page_config(page_title="Iron Butterfly V4", layout="wide")
 
 # --- ABSOLUTE PATHING ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -177,7 +177,7 @@ with col_stop:
 st.sidebar.caption("You can now safely control the bot entirely from this UI.")
 
 # --- MAIN DASHBOARD ---
-st.title("🦅 Iron Butterfly Command Center")
+st.title("🦅 Iron Butterfly Command Center V4")
 
 # --- SYSTEM STATUS & MANUAL EXIT CONTROLS ---
 col1, col2 = st.columns([3, 1])
@@ -238,6 +238,34 @@ with col_status:
         if state.get("active"):
             st.success(f"🟢 ACTIVE TRADE: {state['index_symbol']} | Qty: {state.get('quantity', 'N/A')}")
 
+            # ================================================================
+            # VIX PROFILE BADGES (NEW — reads from trade_state.json)
+            # ================================================================
+            vix_profile = state.get("vix_profile", "N/A")
+            session_vix = state.get("session_vix", 0.0)
+            
+            profile_colors = {
+                "LOW_VIX": "🟢",
+                "MID_VIX": "🟡", 
+                "HIGH_VIX": "🔴"
+            }
+            profile_emoji = profile_colors.get(vix_profile, "⚪")
+            
+            badge_col1, badge_col2, badge_col3 = st.columns(3)
+            with badge_col1:
+                st.metric("VIX Profile", f"{profile_emoji} {vix_profile}", delta=f"VIX: {session_vix:.1f}", delta_color="off")
+            with badge_col2:
+                hwm = state.get("profit_high_water_mark", 0.0) * 100
+                trail_active = state.get("trail_active", False)
+                trail_status = "🟢 ACTIVE" if trail_active else "⚪ Waiting"
+                st.metric("Ratchet Trail", trail_status, delta=f"HWM: {hwm:.2f}%", delta_color="off")
+            with badge_col3:
+                drift_ratio = state.get("atm_drift_ratio", 0.0)
+                drift_color = "normal" if drift_ratio < 1.0 else "inverse"
+                st.metric("ATM Drift", f"{drift_ratio:.2f}x", delta=f"Limit: 1.5x", delta_color=drift_color)
+
+            st.markdown("")
+
             live_ticks = {}
             if os.path.exists(LIVE_FILE):
                 try:
@@ -292,14 +320,21 @@ with col_status:
             # --- GROSS PNL FIX APPLIED HERE ---
             gross_pnl = (entry_net - live_net) * qty
             
-            # Target Math
-            current_target_pct = settings.get("TARGET_PROFIT_PCT", 10)
+            # ================================================================
+            # TARGET MATH — READS FROM TRADE STATE (VIX-SYNCED!)
+            # Falls back to settings.json if trade_state doesn't have it
+            # ================================================================
+            current_target_pct = state.get("applied_target_pct", settings.get("TARGET_PROFIT_PCT", 10))
             target_gross_pnl = (entry_net * (current_target_pct / 100.0)) * qty
+
+            # Show trail floor if ratchet is active
+            trail_floor_pct = state.get("trail_floor", 0.0) * 100
+            trail_floor_pnl = (entry_net * state.get("trail_floor", 0.0)) * qty if state.get("trail_active") else 0.0
             
             st.markdown("---")
             
-            # --- 3-COLUMN LAYOUT FOR METRICS AND HOT-SWAP ---
-            metric_col1, metric_col2, metric_col3 = st.columns([1.5, 1.5, 1.2])
+            # --- 4-COLUMN LAYOUT FOR METRICS AND HOT-SWAP ---
+            metric_col1, metric_col2, metric_col3, metric_col4 = st.columns([1.3, 1.3, 1.2, 1.2])
             
             with metric_col1:
                 if gross_pnl >= 0:
@@ -308,21 +343,42 @@ with col_status:
                     st.metric("Live Gross PnL", f"-₹{abs(gross_pnl):.2f}", delta="In Loss", delta_color="inverse")
             
             with metric_col2:
-                st.metric("🎯 Target PnL Amount", f"₹{target_gross_pnl:.2f}", delta=f"At {current_target_pct}%", delta_color="off")
-                
+                target_label = f"🎯 Target ({current_target_pct}%)"
+                if state.get("trail_active"):
+                    target_label = f"🛡️ Trail Floor ({trail_floor_pct:.1f}%)"
+                    target_gross_pnl = trail_floor_pnl
+                st.metric(target_label, f"₹{target_gross_pnl:.2f}", delta=f"VIX: {vix_profile}", delta_color="off")
+            
             with metric_col3:
+                # Show what determined the target
+                target_source = "VIX Auto" if "applied_target_pct" in state else "Manual"
+                st.metric("Target Source", target_source, delta=f"{current_target_pct}%", delta_color="off")
+                
+            with metric_col4:
                 new_target = st.number_input(
                     "Hot-Swap Target (%)", 
                     value=current_target_pct, 
                     step=1,
-                    help="Changes apply instantly to the live trade."
+                    help="Override the VIX target. Changes apply instantly to the live trade."
                 )
                 
                 # Save instantly and trigger UI refresh if changed
                 if new_target != current_target_pct:
                     settings["TARGET_PROFIT_PCT"] = new_target
                     save_settings(settings)
-                    st.toast(f"Target updated to {new_target}%!")
+                    
+                    # Also update the trade_state so the engine picks it up
+                    if os.path.exists(STATE_FILE):
+                        try:
+                            with open(STATE_FILE, "r") as f:
+                                live_state = json.load(f)
+                            live_state["applied_target_pct"] = new_target
+                            with open(STATE_FILE, "w") as f:
+                                json.dump(live_state, f, indent=4)
+                        except Exception:
+                            pass
+                    
+                    st.toast(f"Target overridden to {new_target}%! (Manual takes priority over VIX)")
                     st.rerun()
 
         else:

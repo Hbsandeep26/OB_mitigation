@@ -109,6 +109,81 @@ def get_fresh_option_quotes(instrument_keys_list):
         logging.error(f"Failed to fetch fresh quotes: {e}")
         return {}
 
+def get_india_vix():
+    """
+    Fetches the current India VIX value for VIX Adaptive Session Profiles.
+    Returns VIX as a float, or None on failure.
+    """
+    instrument_key = "NSE_INDEX|India VIX"
+    url = 'https://api.upstox.com/v2/market-quote/quotes'
+    safe_key = urllib.parse.quote(instrument_key)
+    full_url = f"{url}?instrument_key={safe_key}"
+    
+    headers = {
+        'accept': 'application/json',
+        'Api-Version': '2.0',
+        'Authorization': f'Bearer {config.get_live_token()}'
+    }
+    
+    try:
+        response = requests.get(full_url, headers=headers, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        
+        response_key = instrument_key.replace('|', ':')
+        if 'data' in data and response_key in data['data']:
+            vix_value = data['data'][response_key]['last_price']
+            logging.info(f"📊 India VIX: {vix_value:.2f}")
+            return vix_value
+        else:
+            logging.warning(f"VIX data missing from API response. Raw: {data}")
+            return None
+    except Exception as e:
+        logging.error(f"Failed to fetch India VIX: {e}")
+        return None
+
+def get_spot_with_ohlc(index_symbol):
+    """
+    Fetches both the live spot price AND previous day's close for the Opening Range Gap Filter.
+    Returns (ltp, previous_close) tuple, or (None, None) on failure.
+    """
+    if index_symbol == "NIFTY":
+        instrument_key = "NSE_INDEX|Nifty 50"
+    elif index_symbol == "SENSEX":
+        instrument_key = "BSE_INDEX|SENSEX"
+    else:
+        return None, None
+
+    url = 'https://api.upstox.com/v2/market-quote/quotes'
+    safe_key = urllib.parse.quote(instrument_key)
+    full_url = f"{url}?instrument_key={safe_key}"
+    
+    headers = {
+        'accept': 'application/json',
+        'Api-Version': '2.0',
+        'Authorization': f'Bearer {config.get_live_token()}'
+    }
+    
+    try:
+        response = requests.get(full_url, headers=headers, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        
+        response_key = instrument_key.replace('|', ':')
+        if 'data' in data and response_key in data['data']:
+            quote = data['data'][response_key]
+            ltp = quote.get('last_price', 0.0)
+            # Upstox returns OHLC with 'close' being previous day's close
+            prev_close = quote.get('ohlc', {}).get('close', 0.0)
+            logging.info(f"📈 {index_symbol} LTP: {ltp}, Prev Close: {prev_close}")
+            return ltp, prev_close
+        else:
+            logging.warning(f"OHLC data missing for {index_symbol}")
+            return None, None
+    except Exception as e:
+        logging.error(f"Failed to fetch OHLC data for {index_symbol}: {e}")
+        return None, None
+
 def monitor_live_prices(instrument_keys_dict, callback_function):
     logging.info("Initializing SDK WebSocket connection for live risk management...")
     

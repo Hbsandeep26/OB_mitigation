@@ -8,9 +8,9 @@ from datetime import datetime
 import config
 import state_manager
 
-# Note the new import: get_fresh_option_quotes
-from data_feed import get_spot_price, get_option_chain, monitor_live_prices, get_fresh_option_quotes
-from strategy import calculate_iron_butterfly_legs, risk_management_evaluator
+# Note the new imports: get_fresh_option_quotes, get_india_vix, get_spot_with_ohlc
+from data_feed import get_spot_price, get_option_chain, monitor_live_prices, get_fresh_option_quotes, get_india_vix, get_spot_with_ohlc
+from strategy import calculate_iron_butterfly_legs, risk_management_evaluator, get_vix_session_profile
 from execution import place_iron_butterfly_basket, square_off_all
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -33,6 +33,51 @@ stream_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 logger.addHandler(stream_handler)
 
+
+# ============================================================================
+# OPENING RANGE GAP FILTER
+# ============================================================================
+
+def check_opening_gap(index_symbol):
+    """
+    Checks if the market has gapped more than 0.8% from previous close.
+    Returns (gap_detected: bool, gap_pct: float).
+    If gap is detected, the bot should pause for 15 minutes.
+    """
+    try:
+        ltp, prev_close = get_spot_with_ohlc(index_symbol)
+        
+        if ltp and prev_close and prev_close > 0:
+            gap_pct = abs(ltp - prev_close) / prev_close
+            gap_direction = "UP" if ltp > prev_close else "DOWN"
+            
+            logging.info(
+                f"📊 Gap Analysis: {index_symbol} opened at {ltp:.2f}, "
+                f"Prev Close: {prev_close:.2f}, Gap: {gap_pct*100:.2f}% {gap_direction}"
+            )
+            
+            if gap_pct > config.GAP_THRESHOLD_PCT:
+                logging.warning(
+                    f"⚠️ OPENING GAP DETECTED! {index_symbol} gapped {gap_direction} "
+                    f"{gap_pct*100:.2f}% (threshold: {config.GAP_THRESHOLD_PCT*100:.1f}%). "
+                    f"Pausing for {config.GAP_SETTLE_MINUTES} minutes to let volatility absorb."
+                )
+                return True, gap_pct
+            else:
+                logging.info(f"✅ Gap within tolerance ({gap_pct*100:.2f}% < {config.GAP_THRESHOLD_PCT*100:.1f}%). Proceeding normally.")
+                return False, gap_pct
+        else:
+            logging.warning("⚠️ Could not fetch OHLC data for gap analysis. Skipping gap filter.")
+            return False, 0.0
+    except Exception as e:
+        logging.error(f"Gap filter error: {e}. Skipping gap check.")
+        return False, 0.0
+
+
+# ============================================================================
+# CONTINUOUS TRADING SESSION
+# ============================================================================
+
 def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_minute):
     logging.info(f"--- STARTING CONTINUOUS SESSION FOR {index_symbol} ---")
 
@@ -40,6 +85,9 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
     if os.path.exists(manual_exit_file):
         os.remove(manual_exit_file)
         
+    # ================================================================
+    # PHASE 0: BTST CARRY FORWARD RECOVERY
+    # ================================================================
     state = state_manager.load_state()
     if state and state.get("active"):
         logging.critical(f"🌙 BTST CARRY FORWARD DETECTED: Waking up existing {index_symbol} trade.")
@@ -50,6 +98,8 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
                 logging.critical(f"💰 PROFIT LOCKED on {index_symbol} Carry Forward trade! Squaring off...")
             elif stop_loss_hit == "STOP_LOSS":
                 logging.warning(f"🚨 Stop Loss hit on {index_symbol} Carry Forward trade! Squaring off...")
+            elif stop_loss_hit == "ATM_DRIFT":
+                logging.critical(f"🌊 ATM Drift detected on {index_symbol} Carry Forward. Structure broken — squaring off...")
             elif stop_loss_hit == "TIME_EXIT":
                 logging.critical(f"⏰ EOD Cutoff triggered on Carry Forward trade. Squaring off...")
             else:
@@ -65,6 +115,31 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
                 logging.info("🧹 Auto-cleared BTST flag from UI so the fresh trade doesn't carry forward blindly.")
             except Exception: pass
 
+    # ================================================================
+    # PHASE 1: OPENING RANGE GAP FILTER
+    # ================================================================
+    gap_detected, gap_pct = check_opening_gap(index_symbol)
+    if gap_detected:
+        settle_end = datetime.now()
+        settle_end = settle_end.replace(
+            minute=settle_end.minute + config.GAP_SETTLE_MINUTES
+        ) if settle_end.minute + config.GAP_SETTLE_MINUTES < 60 else settle_end.replace(
+            hour=settle_end.hour + 1,
+            minute=(settle_end.minute + config.GAP_SETTLE_MINUTES) % 60
+        )
+        
+        logging.info(f"⏳ Gap Filter: Waiting until {settle_end.strftime('%H:%M')} for market to stabilize...")
+        while datetime.now() < settle_end:
+            now = datetime.now()
+            if now.hour > cutoff_hour or (now.hour == cutoff_hour and now.minute >= cutoff_minute):
+                logging.info(f"⏰ Cutoff reached during gap wait. Ending session.")
+                return
+            time.sleep(5)
+        logging.info("✅ Gap settle period complete. Resuming normal operations.")
+
+    # ================================================================
+    # PHASE 2: SAFE ENTRY WINDOW WAIT
+    # ================================================================
     if cutoff_hour == 12: 
         target_entry_time = datetime.strptime("09:20", "%H:%M").time()
         logged_wait = False
@@ -74,15 +149,35 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
                 logged_wait = True
             time.sleep(2)
 
+    # ================================================================
+    # PHASE 3: MAIN TRADING LOOP (with Circuit Breaker)
+    # ================================================================
+    consecutive_losses = 0
+
     while True:
         now = datetime.now()
         
         if now.hour > cutoff_hour or (now.hour == cutoff_hour and now.minute >= cutoff_minute):
-            logging.info(f"⏰ Soft Cutoff ({cutoff_hour}:{cutoff_minute}) reached. No NEW {index_symbol} trades will be taken.")
+            logging.info(f"⏰ Soft Cutoff ({cutoff_hour}:{cutoff_minute:02d}) reached. No NEW {index_symbol} trades will be taken.")
             break 
+
+        # --- CIRCUIT BREAKER CHECK ---
+        if consecutive_losses >= config.MAX_CONSECUTIVE_LOSSES:
+            logging.critical(
+                f"🔌 CIRCUIT BREAKER TRIPPED! {consecutive_losses} consecutive losses detected. "
+                f"Halting ALL new trades for {index_symbol} this session."
+            )
+            import notifier
+            notifier.send_telegram_alert(
+                f"🔌 <b>CIRCUIT BREAKER ACTIVATED!</b>\n"
+                f"{index_symbol}: {consecutive_losses} consecutive losses.\n"
+                f"Bot has halted trading for this session."
+            )
+            break
 
         logging.info(f"Deploying fresh Iron Butterfly for {index_symbol}...")
 
+        # --- FETCH SPOT PRICE ---
         spot = get_spot_price(index_symbol)
         chain = get_option_chain(index_symbol, expiry_date) if spot else None
         
@@ -91,7 +186,19 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             time.sleep(30)
             continue
 
-        legs, entry_prices, strikes = calculate_iron_butterfly_legs(index_symbol, spot, chain)
+        # --- FETCH INDIA VIX & DETERMINE SESSION PROFILE ---
+        live_vix = get_india_vix()
+        if live_vix is None:
+            live_vix = 15.0  # Safe default if VIX API fails
+            logging.warning(f"⚠️ VIX fetch failed. Using default VIX={live_vix}")
+        
+        session_profile = get_vix_session_profile(live_vix)
+
+        # --- CALCULATE IRON BUTTERFLY WITH DELTA-BASED WINGS ---
+        legs, entry_prices, strikes = calculate_iron_butterfly_legs(
+            index_symbol, spot, chain, wing_delta=session_profile['wing_delta']
+        )
+        
         if not legs:
             logging.warning(f"⚠️ Math Rejection: Could not find valid protective wings for {index_symbol} in the current option chain. Retrying in 30s...")
             time.sleep(30)
@@ -115,6 +222,15 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             import notifier
             notifier.send_telegram_alert(f"🚨 <b>URGENT ACTION REQUIRED!</b> 🚨\n{index_symbol} basket order failed mid-execution. Check Upstox App immediately.")
             break 
+
+        # --- INJECT VIX PROFILE INTO TRADE STATE (Dashboard Sync) ---
+        state_manager.update_state("applied_target_pct", session_profile['target_pct'])
+        state_manager.update_state("vix_profile", session_profile['name'])
+        state_manager.update_state("session_vix", round(live_vix, 2))
+        state_manager.update_state("profit_high_water_mark", 0.0)
+        state_manager.update_state("trail_active", False)
+        state_manager.update_state("trail_floor", 0.0)
+        state_manager.update_state("atm_drift_ratio", 0.0)
             
         state_manager.update_state("cutoff_hour", cutoff_hour)
         state_manager.update_state("cutoff_minute", cutoff_minute)
@@ -122,6 +238,10 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         logging.info("Entering live risk monitoring phase...")
 
         stop_loss_hit, exit_prices = monitor_live_prices(legs, risk_management_evaluator)
+
+        # ================================================================
+        # EXIT SIGNAL HANDLING
+        # ================================================================
 
         if stop_loss_hit == "MANUAL_EXIT":
             logging.critical(f"🛑 Manual Exit executed. Squaring off {index_symbol}...")
@@ -132,12 +252,23 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         elif stop_loss_hit == "TAKE_PROFIT":
             logging.critical(f"💰 PROFIT LOCKED for {index_symbol}! Squaring off positions.")
             square_off_all(exit_prices)
+            consecutive_losses = 0  # Reset circuit breaker on a win
             logging.info("Cooling down for 60 seconds before looking for new setups...")
             time.sleep(60)
 
         elif stop_loss_hit == "STOP_LOSS":
             logging.warning(f"🚨 Stop Loss hit for {index_symbol}! Squaring off...")
             square_off_all(exit_prices)
+            consecutive_losses += 1
+            logging.info(f"🔌 Circuit Breaker: {consecutive_losses}/{config.MAX_CONSECUTIVE_LOSSES} consecutive losses.")
+            logging.info("Cooling down for 60 seconds...")
+            time.sleep(60)
+
+        elif stop_loss_hit == "ATM_DRIFT":
+            logging.critical(f"🌊 ATM Drift exit for {index_symbol}! Structure compromised — squaring off...")
+            square_off_all(exit_prices)
+            consecutive_losses += 1
+            logging.info(f"🔌 Circuit Breaker: {consecutive_losses}/{config.MAX_CONSECUTIVE_LOSSES} consecutive losses.")
             logging.info("Cooling down for 60 seconds...")
             time.sleep(60)
         
@@ -153,6 +284,7 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         elif stop_loss_hit:
             logging.warning(f"Stop Loss hit for {index_symbol}! Squaring off...")
             square_off_all(exit_prices)
+            consecutive_losses += 1
             logging.info("Cooling down for 60 seconds...")
             time.sleep(60)
         else:
@@ -194,6 +326,11 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
                     
         square_off_all(exit_prices)
 
+
+# ============================================================================
+# SCHEDULE BUILDER — EXPIRY DAY THETA SQUEEZE
+# ============================================================================
+
 def build_todays_schedule():
     schedule.clear('trading_jobs')
     now = datetime.now()
@@ -213,15 +350,37 @@ def build_todays_schedule():
                 sensex_expiry = data.get("SENSEX_EXPIRY", "UNKNOWN")
         except Exception: pass
 
+    # ================================================================
+    # EXPIRY DAY THETA SQUEEZE:
+    # The EXPIRING index enters in the AFTERNOON (12:30 PM) to avoid
+    # morning directional risk. The other index gets the morning slot.
+    # ================================================================
+
     if today_str == nifty_expiry:
-        logging.critical(f"🎯 NIFTY EXPIRY DETECTED ({today_str}). Loading Nifty Relay.")
-        schedule.every().day.at("09:15").do(continuous_trading_session, index_symbol="NIFTY", expiry_date=nifty_expiry, cutoff_hour=12, cutoff_minute=30).tag('trading_jobs')
-        schedule.every().day.at("12:31").do(continuous_trading_session, index_symbol="SENSEX", expiry_date=sensex_expiry, cutoff_hour=15, cutoff_minute=15).tag('trading_jobs')
+        logging.critical(f"🎯 NIFTY EXPIRY DETECTED ({today_str}). Theta Squeeze: Nifty enters AFTERNOON, Sensex gets MORNING.")
+        # Sensex in the morning (safe, not expiring)
+        schedule.every().day.at("09:15").do(
+            continuous_trading_session, index_symbol="SENSEX", 
+            expiry_date=sensex_expiry, cutoff_hour=12, cutoff_minute=30
+        ).tag('trading_jobs')
+        # Nifty in the afternoon (expiring — enter late for theta decay)
+        schedule.every().day.at("12:31").do(
+            continuous_trading_session, index_symbol="NIFTY", 
+            expiry_date=nifty_expiry, cutoff_hour=15, cutoff_minute=15
+        ).tag('trading_jobs')
 
     elif today_str == sensex_expiry:
-        logging.critical(f"🎯 SENSEX EXPIRY DETECTED ({today_str}). Loading Sensex Relay.")
-        schedule.every().day.at("09:15").do(continuous_trading_session, index_symbol="SENSEX", expiry_date=sensex_expiry, cutoff_hour=12, cutoff_minute=30).tag('trading_jobs')
-        schedule.every().day.at("12:31").do(continuous_trading_session, index_symbol="NIFTY", expiry_date=nifty_expiry, cutoff_hour=15, cutoff_minute=15).tag('trading_jobs')
+        logging.critical(f"🎯 SENSEX EXPIRY DETECTED ({today_str}). Theta Squeeze: Sensex enters AFTERNOON, Nifty gets MORNING.")
+        # Nifty in the morning (safe, not expiring)
+        schedule.every().day.at("09:15").do(
+            continuous_trading_session, index_symbol="NIFTY", 
+            expiry_date=nifty_expiry, cutoff_hour=12, cutoff_minute=30
+        ).tag('trading_jobs')
+        # Sensex in the afternoon (expiring — enter late for theta decay)
+        schedule.every().day.at("12:31").do(
+            continuous_trading_session, index_symbol="SENSEX", 
+            expiry_date=sensex_expiry, cutoff_hour=15, cutoff_minute=15
+        ).tag('trading_jobs')
     
     else:
         weekday = now.strftime("%A").upper()
@@ -232,13 +391,25 @@ def build_todays_schedule():
             logging.info(f"📅 Normal Trading Day ({today_str} - {weekday}). Defaulting to NIFTY.")
             schedule.every().day.at("09:15").do(continuous_trading_session, index_symbol="NIFTY", expiry_date=nifty_expiry, cutoff_hour=15, cutoff_minute=15).tag('trading_jobs')
 
+
+# ============================================================================
+# MAIN ENTRY POINT
+# ============================================================================
+
 if __name__ == "__main__":
     if logger.hasHandlers():
         logger.handlers.clear()
         logger.addHandler(file_handler)
         logger.addHandler(stream_handler)
         
-    logging.info("System Architect Bot V3 Initialized...")
+    logging.info("System Architect Bot V4 Initialized — Master Architecture Active 🏛️")
+    logging.info(f"  VIX Adaptive Profiles: ON (Low<{config.VIX_LOW_THRESHOLD}, High>{config.VIX_HIGH_THRESHOLD})")
+    logging.info(f"  Delta-Based Wings: ON")
+    logging.info(f"  Ratchet Trailing Stop: ON (Floor={config.TRAIL_LOCK_FLOOR_PCT*100:.0f}%, Ratchet={config.TRAIL_RATCHET_FACTOR*100:.0f}%)")
+    logging.info(f"  ATM Drift Guard: ON ({config.ATM_DRIFT_MULTIPLIER}x wing width)")
+    logging.info(f"  Circuit Breaker: ON ({config.MAX_CONSECUTIVE_LOSSES} consecutive losses)")
+    logging.info(f"  Opening Range Gap Filter: ON ({config.GAP_THRESHOLD_PCT*100:.1f}% threshold, {config.GAP_SETTLE_MINUTES}min settle)")
+    logging.info(f"  Expiry Day Theta Squeeze: ON")
 
     nifty_expiry, sensex_expiry = "UNKNOWN", "UNKNOWN"
     settings_file = os.path.join(BASE_DIR, "settings.json")
@@ -276,12 +447,15 @@ if __name__ == "__main__":
         afternoon_start = datetime.strptime("12:31", "%H:%M").time()
         eod_cutoff = datetime.strptime("15:15", "%H:%M").time()
 
+        # --- EXPIRY DAY THETA SQUEEZE: Swap morning/afternoon assignment ---
         if today_str == nifty_expiry:
-            morning_idx, afternoon_idx = "NIFTY", "SENSEX"
-            morning_exp, afternoon_exp = nifty_expiry, sensex_expiry
-        elif today_str == sensex_expiry:
+            # Nifty expiring → Sensex morning, Nifty afternoon
             morning_idx, afternoon_idx = "SENSEX", "NIFTY"
             morning_exp, afternoon_exp = sensex_expiry, nifty_expiry
+        elif today_str == sensex_expiry:
+            # Sensex expiring → Nifty morning, Sensex afternoon
+            morning_idx, afternoon_idx = "NIFTY", "SENSEX"
+            morning_exp, afternoon_exp = nifty_expiry, sensex_expiry
         else:
             default_idx = "SENSEX" if now.strftime("%A").upper() in ["WEDNESDAY", "THURSDAY"] else "NIFTY"
             default_exp = sensex_expiry if default_idx == "SENSEX" else nifty_expiry
