@@ -40,13 +40,34 @@ def get_target_profit_pct():
 
 
 #LIVE_ACCESS_TOKEN = settings.get("LIVE_ACCESS_TOKEN", "")
-SANDBOX_ACCESS_TOKEN = settings.get("eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiI0MDE0MzAiLCJqdGkiOiI2OWNjMGUwMDdlZjliNjZjZTI3MGFjMWQiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaXNQbHVzUGxhbiI6dHJ1ZSwiaWF0IjoxNzc0OTgwNjA4LCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3Nzc1MDAwMDB9.0HW6tC9xWuz-col0AOjsgBRVTDvGV6ixFU2Vn73oj3U", "")
+#SANDBOX_ACCESS_TOKEN = settings.get("eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiI0MDE0MzAiLCJqdGkiOiI2OWNjMGUwMDdlZjliNjZjZTI3MGFjMWQiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaXNQbHVzUGxhbiI6dHJ1ZSwiaWF0IjoxNzc0OTgwNjA4LCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3Nzc1MDAwMDB9.0HW6tC9xWuz-col0AOjsgBRVTDvGV6ixFU2Vn73oj3U", "")
+
+SANDBOX_ACCESS_TOKEN = settings.get("SANDBOX_ACCESS_TOKEN", "")
 
 NIFTY_EXPIRY = settings.get("NIFTY_EXPIRY", "")
 SENSEX_EXPIRY = settings.get("SENSEX_EXPIRY", "")
 
-NIFTY_LOT_SIZE = settings.get("NIFTY_LOT_SIZE", 65)
-SENSEX_LOT_SIZE = settings.get("SENSEX_LOT_SIZE", 20)
+#NIFTY_LOT_SIZE = settings.get("NIFTY_LOT_SIZE", 65)
+#SENSEX_LOT_SIZE = settings.get("SENSEX_LOT_SIZE", 20)
+
+# In config.py, replace the static lot sizes with these functions:
+
+def get_nifty_qty():
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, "r") as f:
+                return json.load(f).get("NIFTY_LOT_SIZE", 65)
+        except Exception: pass
+    return 65
+
+def get_sensex_qty():
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, "r") as f:
+                return json.load(f).get("SENSEX_LOT_SIZE", 20)
+        except Exception: pass
+    return 20
+
 
 ENVIRONMENT = settings.get("ENVIRONMENT", "SANDBOX")
 

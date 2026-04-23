@@ -5,11 +5,9 @@ import requests
 import urllib.parse
 import upstox_client
 import json
+import time 
 
 def get_spot_price(index_symbol):
-    """
-    Fetches the live spot price of Nifty or Sensex using Upstox API.
-    """
     logging.info(f"Fetching live spot price for {index_symbol}...")
     
     if index_symbol == "NIFTY":
@@ -21,7 +19,6 @@ def get_spot_price(index_symbol):
         return None
 
     url = 'https://api.upstox.com/v2/market-quote/quotes'
-    
     safe_instrument_key = urllib.parse.quote(instrument_key)
     full_url = f"{url}?instrument_key={safe_instrument_key}"
     
@@ -32,7 +29,7 @@ def get_spot_price(index_symbol):
     }
 
     try:
-        response = requests.get(full_url, headers=headers)
+        response = requests.get(full_url, headers=headers, timeout=5)
         response.raise_for_status() 
         data = response.json()
         
@@ -51,9 +48,6 @@ def get_spot_price(index_symbol):
         return None
 
 def get_option_chain(index_symbol, expiry_date):
-    """
-    Fetches the full option chain for the index and given expiry date.
-    """
     logging.info(f"Fetching option chain for {index_symbol} expiring on {expiry_date}...")
     
     if index_symbol == "NIFTY":
@@ -64,7 +58,6 @@ def get_option_chain(index_symbol, expiry_date):
         return []
 
     url = 'https://api.upstox.com/v2/option/chain'
-    
     safe_instrument_key = urllib.parse.quote(instrument_key)
     full_url = f"{url}?instrument_key={safe_instrument_key}&expiry_date={expiry_date}"
     
@@ -75,7 +68,7 @@ def get_option_chain(index_symbol, expiry_date):
     }
 
     try:
-        response = requests.get(full_url, headers=headers)
+        response = requests.get(full_url, headers=headers, timeout=5)
         response.raise_for_status()
         data = response.json()
         
@@ -89,11 +82,47 @@ def get_option_chain(index_symbol, expiry_date):
         logging.error(f"Upstox API Error fetching option chain: {e}")
         return []
 
+def get_fresh_option_quotes(instrument_keys_list):
+    """
+    Bypasses the cached Option Chain and hits the Live Quotes API to get absolute real-time LTPs before entry.
+    """
+    url = 'https://api.upstox.com/v2/market-quote/quotes'
+    keys_str = ",".join([urllib.parse.quote(k) for k in instrument_keys_list])
+    full_url = f"{url}?instrument_key={keys_str}"
+    
+    headers = {
+        'accept': 'application/json',
+        'Api-Version': '2.0',
+        'Authorization': f'Bearer {config.get_live_token()}'
+    }
+    try:
+        response = requests.get(full_url, headers=headers, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        fresh_prices = {}
+        if 'data' in data:
+            for key, val in data['data'].items():
+                original_key = key.replace(':', '|')
+                fresh_prices[original_key] = val.get('last_price', 0.0)
+        return fresh_prices
+    except Exception as e:
+        logging.error(f"Failed to fetch fresh quotes: {e}")
+        return {}
 
 def monitor_live_prices(instrument_keys_dict, callback_function):
     logging.info("Initializing SDK WebSocket connection for live risk management...")
     
+    import state_manager
+    # We load this ONCE strictly to extract the index_symbol. 
+    trade_state = state_manager.load_state()
+    index_symbol = trade_state.get('index_symbol', 'NIFTY') if trade_state else 'NIFTY'
+    
+    spot_key = "NSE_INDEX|Nifty 50" if index_symbol == "NIFTY" else "BSE_INDEX|SENSEX"
+    vix_key = "NSE_INDEX|India VIX"
+    
     keys_to_subscribe = list(instrument_keys_dict.values())
+    keys_to_subscribe.append(spot_key) 
+    keys_to_subscribe.append(vix_key) 
     
     configuration = upstox_client.Configuration()
     configuration.access_token = config.get_live_token()
@@ -101,75 +130,92 @@ def monitor_live_prices(instrument_keys_dict, callback_function):
     
     streamer = upstox_client.MarketDataStreamerV3(api_client, keys_to_subscribe, "full")
     
-    # --- NEW: We added 'latest_prices' to act as a memory cache ---
-    state = {"stop_loss_hit": False, "error_count": 0, "exit_prices": {}, "latest_prices": {}}
+    # --- BUG 6 FIX: Renamed local tracking dictionary to `ws_state` ---
+    ws_state = {
+        "stop_loss_hit": False, 
+        "error_count": 0, 
+        "exit_prices": {}, 
+        "latest_prices": {}, 
+        "last_tick_time": time.time(), 
+        "last_write_time": 0
+    }
 
     def on_message(message):
         try:
-            state["error_count"] = 0 
+            ws_state["error_count"] = 0 
+            ws_state["last_tick_time"] = time.time() 
             
             if isinstance(message, str):
                 message = json.loads(message)
                 
             feeds = message.get("feeds", {})
-            
+                    
             for instrument_key, feed_data in feeds.items():
                 ltp = 0.0
                 
                 if "fullFeed" in feed_data:
-                    market_ff = feed_data["fullFeed"].get("marketFF", {})
-                    ltp = market_ff.get("ltpc", {}).get("ltp", 0.0)
+                    ff = feed_data["fullFeed"]
+                    if "marketFF" in ff:
+                        ltp = ff["marketFF"].get("ltpc", {}).get("ltp", 0.0)
+                    elif "indexFF" in ff:
+                        ltp = ff["indexFF"].get("ltpc", {}).get("ltp", 0.0)
                 elif "ltpc" in feed_data:
                     ltp = feed_data.get("ltpc", {}).get("ltp", 0.0)
                     
                 if ltp > 0:
-                    # Update our memory cache with the new price
-                    state["latest_prices"][instrument_key] = {'ltp': ltp}
-            
-            # Now we pass the FULL memory cache to the UI and Risk Manager
-            if state["latest_prices"]:
-                with open("live_prices.json", "w") as f:
-                    json.dump(state["latest_prices"], f)
+                    ws_state["latest_prices"][instrument_key] = {'ltp': ltp}
+
+            if ws_state["latest_prices"]:
+                if time.time() - ws_state["last_write_time"] > 1.0:
+                    with open("live_prices.json", "w") as f:
+                        json.dump(ws_state["latest_prices"], f)
+                    ws_state["last_write_time"] = time.time()
                     
-                # Evaluate the full cached prices
-                stop_loss_triggered, current_prices = callback_function(state["latest_prices"], instrument_keys_dict)
+                stop_loss_triggered, current_prices = callback_function(ws_state["latest_prices"], instrument_keys_dict)
                 
                 if stop_loss_triggered:
                     logging.critical(f"Exit Signal Received: {stop_loss_triggered}. Terminating WebSocket.")
-                    # THE FIX: Save the exact signal (e.g., "TAKE_PROFIT") instead of hardcoding True!
-                    state["stop_loss_hit"] = stop_loss_triggered
-                    state["exit_prices"] = current_prices
+                    ws_state["stop_loss_hit"] = stop_loss_triggered
+                    ws_state["exit_prices"] = current_prices
                     streamer.disconnect() 
                     
         except Exception as e:
             logging.error(f"Error parsing live tick data: {e}")
 
-    # ... [Keep your on_error and the rest of the function the same] ...
-
-
     def on_error(error):
         logging.error(f"WebSocket Error: {error}")
-        state["error_count"] += 1
+        ws_state["error_count"] += 1
         
-        # FAIL-SAFE: If it drops 5 times consecutively, kill the trade
-        if state["error_count"] >= 5:
+        if ws_state["error_count"] >= 5:
             logging.critical("CRITICAL: Maximum WebSocket failures reached. Initiating emergency square-off!")
-            state["stop_loss_hit"] = True 
+            ws_state["stop_loss_hit"] = True 
             streamer.disconnect()
 
-    # Bind our unified logic to the streamer events
     streamer.on("message", on_message)
     streamer.on("error", on_error)
     
     logging.info("WebSocket Connected! Streaming live market data...")
     
-    # 1. Start the background streaming thread
     streamer.connect()
     
-    # 2. Block the main thread so it waits patiently for the Risk Manager
-    import time
-    while not state["stop_loss_hit"]:
+    while not ws_state["stop_loss_hit"]:
         time.sleep(1)
+        import datetime
+        now = datetime.datetime.now()
         
-    # Return both the trigger boolean AND the exact exit prices to execution.py
-    return state["stop_loss_hit"], state.get("exit_prices", {})
+        if now.hour > 15 or (now.hour == 15 and now.minute >= 30):
+            logging.info("🏁 Market Closed. Terminating WebSocket gracefully to preserve BTST state.")
+            ws_state["stop_loss_hit"] = "MARKET_CLOSED"
+            streamer.disconnect()
+            break
+
+        if time.time() - ws_state["last_tick_time"] > 60.0:
+            if now.hour == 15 and now.minute == 29:
+                pass 
+            else:
+                logging.critical("☠️ SILENT DEATH DETECTED: No WebSocket ticks received for 60 seconds! Forcing emergency exit.")
+                ws_state["stop_loss_hit"] = "SOCKET_DEAD"
+                streamer.disconnect()
+                break
+
+    return ws_state["stop_loss_hit"], ws_state.get("exit_prices", {})

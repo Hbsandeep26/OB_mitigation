@@ -3,6 +3,10 @@ import config
 import logging
 import state_manager
 import time
+import os
+import datetime
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def calculate_iron_butterfly_legs(index_symbol, spot_price, option_chain_data):
     logging.info("Calculating Iron Butterfly strikes & prices...")
@@ -12,7 +16,6 @@ def calculate_iron_butterfly_legs(index_symbol, spot_price, option_chain_data):
     atm_ce_ltp, atm_pe_ltp = 0, 0
     sell_ce_key, sell_pe_key = "", ""
 
-    # Find the ATM strikes
     for strike_data in option_chain_data:
         if strike_data.get('strike_price') == atm_strike:
             call_info, put_info = strike_data.get('call_options', {}), strike_data.get('put_options', {})
@@ -33,7 +36,6 @@ def calculate_iron_butterfly_legs(index_symbol, spot_price, option_chain_data):
     buy_ce_ltp, buy_pe_ltp = 0, 0
     buy_ce_strike, buy_pe_strike = 0, 0 
 
-    # Find the optimal protective wings
     for strike_data in option_chain_data:
         strike = strike_data.get('strike_price')
         call_info, put_info = strike_data.get('call_options', {}), strike_data.get('put_options', {})
@@ -49,6 +51,10 @@ def calculate_iron_butterfly_legs(index_symbol, spot_price, option_chain_data):
             if pe_ltp > 0 and abs(pe_ltp - target_pe_buy) < best_pe_diff:
                 best_pe_diff, buy_pe_key, buy_pe_ltp = abs(pe_ltp - target_pe_buy), put_info.get('instrument_key'), pe_ltp
                 buy_pe_strike = strike
+
+    if not buy_ce_key or not buy_pe_key:
+        logging.warning("⚠️ Upstox Option Chain is missing deep OTM strikes. Cannot build complete Iron Butterfly. Aborting calculation.")
+        return None, None, None
 
     legs = {"sell_ce": sell_ce_key, "sell_pe": sell_pe_key, "buy_ce": buy_ce_key, "buy_pe": buy_pe_key}
     prices = {"sell_ce": atm_ce_ltp, "sell_pe": atm_pe_ltp, "buy_ce": buy_ce_ltp, "buy_pe": buy_pe_ltp}
@@ -68,19 +74,12 @@ def calculate_iron_butterfly_legs(index_symbol, spot_price, option_chain_data):
 
 
 def risk_management_evaluator(live_data, legs):
-    import os
-    import logging
-    import config
-    import state_manager
-
     state = state_manager.load_state()
     if not state or 'entry_prices' not in state:
         return False, {}
 
     entries = state['entry_prices']
 
-    # --- 1. PARSE LIVE PRICES FIRST ---
-    # We build the clean dictionary immediately so we can return it safely for any exit signal.
     live_sell_ce = live_data.get(legs['sell_ce'], {}).get('ltp', entries['sell_ce'])
     live_sell_pe = live_data.get(legs['sell_pe'], {}).get('ltp', entries['sell_pe'])
     live_buy_ce = live_data.get(legs['buy_ce'], {}).get('ltp', entries['buy_ce'])
@@ -93,63 +92,102 @@ def risk_management_evaluator(live_data, legs):
         'buy_pe': live_buy_pe
     }
 
-    # --- 2. TACTICAL MANUAL EXIT CHECK ---
-    manual_exit_file = "manual_exit_flag.txt"
+    manual_exit_file = os.path.join(BASE_DIR, "manual_exit_flag.txt")
     if os.path.exists(manual_exit_file):
         with open(manual_exit_file, "r") as f:
             if f.read().strip() == "TRUE":
                 logging.critical("🛑 MANUAL EXIT TRIGGERED FROM UI! Forcing Square Off.")
                 os.remove(manual_exit_file)
-                # FIX: Return the clean dictionary!
                 return "MANUAL_EXIT", current_prices 
 
-    # --- 2.5 TIME-BASED EOD EXIT (BTST CHECK) ---
-    import datetime
     now = datetime.datetime.now()
-    
-    # Check if it is exactly 3:15 PM (15:15) or later
     if now.hour > 15 or (now.hour == 15 and now.minute >= 15):
-        btst_file = "btst_flag.txt"
+        btst_file = os.path.join(BASE_DIR, "btst_flag.txt")
         btst_enabled = False
         if os.path.exists(btst_file):
             with open(btst_file, "r") as f:
                 btst_enabled = (f.read().strip() == "TRUE")
                 
-        if not btst_enabled:
-            logging.critical("⏰ 3:15 PM CUTOFF REACHED! BTST is disabled. Forcing End of Day Square Off.")
-            return "TIME_EXIT", current_prices
+        if btst_enabled:
+            return False, {} 
+            
+        logging.critical("⏰ END OF DAY (15:15) REACHED! Forcing Square Off.")
+        return "TIME_EXIT", current_prices
 
-
-    # --- 3. TAKE PROFIT CHECK (The Ceiling) ---
     entry_net = (entries['sell_ce'] + entries['sell_pe']) - (entries['buy_ce'] + entries['buy_pe'])
-    
-    # Get the dynamic target from the UI (defaults to 20%)
-    target_pct = config.get_target_profit_pct() / 100.0
-    target_exit_premium = entry_net * (1.0 - target_pct)
-    
     live_net = (live_sell_ce + live_sell_pe) - (live_buy_ce + live_buy_pe)
     
-    if live_net <= target_exit_premium:
-        logging.critical(f"🎯 TARGET REACHED! Net premium decayed to ₹{live_net:.2f} (Target: ₹{target_exit_premium:.2f}).")
-        # FIX: Return the clean dictionary!
-        return "TAKE_PROFIT", current_prices
+    base_target_pct = config.get_target_profit_pct() / 100.0
+    TRAIL_STEP_PCT = base_target_pct * 0.50      
+    LOCK_IN_PCT = base_target_pct * 0.80         
 
-    # --- 4. HALF-PREMIUM STOP LOSS CHECK (The Floor) ---
-    # Force strict floats to completely prevent "String Math" bugs
+    trail_active = state.get("trail_active", False)
+
+    if trail_active:
+        greedy_target_pct = base_target_pct + TRAIL_STEP_PCT
+        
+        greedy_exit_premium = entry_net * (1.0 - greedy_target_pct)
+        lock_in_exit_premium = entry_net * (1.0 - LOCK_IN_PCT)
+        
+        if live_net <= greedy_exit_premium:
+            logging.critical(f"🌟 MAX TRAIL REACHED! Premium decayed to ₹{live_net:.2f}. Locking in massive {greedy_target_pct*100:.2f}% profit.")
+            return "TAKE_PROFIT", current_prices
+            
+        elif live_net >= lock_in_exit_premium:
+            logging.critical(f"🛡️ TRAIL STOP HIT! Market reversed, but we locked in {LOCK_IN_PCT*100:.2f}% guaranteed profit.")
+            return "TAKE_PROFIT", current_prices
+
+    else:
+        target_exit_premium = entry_net * (1.0 - base_target_pct)
+        
+        if live_net <= target_exit_premium:
+            index_symbol = state.get('index_symbol', 'NIFTY')
+            spot_key = "NSE_INDEX|Nifty 50" if index_symbol == "NIFTY" else "BSE_INDEX|SENSEX"
+            vix_key = "NSE_INDEX|India VIX"
+            
+            live_spot = live_data.get(spot_key, {}).get('ltp', 0.0)
+            live_vix = live_data.get(vix_key, {}).get('ltp', 15.0) 
+            atm_strike = state.get('strikes', {}).get('sell_ce', 0.0)
+            
+            if live_spot > 0 and atm_strike > 0:
+                spot_distance = abs(live_spot - atm_strike) / atm_strike
+                
+                daily_expected_move = live_vix / 19.1
+                dynamic_zone_tolerance = (daily_expected_move / 100.0) * 0.20 
+                
+                if spot_distance <= dynamic_zone_tolerance:
+                    logging.critical(f"🚨 ZONE DEFENSE (VIX: {live_vix:.2f})! Target {base_target_pct*100:.2f}% hit. Spot is safe ({spot_distance*100:.2f}% away). Upgrading target to {(base_target_pct + TRAIL_STEP_PCT)*100:.2f}%!")
+                    state_manager.update_state("trail_active", True)
+                else:
+                    logging.critical(f"🎯 TARGET REACHED outside safe zone (Distance: {spot_distance*100:.2f}% > Limit: {dynamic_zone_tolerance*100:.2f}%). Squaring off for guaranteed {base_target_pct*100:.2f}% profit.")
+                    return "TAKE_PROFIT", current_prices
+            else:
+                logging.critical(f"🎯 TARGET REACHED! (Spot data unavailable). Squaring off for guaranteed {base_target_pct*100:.2f}% profit.")
+                return "TAKE_PROFIT", current_prices
+
+    # --- THE ORIGINAL ROBUST FREAK TICK FILTER ---
+    # This requires 3 ticks of confirmation, saving you from WebSocket anomalies.
     entry_sell_ce = float(entries['sell_ce'])
     entry_sell_pe = float(entries['sell_pe'])
 
     limit_ce = entry_sell_ce * 2.0
     limit_pe = entry_sell_pe * 2.0
-
-    if float(live_sell_ce) >= limit_ce:
-        logging.warning(f"🚨 STOP LOSS: Call leg doubled! (Entry: ₹{entry_sell_ce:.2f}, Limit: ₹{limit_ce:.2f}, Live: ₹{float(live_sell_ce):.2f})")
-        return "STOP_LOSS", current_prices
-
-    if float(live_sell_pe) >= limit_pe:
-        logging.warning(f"🚨 STOP LOSS: Put leg doubled! (Entry: ₹{entry_sell_pe:.2f}, Limit: ₹{limit_pe:.2f}, Live: ₹{float(live_sell_pe):.2f})")
-        return "STOP_LOSS", current_prices
-
-    # If no exits are triggered, keep holding
-    return False, {}
     
+    sl_breach_count = state.get("sl_breach_count", 0)
+
+    if float(live_sell_ce) >= limit_ce or float(live_sell_pe) >= limit_pe:
+        sl_breach_count += 1
+        state_manager.update_state("sl_breach_count", sl_breach_count)
+        
+        logging.warning(f"⚠️ FREAK TICK WARNING: Stop Loss breached. Confirmation count: {sl_breach_count}/3")
+        
+        if sl_breach_count >= 3:
+            logging.critical("🚨 CONFIRMED STOP LOSS: Price sustained above limit for 3 ticks. Exiting.")
+            return "STOP_LOSS", current_prices
+        return False, {} 
+        
+    else:
+        if sl_breach_count > 0:
+            state_manager.update_state("sl_breach_count", 0)
+            
+    return False, {}

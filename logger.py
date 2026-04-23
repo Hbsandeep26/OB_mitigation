@@ -3,7 +3,10 @@ import csv
 import os
 from datetime import datetime
 
-LOG_FILE = "sandbox_trade_logs.csv"
+#LOG_FILE = "sandbox_trade_logs.csv"
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOG_FILE = os.path.join(BASE_DIR, "sandbox_trade_logs.csv")
 
 def init_logger():
     if not os.path.exists(LOG_FILE):

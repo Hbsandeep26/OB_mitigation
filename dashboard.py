@@ -20,31 +20,9 @@ PID_FILE = os.path.join(BASE_DIR, "engine_pid.txt")
 STATE_FILE = os.path.join(BASE_DIR, "trade_state.json")
 LOG_FILE_PATH = os.path.join(BASE_DIR, "bot.log")
 CSV_LOG_FILE = os.path.join(BASE_DIR, "sandbox_trade_logs.csv")
-EXPIRY_FILE = os.path.join(BASE_DIR, "expiries.json")
 BTST_FILE = os.path.join(BASE_DIR, "btst_flag.txt")
 PANIC_FILE = os.path.join(BASE_DIR, "panic_flag.txt")
 LIVE_FILE = os.path.join(BASE_DIR, "live_prices.json")
-
-# --- 1. LOAD SAVED STATES FIRST (Fixes #1, #6, #11) ---
-saved_nifty = datetime.date.today()
-saved_sensex = datetime.date.today()
-
-if os.path.exists(EXPIRY_FILE):
-    try:
-        with open(EXPIRY_FILE, "r") as f:
-            data = json.load(f)
-            saved_nifty = datetime.datetime.strptime(data.get("NIFTY", str(saved_nifty)), "%Y-%m-%d").date()
-            saved_sensex = datetime.datetime.strptime(data.get("SENSEX", str(saved_sensex)), "%Y-%m-%d").date()
-    except Exception:
-        pass
-
-btst_state = False
-if os.path.exists(BTST_FILE):
-    try:
-        with open(BTST_FILE, "r") as f:
-            btst_state = (f.read().strip() == "TRUE")
-    except Exception:
-        pass
 
 def load_settings():
     if os.path.exists(SETTINGS_FILE):
@@ -57,6 +35,29 @@ def save_settings(new_settings):
         json.dump(new_settings, f, indent=4)
 
 settings = load_settings()
+
+# --- 1. LOAD SAVED STATES FIRST ---
+saved_nifty = datetime.date.today()
+saved_sensex = datetime.date.today()
+
+# --- THE UNIFIED BRAIN FIX: Read Expiries from settings.json ---
+if "NIFTY_EXPIRY" in settings:
+    try:
+        saved_nifty = datetime.datetime.strptime(settings["NIFTY_EXPIRY"], "%Y-%m-%d").date()
+    except Exception: pass
+
+if "SENSEX_EXPIRY" in settings:
+    try:
+        saved_sensex = datetime.datetime.strptime(settings["SENSEX_EXPIRY"], "%Y-%m-%d").date()
+    except Exception: pass
+
+btst_state = False
+if os.path.exists(BTST_FILE):
+    try:
+        with open(BTST_FILE, "r") as f:
+            btst_state = (f.read().strip() == "TRUE")
+    except Exception:
+        pass
 
 # --- SIDEBAR: AUTH & SETTINGS ---
 st.sidebar.header("⚙️ Bot Configuration")
@@ -95,41 +96,30 @@ else:
                 except Exception as e:
                     st.error(f"Error: {e}")
 
-st.sidebar.subheader("🟡 Sandbox Authentication")
-new_sandbox_token = st.sidebar.text_input("30-Day Sandbox Token", value=settings.get("SANDBOX_ACCESS_TOKEN", ""), type="password")
-if st.sidebar.button("💾 Save Sandbox Token"):
-    settings["SANDBOX_ACCESS_TOKEN"] = new_sandbox_token
-    save_settings(settings)
-    st.sidebar.success("Sandbox Token Saved!")
-
 # --- SIDEBAR: UNIFIED TRADING PARAMETERS ---
 st.sidebar.subheader("📊 Trading Parameters")
 
-# Unified Expiry & BTST Inputs
 nifty_exp = st.sidebar.date_input("NIFTY Expiry Date", saved_nifty)
 sensex_exp = st.sidebar.date_input("SENSEX Expiry Date", saved_sensex)
-
-with open(EXPIRY_FILE, "w") as f:
-    json.dump({"NIFTY": str(nifty_exp), "SENSEX": str(sensex_exp)}, f)
 
 enable_btst = st.sidebar.toggle("🌙 Enable BTST (Carry Forward)", value=btst_state)
 with open(BTST_FILE, "w") as f:
     f.write("TRUE" if enable_btst else "FALSE")
 
-# Other form settings
 with st.sidebar.form("config_form"):
     env_mode = st.selectbox("Environment", ["SANDBOX", "LIVE"], index=0 if settings.get("ENVIRONMENT") == "SANDBOX" else 1)
     nifty_qty = st.number_input("Nifty Qty (Multiples of 65)", value=settings.get("NIFTY_LOT_SIZE", 65), step=65)
     sensex_qty = st.number_input("Sensex Qty (Multiples of 20)", value=settings.get("SENSEX_LOT_SIZE", 20), step=20)
-
-    # THE NEW UI ELEMENT
-    target_profit_pct = st.number_input("Target Profit (%)", value=settings.get("TARGET_PROFIT_PCT", 20), step=1)
     
     if st.form_submit_button("💾 Save Settings"):
         settings["ENVIRONMENT"] = env_mode
         settings["NIFTY_LOT_SIZE"] = nifty_qty
         settings["SENSEX_LOT_SIZE"] = sensex_qty
-        settings["TARGET_PROFIT_PCT"] = target_profit_pct
+        
+        # --- THE UNIFIED BRAIN FIX: Save Expiries to settings.json ---
+        settings["NIFTY_EXPIRY"] = str(nifty_exp)
+        settings["SENSEX_EXPIRY"] = str(sensex_exp)
+        
         save_settings(settings)
         st.sidebar.success("Settings Saved!")
 
@@ -189,7 +179,6 @@ st.sidebar.caption("You can now safely control the bot entirely from this UI.")
 # --- MAIN DASHBOARD ---
 st.title("🦅 Iron Butterfly Command Center")
 
-# --- SYSTEM STATUS & PANIC CONTROLS (Fixes #7, #12) ---
 # --- SYSTEM STATUS & MANUAL EXIT CONTROLS ---
 col1, col2 = st.columns([3, 1])
 
@@ -205,7 +194,6 @@ with col1:
     else:
         st.error("🔴 ENGINE STATUS: STOPPED")
 
-# Read the state early to determine if the button should be active
 is_trade_active = False
 if os.path.exists(STATE_FILE):
     try:
@@ -214,17 +202,13 @@ if os.path.exists(STATE_FILE):
     except Exception:
         pass
 
-# --- 🚨 TIME-BASED LOCKOUT LOGIC ---
+# Time Logic for Lockout
 now = datetime.datetime.now()
-# Define standard NSE trading hours (09:15 AM to 15:30 PM)
 market_open = now.replace(hour=9, minute=15, second=0, microsecond=0)
 market_close = now.replace(hour=15, minute=30, second=0, microsecond=0)
-
-# Check if current time is inside trading hours AND it is a weekday (Monday=0 to Friday=4)
 is_trading_hours = (market_open <= now <= market_close) and (now.weekday() < 5)
 
 with col2:
-    # The button is physically disabled if NO trade is active OR the market is CLOSED
     button_locked = (not is_trade_active) or (not is_trading_hours)
     
     if st.button("🛑 MANUAL EXIT", type="primary", disabled=button_locked):
@@ -233,26 +217,27 @@ with col2:
             f.write("TRUE")
         st.toast("Manual exit signal sent! Engine will square off immediately.")
         
-    # Quality of Life: Add a tiny UI text so you know *why* the button is grayed out
     if not is_trading_hours:
         st.caption("🔒 Locked: Outside Market Hours")
-
 
 st.markdown("---")
 
 col_status, col_logs = st.columns([1, 1.5])
-
+            
 with col_status:
     st.subheader("📡 Live System Status")
     
     if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, "r") as f:
-            state = json.load(f)
+        state = {}
+        try:
+            with open(STATE_FILE, "r") as f:
+                state = json.load(f)
+        except json.JSONDecodeError:
+            pass 
             
         if state.get("active"):
             st.success(f"🟢 ACTIVE TRADE: {state['index_symbol']} | Qty: {state.get('quantity', 'N/A')}")
-            
-            # --- SAFE JSON LOADING (Fixes Race Condition #8) ---
+
             live_ticks = {}
             if os.path.exists(LIVE_FILE):
                 try:
@@ -298,23 +283,47 @@ with col_status:
             
             st.dataframe(df_live.style.applymap(color_pnl, subset=['PnL / Point']), hide_index=True, width='stretch')
             
-            # --- REAL PNL & BROKERAGE CALCULATOR (Fixes #3, #9, #10) ---
+            # --- REAL PNL & TARGET CALCULATOR ---
             qty = state.get('quantity', settings.get("NIFTY_LOT_SIZE", 65) if state['index_symbol'] == 'NIFTY' else settings.get("SENSEX_LOT_SIZE", 20))
             
             entry_net = (entries['sell_ce'] + entries['sell_pe']) - (entries['buy_ce'] + entries['buy_pe'])
             live_net = (live_sell_ce + live_sell_pe) - (live_buy_ce + live_buy_pe)
             
-            # Math: (Entry Credit - Live Cost to Buy Back) * Quantity
+            # --- GROSS PNL FIX APPLIED HERE ---
             gross_pnl = (entry_net - live_net) * qty
             
-            # Deduct fixed brokerage for 4 legs (approx ₹170)
-            net_pnl = gross_pnl - 170.0 
+            # Target Math
+            current_target_pct = settings.get("TARGET_PROFIT_PCT", 10)
+            target_gross_pnl = (entry_net * (current_target_pct / 100.0)) * qty
             
             st.markdown("---")
-            if net_pnl >= 0:
-                st.metric("Net Profit/Loss (Post-Brokerage)", f"₹{net_pnl:.2f}", delta="In Profit", delta_color="normal")
-            else:
-                st.metric("Net Profit/Loss (Post-Brokerage)", f"-₹{abs(net_pnl):.2f}", delta="In Loss", delta_color="inverse")
+            
+            # --- 3-COLUMN LAYOUT FOR METRICS AND HOT-SWAP ---
+            metric_col1, metric_col2, metric_col3 = st.columns([1.5, 1.5, 1.2])
+            
+            with metric_col1:
+                if gross_pnl >= 0:
+                    st.metric("Live Gross PnL", f"₹{gross_pnl:.2f}", delta="In Profit", delta_color="normal")
+                else:
+                    st.metric("Live Gross PnL", f"-₹{abs(gross_pnl):.2f}", delta="In Loss", delta_color="inverse")
+            
+            with metric_col2:
+                st.metric("🎯 Target PnL Amount", f"₹{target_gross_pnl:.2f}", delta=f"At {current_target_pct}%", delta_color="off")
+                
+            with metric_col3:
+                new_target = st.number_input(
+                    "Hot-Swap Target (%)", 
+                    value=current_target_pct, 
+                    step=1,
+                    help="Changes apply instantly to the live trade."
+                )
+                
+                # Save instantly and trigger UI refresh if changed
+                if new_target != current_target_pct:
+                    settings["TARGET_PROFIT_PCT"] = new_target
+                    save_settings(settings)
+                    st.toast(f"Target updated to {new_target}%!")
+                    st.rerun()
 
         else:
             st.warning("🟡 SYSTEM IDLE: Waiting for schedule.")
