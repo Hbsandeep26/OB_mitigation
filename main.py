@@ -1,10 +1,12 @@
 # main.py
 import os
+import sys
 import logging
 import json
+import re
 import schedule
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 import config
 import state_manager
 
@@ -15,23 +17,41 @@ from execution import place_iron_butterfly_basket, square_off_all
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# --- THE LOGGING FIX: Prevent Double Logs ---
+# ============================================================================
+# THE DOUBLE-LOG FIX: Only add StreamHandler when running in a real terminal.
+# When launched via dashboard's subprocess.Popen(stdout=log_file), stdout IS
+# bot.log, so StreamHandler + RotatingFileHandler both write to bot.log = dupes.
+# ============================================================================
 from logging.handlers import RotatingFileHandler
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-logger.propagate = False # THIS FIXES THE DOUBLE PRINTING
+logger.propagate = False
 
 if logger.hasHandlers():
     logger.handlers.clear()
 
 log_file_path = os.path.join(BASE_DIR, "bot.log")
 file_handler = RotatingFileHandler(log_file_path, maxBytes=5*1024*1024, backupCount=3)
-stream_handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
-stream_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
-logger.addHandler(stream_handler)
+
+# Only add console output when running in a real terminal (not piped to file)
+if sys.stdout.isatty():
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+
+
+# ============================================================================
+# EXPIRY DATE VALIDATOR
+# ============================================================================
+
+def is_valid_expiry(expiry_date):
+    """Validates that expiry_date is in YYYY-MM-DD format and not a placeholder."""
+    if not expiry_date or expiry_date in ("UNKNOWN", "RECOVERY", ""):
+        return False
+    return bool(re.match(r'^\d{4}-\d{2}-\d{2}$', expiry_date))
 
 
 # ============================================================================
@@ -81,6 +101,22 @@ def check_opening_gap(index_symbol):
 def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_minute):
     logging.info(f"--- STARTING CONTINUOUS SESSION FOR {index_symbol} ---")
 
+    # ================================================================
+    # EXPIRY DATE VALIDATION GUARD
+    # ================================================================
+    if not is_valid_expiry(expiry_date):
+        logging.critical(
+            f"❌ INVALID EXPIRY DATE: '{expiry_date}' for {index_symbol}. "
+            f"Cannot deploy trades. Please fix the expiry in settings.json or the dashboard!"
+        )
+        import notifier
+        notifier.send_telegram_alert(
+            f"❌ <b>INVALID EXPIRY DATE!</b>\n"
+            f"{index_symbol}: '{expiry_date}'\n"
+            f"Fix settings.json and restart."
+        )
+        return
+
     manual_exit_file = os.path.join(BASE_DIR, "manual_exit_flag.txt")
     if os.path.exists(manual_exit_file):
         os.remove(manual_exit_file)
@@ -88,12 +124,16 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
     # ================================================================
     # PHASE 0: BTST CARRY FORWARD RECOVERY
     # ================================================================
+    btst_exit_reason = None  # Track why the carry-forward exited
+    
     state = state_manager.load_state()
     if state and state.get("active"):
         logging.critical(f"🌙 BTST CARRY FORWARD DETECTED: Waking up existing {index_symbol} trade.")
         stop_loss_hit, exit_prices = monitor_live_prices(state['legs'], risk_management_evaluator)
         
         if stop_loss_hit:
+            btst_exit_reason = stop_loss_hit  # Remember why we exited
+            
             if stop_loss_hit == "TAKE_PROFIT":
                 logging.critical(f"💰 PROFIT LOCKED on {index_symbol} Carry Forward trade! Squaring off...")
             elif stop_loss_hit == "STOP_LOSS":
@@ -102,6 +142,8 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
                 logging.critical(f"🌊 ATM Drift detected on {index_symbol} Carry Forward. Structure broken — squaring off...")
             elif stop_loss_hit == "TIME_EXIT":
                 logging.critical(f"⏰ EOD Cutoff triggered on Carry Forward trade. Squaring off...")
+            elif stop_loss_hit == "MANUAL_EXIT":
+                logging.critical(f"🛑 Manual Exit on {index_symbol} Carry Forward. Squaring off...")
             else:
                 logging.info(f"🔄 Exit Signal ({stop_loss_hit}) received on Carry Forward. Squaring off...")
                 
@@ -115,18 +157,18 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
                 logging.info("🧹 Auto-cleared BTST flag from UI so the fresh trade doesn't carry forward blindly.")
             except Exception: pass
 
+        # --- BUG FIX: If manual exit was triggered, STOP the session entirely ---
+        if btst_exit_reason == "MANUAL_EXIT":
+            logging.critical("⏸️ MANUAL EXIT on carry-forward — halting session. No new trades will be deployed.")
+            return
+
     # ================================================================
     # PHASE 1: OPENING RANGE GAP FILTER
     # ================================================================
     gap_detected, gap_pct = check_opening_gap(index_symbol)
     if gap_detected:
-        settle_end = datetime.now()
-        settle_end = settle_end.replace(
-            minute=settle_end.minute + config.GAP_SETTLE_MINUTES
-        ) if settle_end.minute + config.GAP_SETTLE_MINUTES < 60 else settle_end.replace(
-            hour=settle_end.hour + 1,
-            minute=(settle_end.minute + config.GAP_SETTLE_MINUTES) % 60
-        )
+        # --- BUG FIX: Use timedelta instead of manual minute arithmetic (overflow-safe) ---
+        settle_end = datetime.now() + timedelta(minutes=config.GAP_SETTLE_MINUTES)
         
         logging.info(f"⏳ Gap Filter: Waiting until {settle_end.strftime('%H:%M')} for market to stabilize...")
         while datetime.now() < settle_end:
@@ -150,9 +192,11 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             time.sleep(2)
 
     # ================================================================
-    # PHASE 3: MAIN TRADING LOOP (with Circuit Breaker)
+    # PHASE 3: MAIN TRADING LOOP (with Circuit Breaker + API Retry Limit)
     # ================================================================
     consecutive_losses = 0
+    api_retry_count = 0
+    MAX_API_RETRIES = 5
 
     while True:
         now = datetime.now()
@@ -182,9 +226,26 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         chain = get_option_chain(index_symbol, expiry_date) if spot else None
         
         if not spot or not chain:
-            logging.warning(f"⚠️ API Rejection: Spot found={bool(spot)}, Chain found={bool(chain)}. Check Upstox Token or Expiry Date ({expiry_date}). Retrying in 30s...")
+            api_retry_count += 1
+            if api_retry_count >= MAX_API_RETRIES:
+                logging.critical(
+                    f"❌ API failures exceeded {MAX_API_RETRIES} retries for {index_symbol}. "
+                    f"Halting session to prevent infinite loop. Check Upstox token and expiry date ({expiry_date})."
+                )
+                import notifier
+                notifier.send_telegram_alert(
+                    f"❌ <b>API FAILURE LIMIT HIT!</b>\n"
+                    f"{index_symbol}: {MAX_API_RETRIES} consecutive API failures.\n"
+                    f"Expiry: {expiry_date}\n"
+                    f"Check token and settings!"
+                )
+                break
+            logging.warning(f"⚠️ API Rejection ({api_retry_count}/{MAX_API_RETRIES}): Spot found={bool(spot)}, Chain found={bool(chain)}. Check Upstox Token or Expiry Date ({expiry_date}). Retrying in 30s...")
             time.sleep(30)
             continue
+        
+        # Reset API retry counter on success
+        api_retry_count = 0
 
         # --- FETCH INDIA VIX & DETERMINE SESSION PROFILE ---
         live_vix = get_india_vix()
@@ -200,9 +261,16 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         )
         
         if not legs:
-            logging.warning(f"⚠️ Math Rejection: Could not find valid protective wings for {index_symbol} in the current option chain. Retrying in 30s...")
+            api_retry_count += 1
+            if api_retry_count >= MAX_API_RETRIES:
+                logging.critical(f"❌ Wing calculation failed {MAX_API_RETRIES} times. Halting session.")
+                break
+            logging.warning(f"⚠️ Math Rejection ({api_retry_count}/{MAX_API_RETRIES}): Could not find valid protective wings for {index_symbol} in the current option chain. Retrying in 30s...")
             time.sleep(30)
             continue
+        
+        # Reset API retry counter on success
+        api_retry_count = 0
         
         # --- THE PRICE SYNCHRONIZATION FIX ---
         logging.info("Synchronizing with Live Exchange Quotes to bypass cached API data...")
@@ -274,7 +342,15 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         
         elif stop_loss_hit == "MARKET_CLOSED":
             logging.info(f"🛑 Live market feed ended for {index_symbol}. Proceeding to EOD evaluation.")
-            break 
+            break
+
+        elif stop_loss_hit == "SOCKET_DEAD":
+            # --- SOCKET_DEAD: WebSocket died, NOT a trading loss ---
+            logging.critical(f"☠️ WebSocket died for {index_symbol}. This is NOT a trading loss — attempting reconnection...")
+            # Don't count as a loss, don't square off — let the loop retry with a fresh connection
+            logging.info("Cooling down for 30 seconds before reconnection attempt...")
+            time.sleep(30)
+            continue  # Skip the rest, retry from the top
 
         elif stop_loss_hit == "TIME_EXIT":
             logging.critical(f"⏰ EOD Cutoff triggered for {index_symbol}. Squaring off and ending session.")
@@ -397,9 +473,13 @@ def build_todays_schedule():
 # ============================================================================
 
 if __name__ == "__main__":
+    # Ensure clean handler state at startup
     if logger.hasHandlers():
         logger.handlers.clear()
-        logger.addHandler(file_handler)
+    logger.addHandler(file_handler)
+    if sys.stdout.isatty():
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(formatter)
         logger.addHandler(stream_handler)
         
     logging.info("System Architect Bot V4 Initialized — Master Architecture Active 🏛️")
@@ -410,6 +490,7 @@ if __name__ == "__main__":
     logging.info(f"  Circuit Breaker: ON ({config.MAX_CONSECUTIVE_LOSSES} consecutive losses)")
     logging.info(f"  Opening Range Gap Filter: ON ({config.GAP_THRESHOLD_PCT*100:.1f}% threshold, {config.GAP_SETTLE_MINUTES}min settle)")
     logging.info(f"  Expiry Day Theta Squeeze: ON")
+    logging.info(f"  Double-Log Fix: ON (stream_handler={sys.stdout.isatty()})")
 
     nifty_expiry, sensex_expiry = "UNKNOWN", "UNKNOWN"
     settings_file = os.path.join(BASE_DIR, "settings.json")

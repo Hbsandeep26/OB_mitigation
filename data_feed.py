@@ -5,7 +5,10 @@ import requests
 import urllib.parse
 import upstox_client
 import json
-import time 
+import time
+import os
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def get_spot_price(index_symbol):
     logging.info(f"Fetching live spot price for {index_symbol}...")
@@ -242,7 +245,8 @@ def monitor_live_prices(instrument_keys_dict, callback_function):
 
             if ws_state["latest_prices"]:
                 if time.time() - ws_state["last_write_time"] > 1.0:
-                    with open("live_prices.json", "w") as f:
+                    live_prices_path = os.path.join(BASE_DIR, "live_prices.json")
+                    with open(live_prices_path, "w") as f:
                         json.dump(ws_state["latest_prices"], f)
                     ws_state["last_write_time"] = time.time()
                     
