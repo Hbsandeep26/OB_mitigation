@@ -304,12 +304,28 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         state_manager.update_state("cutoff_minute", cutoff_minute)
             
         logging.info("Entering live risk monitoring phase...")
+        trade_entry_time = datetime.now()  # Track when this trade was deployed
 
         stop_loss_hit, exit_prices = monitor_live_prices(legs, risk_management_evaluator)
 
         # ================================================================
         # EXIT SIGNAL HANDLING
         # ================================================================
+        
+        # --- MINIMUM TRADE DURATION GUARD ---
+        # If a trade exits within 30 seconds of entry, something is wrong
+        # (stale prices, instant stop-loss on first tick, etc.)
+        trade_duration = (datetime.now() - trade_entry_time).total_seconds()
+        if trade_duration < 30 and stop_loss_hit not in ("MANUAL_EXIT", "TIME_EXIT", "MARKET_CLOSED"):
+            logging.critical(
+                f"⚠️ FLASH EXIT DETECTED! Trade lasted only {trade_duration:.0f}s. "
+                f"This likely means stale/incomplete price data triggered a false exit. "
+                f"Squaring off safely and pausing for 120 seconds."
+            )
+            square_off_all(exit_prices)
+            consecutive_losses += 1
+            time.sleep(120)
+            continue
 
         if stop_loss_hit == "MANUAL_EXIT":
             logging.critical(f"🛑 Manual Exit executed. Squaring off {index_symbol}...")
@@ -404,13 +420,20 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
 
 
 # ============================================================================
-# SCHEDULE BUILDER — EXPIRY DAY THETA SQUEEZE
+# SCHEDULE BUILDER — EXPIRY DAY STRATEGY
 # ============================================================================
 
 def build_todays_schedule():
     schedule.clear('trading_jobs')
     now = datetime.now()
     today_str = now.strftime("%Y-%m-%d")
+
+    # ================================================================
+    # WEEKEND GUARD: Never create trading jobs on Saturday/Sunday
+    # ================================================================
+    if now.weekday() >= 5:
+        logging.info(f"📅 WEEKEND DETECTED ({today_str} - {now.strftime('%A')}). No trading jobs scheduled.")
+        return
 
     if hasattr(config, 'MARKET_HOLIDAYS') and today_str in config.MARKET_HOLIDAYS:
         logging.critical(f"🌴 MARKET HOLIDAY DETECTED ({today_str}). The bot will sleep all day.")
@@ -427,35 +450,35 @@ def build_todays_schedule():
         except Exception: pass
 
     # ================================================================
-    # EXPIRY DAY THETA SQUEEZE:
-    # The EXPIRING index enters in the AFTERNOON (12:30 PM) to avoid
-    # morning directional risk. The other index gets the morning slot.
+    # EXPIRY DAY STRATEGY:
+    # The EXPIRING index trades in the MORNING (first half) to capture
+    # rapid theta decay. The other index gets the afternoon slot.
     # ================================================================
 
     if today_str == nifty_expiry:
-        logging.critical(f"🎯 NIFTY EXPIRY DETECTED ({today_str}). Theta Squeeze: Nifty enters AFTERNOON, Sensex gets MORNING.")
-        # Sensex in the morning (safe, not expiring)
-        schedule.every().day.at("09:15").do(
-            continuous_trading_session, index_symbol="SENSEX", 
-            expiry_date=sensex_expiry, cutoff_hour=12, cutoff_minute=30
-        ).tag('trading_jobs')
-        # Nifty in the afternoon (expiring — enter late for theta decay)
-        schedule.every().day.at("12:31").do(
-            continuous_trading_session, index_symbol="NIFTY", 
-            expiry_date=nifty_expiry, cutoff_hour=15, cutoff_minute=15
-        ).tag('trading_jobs')
-
-    elif today_str == sensex_expiry:
-        logging.critical(f"🎯 SENSEX EXPIRY DETECTED ({today_str}). Theta Squeeze: Sensex enters AFTERNOON, Nifty gets MORNING.")
-        # Nifty in the morning (safe, not expiring)
+        logging.critical(f"🎯 NIFTY EXPIRY DETECTED ({today_str}). Expiry Strategy: Nifty MORNING (theta capture), Sensex AFTERNOON.")
+        # Nifty in the morning (expiring — capture rapid theta decay)
         schedule.every().day.at("09:15").do(
             continuous_trading_session, index_symbol="NIFTY", 
             expiry_date=nifty_expiry, cutoff_hour=12, cutoff_minute=30
         ).tag('trading_jobs')
-        # Sensex in the afternoon (expiring — enter late for theta decay)
+        # Sensex in the afternoon (safe, not expiring)
         schedule.every().day.at("12:31").do(
             continuous_trading_session, index_symbol="SENSEX", 
             expiry_date=sensex_expiry, cutoff_hour=15, cutoff_minute=15
+        ).tag('trading_jobs')
+
+    elif today_str == sensex_expiry:
+        logging.critical(f"🎯 SENSEX EXPIRY DETECTED ({today_str}). Expiry Strategy: Sensex MORNING (theta capture), Nifty AFTERNOON.")
+        # Sensex in the morning (expiring — capture rapid theta decay)
+        schedule.every().day.at("09:15").do(
+            continuous_trading_session, index_symbol="SENSEX", 
+            expiry_date=sensex_expiry, cutoff_hour=12, cutoff_minute=30
+        ).tag('trading_jobs')
+        # Nifty in the afternoon (safe, not expiring)
+        schedule.every().day.at("12:31").do(
+            continuous_trading_session, index_symbol="NIFTY", 
+            expiry_date=nifty_expiry, cutoff_hour=15, cutoff_minute=15
         ).tag('trading_jobs')
     
     else:
@@ -473,24 +496,17 @@ def build_todays_schedule():
 # ============================================================================
 
 if __name__ == "__main__":
-    # Ensure clean handler state at startup
-    if logger.hasHandlers():
-        logger.handlers.clear()
-    logger.addHandler(file_handler)
-    if sys.stdout.isatty():
-        stream_handler = logging.StreamHandler()
-        stream_handler.setFormatter(formatter)
-        logger.addHandler(stream_handler)
+    # Handler setup already done at module level — no need to duplicate here
         
-    logging.info("System Architect Bot V4 Initialized — Master Architecture Active 🏛️")
+    logging.info("System Architect Bot V5 Initialized — Master Architecture Active 🏛️")
     logging.info(f"  VIX Adaptive Profiles: ON (Low<{config.VIX_LOW_THRESHOLD}, High>{config.VIX_HIGH_THRESHOLD})")
     logging.info(f"  Delta-Based Wings: ON")
     logging.info(f"  Ratchet Trailing Stop: ON (Floor={config.TRAIL_LOCK_FLOOR_PCT*100:.0f}%, Ratchet={config.TRAIL_RATCHET_FACTOR*100:.0f}%)")
     logging.info(f"  ATM Drift Guard: ON ({config.ATM_DRIFT_MULTIPLIER}x wing width)")
     logging.info(f"  Circuit Breaker: ON ({config.MAX_CONSECUTIVE_LOSSES} consecutive losses)")
     logging.info(f"  Opening Range Gap Filter: ON ({config.GAP_THRESHOLD_PCT*100:.1f}% threshold, {config.GAP_SETTLE_MINUTES}min settle)")
-    logging.info(f"  Expiry Day Theta Squeeze: ON")
-    logging.info(f"  Double-Log Fix: ON (stream_handler={sys.stdout.isatty()})")
+    logging.info(f"  Expiry Day Strategy: Expiring index trades MORNING, other AFTERNOON")
+    logging.info(f"  Weekend Guard: ON")
 
     nifty_expiry, sensex_expiry = "UNKNOWN", "UNKNOWN"
     settings_file = os.path.join(BASE_DIR, "settings.json")
@@ -528,15 +544,15 @@ if __name__ == "__main__":
         afternoon_start = datetime.strptime("12:31", "%H:%M").time()
         eod_cutoff = datetime.strptime("15:15", "%H:%M").time()
 
-        # --- EXPIRY DAY THETA SQUEEZE: Swap morning/afternoon assignment ---
+        # --- EXPIRY DAY STRATEGY: Expiring index trades MORNING, other AFTERNOON ---
         if today_str == nifty_expiry:
-            # Nifty expiring → Sensex morning, Nifty afternoon
-            morning_idx, afternoon_idx = "SENSEX", "NIFTY"
-            morning_exp, afternoon_exp = sensex_expiry, nifty_expiry
-        elif today_str == sensex_expiry:
-            # Sensex expiring → Nifty morning, Sensex afternoon
+            # Nifty expiring → Nifty morning (theta capture), Sensex afternoon
             morning_idx, afternoon_idx = "NIFTY", "SENSEX"
             morning_exp, afternoon_exp = nifty_expiry, sensex_expiry
+        elif today_str == sensex_expiry:
+            # Sensex expiring → Sensex morning (theta capture), Nifty afternoon
+            morning_idx, afternoon_idx = "SENSEX", "NIFTY"
+            morning_exp, afternoon_exp = sensex_expiry, nifty_expiry
         else:
             default_idx = "SENSEX" if now.strftime("%A").upper() in ["WEDNESDAY", "THURSDAY"] else "NIFTY"
             default_exp = sensex_expiry if default_idx == "SENSEX" else nifty_expiry

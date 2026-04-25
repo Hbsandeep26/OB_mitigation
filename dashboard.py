@@ -183,11 +183,16 @@ st.title("🦅 Iron Butterfly Command Center V4")
 col1, col2 = st.columns([3, 1])
 
 with col1:
-    try:
-        output = subprocess.check_output(["pgrep", "-f", "main.py"]).decode().strip()
-        engine_running = len(output) > 0
-    except subprocess.CalledProcessError:
-        engine_running = False
+    # --- ENGINE STATUS: Cross-platform detection via PID file ---
+    engine_running = False
+    if os.path.exists(PID_FILE):
+        try:
+            with open(PID_FILE, "r") as f:
+                pid = int(f.read().strip())
+            if psutil.pid_exists(pid):
+                engine_running = True
+        except Exception:
+            pass
 
     if engine_running:
         st.success("🟢 ENGINE STATUS: RUNNING")

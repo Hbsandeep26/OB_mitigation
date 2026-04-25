@@ -125,14 +125,26 @@ def square_off_all(exit_prices=None):
         legs = state['legs']
         index_symbol = state['index_symbol']
 
-        # --- THE BLACKOUT FIX: Safe Fallback Dictionary ---
+        # --- THE BLACKOUT FIX V2: Detect both empty AND all-zero exit prices ---
         if not exit_prices:
             exit_prices = {}
+        
+        # Check if all exit prices are zero (WebSocket had no data)
+        all_zeros = (
+            exit_prices and 
+            all(exit_prices.get(k, 0) == 0 for k in ('sell_ce', 'sell_pe', 'buy_ce', 'buy_pe'))
+        )
+        
+        if all_zeros:
+            logging.warning(
+                "⚠️ All exit prices are ₹0 (WebSocket had no data). "
+                "Falling back to entry prices for PnL calculation. Real PnL = ₹0."
+            )
             
-        safe_exit_sell_ce = exit_prices.get('sell_ce', entry['sell_ce'])
-        safe_exit_sell_pe = exit_prices.get('sell_pe', entry['sell_pe'])
-        safe_exit_buy_ce = exit_prices.get('buy_ce', entry['buy_ce'])
-        safe_exit_buy_pe = exit_prices.get('buy_pe', entry['buy_pe'])
+        safe_exit_sell_ce = exit_prices.get('sell_ce', entry['sell_ce']) if not all_zeros else entry['sell_ce']
+        safe_exit_sell_pe = exit_prices.get('sell_pe', entry['sell_pe']) if not all_zeros else entry['sell_pe']
+        safe_exit_buy_ce = exit_prices.get('buy_ce', entry['buy_ce']) if not all_zeros else entry['buy_ce']
+        safe_exit_buy_pe = exit_prices.get('buy_pe', entry['buy_pe']) if not all_zeros else entry['buy_pe']
 
         # Premium Paid to close the trade
         exit_premium = (safe_exit_sell_ce + safe_exit_sell_pe) - (safe_exit_buy_ce + safe_exit_buy_pe)
