@@ -222,7 +222,7 @@ def monitor_live_prices(instrument_keys_dict, callback_function):
     def on_message(message):
         try:
             ws_state["error_count"] = 0 
-            ws_state["last_tick_time"] = time.time() 
+            tick_received_at = time.time()
             
             if isinstance(message, str):
                 message = json.loads(message)
@@ -242,7 +242,8 @@ def monitor_live_prices(instrument_keys_dict, callback_function):
                     ltp = feed_data.get("ltpc", {}).get("ltp", 0.0)
                     
                 if ltp > 0:
-                    ws_state["latest_prices"][instrument_key] = {'ltp': ltp}
+                    ws_state["last_tick_time"] = tick_received_at
+                    ws_state["latest_prices"][instrument_key] = {'ltp': ltp, 'ts': tick_received_at}
 
             if ws_state["latest_prices"]:
                 if time.time() - ws_state["last_write_time"] > 1.0:
@@ -250,27 +251,32 @@ def monitor_live_prices(instrument_keys_dict, callback_function):
                     temp_fd, temp_path = tempfile.mkstemp(dir=os.path.dirname(live_prices_path))
                     with os.fdopen(temp_fd, 'w') as f:
                         json.dump(ws_state["latest_prices"], f)
-                    os.replace(temp_path, live_prices_path)
+                    for _ in range(5):
+                        try:
+                            os.replace(temp_path, live_prices_path)
+                            break
+                        except PermissionError:
+                            time.sleep(0.05)
                     ws_state["last_write_time"] = time.time()
                     
                 stop_loss_triggered, current_prices = callback_function(ws_state["latest_prices"], instrument_keys_dict)
-                
                 if stop_loss_triggered:
                     logging.critical(f"Exit Signal Received: {stop_loss_triggered}. Terminating WebSocket.")
                     ws_state["stop_loss_hit"] = stop_loss_triggered
                     ws_state["exit_prices"] = current_prices
                     streamer.disconnect() 
                     
+        except ValueError as e:
+            logging.warning(f"Risk evaluation skipped due to stale/incomplete data: {e}")
         except Exception as e:
             logging.error(f"Error parsing live tick data: {e}")
-
     def on_error(error):
         logging.error(f"WebSocket Error: {error}")
         ws_state["error_count"] += 1
         
         if ws_state["error_count"] >= 5:
-            logging.critical("CRITICAL: Maximum WebSocket failures reached. Initiating emergency square-off!")
-            ws_state["stop_loss_hit"] = True 
+            logging.critical("CRITICAL: Maximum WebSocket failures reached. Marking socket dead.")
+            ws_state["stop_loss_hit"] = "SOCKET_DEAD" 
             streamer.disconnect()
 
     streamer.on("message", on_message)
@@ -291,7 +297,7 @@ def monitor_live_prices(instrument_keys_dict, callback_function):
             streamer.disconnect()
             break
 
-        if time.time() - ws_state["last_tick_time"] > 60.0:
+        if time.time() - ws_state["last_tick_time"] > config.WEBSOCKET_SILENT_SECONDS:
             if now.hour == 15 and now.minute == 29:
                 pass 
             else:

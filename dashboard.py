@@ -67,6 +67,8 @@ CSV_LOG_FILE = os.path.join(BASE_DIR, "sandbox_trade_logs.csv")
 BTST_FILE = os.path.join(BASE_DIR, "btst_flag.txt")
 PANIC_FILE = os.path.join(BASE_DIR, "panic_flag.txt")
 LIVE_FILE = os.path.join(BASE_DIR, "live_prices.json")
+HEARTBEAT_FILE = os.path.join(BASE_DIR, "engine_heartbeat.json")
+GRACEFUL_STOP_FILE = os.path.join(BASE_DIR, "graceful_stop_flag.txt")
 
 def load_settings():
     if os.path.exists(SETTINGS_FILE):
@@ -75,8 +77,48 @@ def load_settings():
     return {}
 
 def save_settings(new_settings):
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(new_settings, f, indent=4)
+    atomic_write_json(SETTINGS_FILE, new_settings)
+
+def atomic_write_json(path, data):
+    temp_path = path + ".tmp"
+    with open(temp_path, "w") as f:
+        json.dump(data, f, indent=4)
+    for _ in range(5):
+        try:
+            os.replace(temp_path, path)
+            break
+        except PermissionError:
+            time.sleep(0.05)
+
+def atomic_write_text(path, text):
+    temp_path = path + ".tmp"
+    with open(temp_path, "w", encoding="utf-8") as f:
+        f.write(text)
+    for _ in range(5):
+        try:
+            os.replace(temp_path, path)
+            break
+        except PermissionError:
+            time.sleep(0.05)
+
+def read_pid():
+    if not os.path.exists(PID_FILE):
+        return None
+    try:
+        with open(PID_FILE, "r") as f:
+            return int(f.read().strip())
+    except Exception:
+        return None
+
+def heartbeat_age():
+    if not os.path.exists(HEARTBEAT_FILE):
+        return None, {}
+    try:
+        with open(HEARTBEAT_FILE, "r") as f:
+            heartbeat = json.load(f)
+        return time.time() - float(heartbeat.get("ts", 0)), heartbeat
+    except Exception:
+        return None, {}
 
 settings = load_settings()
 
@@ -147,8 +189,7 @@ nifty_exp = st.sidebar.date_input("NIFTY Expiry Date", saved_nifty)
 sensex_exp = st.sidebar.date_input("SENSEX Expiry Date", saved_sensex)
 
 enable_btst = st.sidebar.toggle("🌙 Enable BTST (Carry Forward)", value=btst_state)
-with open(BTST_FILE, "w") as f:
-    f.write("TRUE" if enable_btst else "FALSE")
+atomic_write_text(BTST_FILE, "TRUE" if enable_btst else "FALSE")
 
 with st.sidebar.form("config_form"):
     env_mode = st.selectbox("Environment", ["SANDBOX", "LIVE"], index=0 if settings.get("ENVIRONMENT") == "SANDBOX" else 1)
@@ -171,7 +212,7 @@ with st.sidebar.form("config_form"):
 st.sidebar.markdown("---")
 st.sidebar.header("🚀 Engine Control")
 
-col_start, col_stop = st.sidebar.columns(2)
+col_start, col_stop, col_force = st.sidebar.columns(3)
 
 with col_start:
     if st.button("▶️ Start"):
@@ -179,11 +220,9 @@ with col_start:
             st.error("Missing Live Token!")
         else:
             is_running = False
-            if os.path.exists(PID_FILE):
-                with open(PID_FILE, "r") as f:
-                    old_pid = int(f.read().strip())
-                if psutil.pid_exists(old_pid):
-                    is_running = True
+            old_pid = read_pid()
+            if old_pid and psutil.pid_exists(old_pid):
+                is_running = True
 
             if is_running:
                 st.warning("Engine is already running!")
@@ -195,30 +234,31 @@ with col_start:
                     stdout=log_file, 
                     stderr=subprocess.STDOUT
                 )
-                with open(PID_FILE, "w") as f:
-                    f.write(str(process.pid))
+                atomic_write_text(PID_FILE, str(process.pid))
                 st.success("Engine Started! Check logs.")
 
 with col_stop:
     if st.button("⏹️ Stop"):
-        if os.path.exists(PID_FILE):
-            with open(PID_FILE, "r") as f:
-                try:
-                    pid = int(f.read().strip())
-                    if psutil.pid_exists(pid):
-                        p = psutil.Process(pid)
-                        p.terminate() 
-                        p.wait()
-                        st.success("Engine Stopped!")
-                    else:
-                        st.warning("Engine was not running.")
-                except Exception as e:
-                    st.error(f"Error stopping engine: {e}")
-            os.remove(PID_FILE)
+        atomic_write_text(GRACEFUL_STOP_FILE, "TRUE")
+        st.warning("Graceful stop requested. Engine will avoid new trades and square off active trades.")
+
+with col_force:
+    if st.button("Kill"):
+        pid = read_pid()
+        if pid and psutil.pid_exists(pid):
+            try:
+                p = psutil.Process(pid)
+                p.terminate()
+                p.wait(timeout=10)
+                st.success("Engine force-stopped. Check broker positions manually.")
+            except Exception as e:
+                st.error(f"Error force-stopping engine: {e}")
         else:
             st.warning("No running engine found.")
+        if os.path.exists(PID_FILE):
+            os.remove(PID_FILE)
 
-st.sidebar.caption("You can now safely control the bot entirely from this UI.")
+st.sidebar.caption("Stop is graceful. Kill is emergency-only and requires a broker position check.")
 
 # --- MAIN DASHBOARD ---
 st.title("🦅 Iron Butterfly Command Center V4")
@@ -227,19 +267,17 @@ st.title("🦅 Iron Butterfly Command Center V4")
 col1, col2 = st.columns([3, 1])
 
 with col1:
-    # --- ENGINE STATUS: Cross-platform detection via PID file ---
     engine_running = False
-    if os.path.exists(PID_FILE):
-        try:
-            with open(PID_FILE, "r") as f:
-                pid = int(f.read().strip())
-            if psutil.pid_exists(pid):
-                engine_running = True
-        except Exception:
-            pass
+    pid = read_pid()
+    hb_age, hb = heartbeat_age()
+    if pid and psutil.pid_exists(pid) and hb_age is not None and hb_age <= 15:
+        engine_running = True
 
     if engine_running:
-        st.success("🟢 ENGINE STATUS: RUNNING")
+        st.success(f"🟢 ENGINE STATUS: RUNNING | {hb.get('status', 'UNKNOWN')} | heartbeat {hb_age:.1f}s")
+    elif pid and psutil.pid_exists(pid):
+        stale_age = "N/A" if hb_age is None else f"{hb_age:.1f}s"
+        st.warning(f"🟡 ENGINE PID EXISTS BUT HEARTBEAT STALE: {stale_age}")
     else:
         st.error("🔴 ENGINE STATUS: STOPPED")
 
@@ -262,8 +300,7 @@ with col2:
     
     if st.button("🛑 MANUAL EXIT", type="primary", disabled=button_locked):
         manual_file = os.path.join(BASE_DIR, "manual_exit_flag.txt")
-        with open(manual_file, "w") as f:
-            f.write("TRUE")
+        atomic_write_text(manual_file, "TRUE")
         st.toast("Manual exit signal sent! Engine will square off immediately.")
         
     if not is_trading_hours:
@@ -322,6 +359,15 @@ with col_status:
                         live_ticks = json.load(lf)
                 except json.JSONDecodeError:
                     pass 
+
+            latest_tick_ts = max((tick.get("ts", 0) for tick in live_ticks.values() if isinstance(tick, dict)), default=0)
+            feed_age = time.time() - latest_tick_ts if latest_tick_ts else None
+            if feed_age is None:
+                st.warning("Live feed: no tick timestamp available yet.")
+            elif feed_age > settings.get("MAX_FEED_STALENESS_SECONDS", 5):
+                st.error(f"Live feed stale: {feed_age:.1f}s old")
+            else:
+                st.caption(f"Live feed age: {feed_age:.1f}s")
                 
             legs = state['legs']
             entries = state['entry_prices']
@@ -437,15 +483,16 @@ with col_status:
                 st.metric("Target Source", target_source, delta=f"{current_target_pct}%", delta_color="off")
                 
             with metric_col4:
-                new_target = st.number_input(
-                    "Hot-Swap Target (%)", 
-                    value=current_target_pct, 
-                    step=1,
-                    help="Override the VIX target. Changes apply instantly to the live trade."
-                )
+                with st.form("hot_swap_form"):
+                    new_target = st.number_input(
+                        "Hot-Swap Target (%)", 
+                        value=int(current_target_pct) if current_target_pct else 10, 
+                        step=1,
+                        help="Override the VIX target. Click Apply to save."
+                    )
+                    submit_target = st.form_submit_button("Apply Target")
                 
-                # Save instantly and trigger UI refresh if changed
-                if new_target != current_target_pct:
+                if submit_target and new_target != current_target_pct:
                     settings["TARGET_PROFIT_PCT"] = new_target
                     save_settings(settings)
                     
@@ -455,8 +502,7 @@ with col_status:
                             with open(STATE_FILE, "r") as f:
                                 live_state = json.load(f)
                             live_state["applied_target_pct"] = new_target
-                            with open(STATE_FILE, "w") as f:
-                                json.dump(live_state, f, indent=4)
+                            atomic_write_json(STATE_FILE, live_state)
                         except Exception:
                             pass
                     
@@ -471,7 +517,7 @@ with col_status:
 with col_logs:
     st.subheader("🖥️ Live Engine Logs")
     if os.path.exists(LOG_FILE_PATH):
-        with open(LOG_FILE_PATH, "r") as file:
+        with open(LOG_FILE_PATH, "r", encoding="utf-8", errors="replace") as file:
             lines = file.readlines()
             last_lines = lines[-15:] if len(lines) > 15 else lines
             log_text = "".join(last_lines)

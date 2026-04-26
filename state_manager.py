@@ -3,6 +3,7 @@ import json
 import os
 import tempfile
 import time
+from copy import deepcopy
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATE_FILE = os.path.join(BASE_DIR, "trade_state.json")
@@ -16,9 +17,19 @@ def _atomic_write(filepath, data):
     temp_fd, temp_path = tempfile.mkstemp(dir=os.path.dirname(filepath))
     with os.fdopen(temp_fd, 'w') as f:
         json.dump(data, f, indent=4)
-    os.replace(temp_path, filepath)
+    
+    import time
+    for _ in range(5):
+        try:
+            os.replace(temp_path, filepath)
+            break
+        except PermissionError:
+            time.sleep(0.05)
 
-def save_state(index_symbol, legs, entry_prices, quantity, strikes=None):
+def atomic_write_json(filepath, data):
+    _atomic_write(filepath, data)
+
+def save_state(index_symbol, legs, entry_prices, quantity, strikes=None, execution_info=None):
     global _cached_state, _last_mtime
     existing_state = load_state() or {}
 
@@ -28,7 +39,9 @@ def save_state(index_symbol, legs, entry_prices, quantity, strikes=None):
         "legs": legs,
         "entry_prices": entry_prices,
         "quantity": quantity,
-        "strikes": strikes or existing_state.get("strikes", {})
+        "strikes": strikes or existing_state.get("strikes", {}),
+        "execution_info": execution_info or existing_state.get("execution_info", {}),
+        "created_at": existing_state.get("created_at") or time.strftime("%Y-%m-%d %H:%M:%S")
     }
     
     _atomic_write(STATE_FILE, state)
@@ -52,7 +65,7 @@ def load_state():
     except Exception:
         pass
         
-    return _cached_state
+    return deepcopy(_cached_state)
 
 def clear_state():
     global _cached_state, _last_mtime
@@ -68,6 +81,20 @@ def update_state(key, value):
     state = load_state()
     if state is not None:
         state[key] = value
+        try:
+            _atomic_write(STATE_FILE, state)
+            _cached_state = state
+            _last_mtime = time.time()
+        except Exception:
+            pass
+
+def update_many(updates):
+    """Atomically updates multiple keys in the active trade state."""
+    global _cached_state, _last_mtime
+    
+    state = load_state()
+    if state is not None:
+        state.update(updates)
         try:
             _atomic_write(STATE_FILE, state)
             _cached_state = state

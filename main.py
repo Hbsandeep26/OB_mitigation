@@ -16,6 +16,9 @@ from strategy import calculate_iron_butterfly_legs, risk_management_evaluator, g
 from execution import place_iron_butterfly_basket, square_off_all
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+HEARTBEAT_FILE = os.path.join(BASE_DIR, "engine_heartbeat.json")
+GRACEFUL_STOP_FILE = os.path.join(BASE_DIR, "graceful_stop_flag.txt")
+_last_heartbeat_write = 0.0
 
 # ============================================================================
 # THE DOUBLE-LOG FIX: Only add StreamHandler when running in a real terminal.
@@ -31,7 +34,7 @@ if logger.hasHandlers():
     logger.handlers.clear()
 
 log_file_path = os.path.join(BASE_DIR, "bot.log")
-file_handler = RotatingFileHandler(log_file_path, maxBytes=5*1024*1024, backupCount=3)
+file_handler = RotatingFileHandler(log_file_path, maxBytes=5*1024*1024, backupCount=3, encoding="utf-8")
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
@@ -52,6 +55,90 @@ def is_valid_expiry(expiry_date):
     if not expiry_date or expiry_date in ("UNKNOWN", "RECOVERY", ""):
         return False
     return bool(re.match(r'^\d{4}-\d{2}-\d{2}$', expiry_date))
+
+
+def write_heartbeat(status="RUNNING"):
+    global _last_heartbeat_write
+    now_ts = time.time()
+    if now_ts - _last_heartbeat_write < config.HEARTBEAT_INTERVAL_SECONDS and status == "RUNNING":
+        return
+
+    payload = {
+        "ts": now_ts,
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "status": status,
+        "pid": os.getpid(),
+    }
+    temp_path = HEARTBEAT_FILE + ".tmp"
+    try:
+        with open(temp_path, "w") as f:
+            json.dump(payload, f)
+        
+        # Retry loop for Windows file lock (WinError 5)
+        for _ in range(5):
+            try:
+                os.replace(temp_path, HEARTBEAT_FILE)
+                _last_heartbeat_write = now_ts
+                break
+            except PermissionError:
+                time.sleep(0.05)
+    except Exception as err:
+        logging.warning(f"Heartbeat write failed: {err}")
+
+
+def consume_graceful_stop():
+    if os.path.exists(GRACEFUL_STOP_FILE):
+        try:
+            os.remove(GRACEFUL_STOP_FILE)
+        except Exception:
+            pass
+        return True
+    return False
+
+
+def exit_prices_from_rest(legs):
+    quotes = get_fresh_option_quotes(list(legs.values()))
+    if not quotes:
+        return None
+    prices = {
+        "sell_ce": quotes.get(legs["sell_ce"], 0),
+        "sell_pe": quotes.get(legs["sell_pe"], 0),
+        "buy_ce": quotes.get(legs["buy_ce"], 0),
+        "buy_pe": quotes.get(legs["buy_pe"], 0),
+    }
+    return prices if all(value > 0 for value in prices.values()) else None
+
+
+def monitor_with_reconnects(legs, index_symbol):
+    reconnects = 0
+    while True:
+        write_heartbeat("MONITORING")
+        stop_loss_hit, exit_prices = monitor_live_prices(legs, risk_management_evaluator)
+        if stop_loss_hit != "SOCKET_DEAD":
+            return stop_loss_hit, exit_prices
+
+        reconnects += 1
+        state_manager.update_state("socket_reconnects", reconnects)
+        logging.critical(
+            f"WebSocket died for {index_symbol}; reconnect attempt {reconnects}/{config.MAX_SOCKET_RECONNECTS}."
+        )
+
+        active_state = state_manager.load_state()
+        if reconnects <= config.MAX_SOCKET_RECONNECTS and active_state and active_state.get("active"):
+            time.sleep(10)
+            continue
+
+        fresh_exit_prices = exit_prices_from_rest(legs)
+        if fresh_exit_prices:
+            logging.critical("WebSocket failed repeatedly. Fresh REST quotes available; forcing square off.")
+            return "SOCKET_DEAD_EXIT", fresh_exit_prices
+
+        import notifier
+        notifier.send_telegram_alert(
+            f"<b>SOCKET DEAD: MANUAL ACTION REQUIRED</b>\n"
+            f"{index_symbol}: monitor could not reconnect and REST quotes were unavailable."
+        )
+        return "SOCKET_DEAD_FATAL", {}
 
 
 # ============================================================================
@@ -100,6 +187,8 @@ def check_opening_gap(index_symbol):
 
 def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_minute):
     logging.info(f"--- STARTING CONTINUOUS SESSION FOR {index_symbol} ---")
+    write_heartbeat(f"SESSION:{index_symbol}")
+    halt_without_final_squareoff = False
 
     # ================================================================
     # EXPIRY DATE VALIDATION GUARD
@@ -129,12 +218,17 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
     state = state_manager.load_state()
     if state and state.get("active"):
         logging.critical(f"🌙 BTST CARRY FORWARD DETECTED: Waking up existing {index_symbol} trade.")
-        stop_loss_hit, exit_prices = monitor_live_prices(state['legs'], risk_management_evaluator)
+        stop_loss_hit, exit_prices = monitor_with_reconnects(state['legs'], index_symbol)
         
         if stop_loss_hit:
             btst_exit_reason = stop_loss_hit  # Remember why we exited
             
-            if stop_loss_hit == "TAKE_PROFIT":
+            if stop_loss_hit == "SOCKET_DEAD_FATAL":
+                logging.critical("Socket recovery failed on carry-forward. Halting with state retained.")
+                return
+            elif stop_loss_hit == "SOCKET_DEAD_EXIT":
+                logging.critical("Socket recovery failed on carry-forward. Squaring off with REST quotes...")
+            elif stop_loss_hit == "TAKE_PROFIT":
                 logging.critical(f"💰 PROFIT LOCKED on {index_symbol} Carry Forward trade! Squaring off...")
             elif stop_loss_hit == "STOP_LOSS":
                 logging.warning(f"🚨 Stop Loss hit on {index_symbol} Carry Forward trade! Squaring off...")
@@ -172,6 +266,7 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         
         logging.info(f"⏳ Gap Filter: Waiting until {settle_end.strftime('%H:%M')} for market to stabilize...")
         while datetime.now() < settle_end:
+            write_heartbeat("GAP_WAIT")
             now = datetime.now()
             if now.hour > cutoff_hour or (now.hour == cutoff_hour and now.minute >= cutoff_minute):
                 logging.info(f"⏰ Cutoff reached during gap wait. Ending session.")
@@ -182,6 +277,9 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             if os.path.exists(manual_exit_file):
                 os.remove(manual_exit_file)
                 logging.critical("🛑 MANUAL EXIT triggered during Gap Filter wait. Halting session.")
+                return
+            if consume_graceful_stop():
+                logging.critical("Graceful stop requested during Gap Filter wait. Halting session.")
                 return
                 
             time.sleep(5)
@@ -194,6 +292,10 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         target_entry_time = datetime.strptime("09:20", "%H:%M").time()
         logged_wait = False
         while datetime.now().time() < target_entry_time:
+            write_heartbeat("ENTRY_WAIT")
+            if consume_graceful_stop():
+                logging.critical("Graceful stop requested during entry wait. Halting session.")
+                return
             if not logged_wait:
                 logging.info("⏳ Waiting for 09:20 AM safe entry window before deploying fresh trade...")
                 logged_wait = True
@@ -207,11 +309,16 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
     MAX_API_RETRIES = 5
 
     while True:
+        write_heartbeat("RUNNING")
         now = datetime.now()
         
         if now.hour > cutoff_hour or (now.hour == cutoff_hour and now.minute >= cutoff_minute):
             logging.info(f"⏰ Soft Cutoff ({cutoff_hour}:{cutoff_minute:02d}) reached. No NEW {index_symbol} trades will be taken.")
             break 
+
+        if consume_graceful_stop():
+            logging.critical("Graceful stop requested. No new trades will be deployed.")
+            break
 
         # --- CIRCUIT BREAKER CHECK ---
         if consecutive_losses >= config.MAX_CONSECUTIVE_LOSSES:
@@ -314,7 +421,7 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         logging.info("Entering live risk monitoring phase...")
         trade_entry_time = datetime.now()  # Track when this trade was deployed
 
-        stop_loss_hit, exit_prices = monitor_live_prices(legs, risk_management_evaluator)
+        stop_loss_hit, exit_prices = monitor_with_reconnects(legs, index_symbol)
 
         # ================================================================
         # EXIT SIGNAL HANDLING
@@ -324,7 +431,10 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         # If a trade exits within 30 seconds of entry, something is wrong
         # (stale prices, instant stop-loss on first tick, etc.)
         trade_duration = (datetime.now() - trade_entry_time).total_seconds()
-        if trade_duration < 30 and stop_loss_hit not in ("MANUAL_EXIT", "TIME_EXIT", "MARKET_CLOSED"):
+        if trade_duration < 30 and stop_loss_hit not in (
+            "MANUAL_EXIT", "GRACEFUL_STOP", "TIME_EXIT", "MARKET_CLOSED",
+            "SOCKET_DEAD_EXIT", "SOCKET_DEAD_FATAL"
+        ):
             if stop_loss_hit == "STOP_LOSS":
                 logging.critical(f"⚠️ GENUINE FLASH CRASH! Trade hit STOP LOSS in just {trade_duration:.0f}s. Squaring off and pausing for 120 seconds.")
             else:
@@ -338,10 +448,10 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             time.sleep(120)
             continue
 
-        if stop_loss_hit == "MANUAL_EXIT":
-            logging.critical(f"🛑 Manual Exit executed. Squaring off {index_symbol}...")
+        if stop_loss_hit in ("MANUAL_EXIT", "GRACEFUL_STOP"):
+            logging.critical(f"🛑 User stop/exit executed. Squaring off {index_symbol}...")
             square_off_all(exit_prices)
-            logging.critical("⏸️ Trading paused for this session due to Manual Exit. Restart the bot engine if you wish to force a re-entry.")
+            logging.critical("Trading paused for this session due to user stop/exit.")
             break 
 
         elif stop_loss_hit == "TAKE_PROFIT":
@@ -371,13 +481,15 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             logging.info(f"🛑 Live market feed ended for {index_symbol}. Proceeding to EOD evaluation.")
             break
 
-        elif stop_loss_hit == "SOCKET_DEAD":
-            # --- SOCKET_DEAD: WebSocket died, NOT a trading loss ---
-            logging.critical(f"☠️ WebSocket died for {index_symbol}. This is NOT a trading loss — attempting reconnection...")
-            # Don't count as a loss, don't square off — let the loop retry with a fresh connection
-            logging.info("Cooling down for 30 seconds before reconnection attempt...")
-            time.sleep(30)
-            continue  # Skip the rest, retry from the top
+        elif stop_loss_hit == "SOCKET_DEAD_EXIT":
+            logging.critical(f"WebSocket recovery failed for {index_symbol}. Squaring off with REST quote snapshot.")
+            square_off_all(exit_prices)
+            break
+
+        elif stop_loss_hit == "SOCKET_DEAD_FATAL":
+            logging.critical(f"WebSocket recovery failed for {index_symbol}. State retained for manual recovery.")
+            halt_without_final_squareoff = True
+            break
 
         elif stop_loss_hit == "TIME_EXIT":
             logging.critical(f"⏰ EOD Cutoff triggered for {index_symbol}. Squaring off and ending session.")
@@ -395,6 +507,11 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             break
         
     logging.info(f"--- END OF SESSION FOR {index_symbol} ---")
+    write_heartbeat("IDLE")
+
+    if halt_without_final_squareoff:
+        logging.critical("Skipping final automatic square off because quote recovery failed. Manual broker check required.")
+        return
     
     btst_file = os.path.join(BASE_DIR, "btst_flag.txt")
     if os.path.exists(btst_file) and open(btst_file, "r").read().strip() == "TRUE":
@@ -580,5 +697,6 @@ if __name__ == "__main__":
 
     logging.info("Waiting for scheduled events...")
     while True:
+        write_heartbeat("WAITING")
         schedule.run_pending()
         time.sleep(1)
