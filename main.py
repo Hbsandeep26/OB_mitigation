@@ -176,6 +176,14 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             if now.hour > cutoff_hour or (now.hour == cutoff_hour and now.minute >= cutoff_minute):
                 logging.info(f"⏰ Cutoff reached during gap wait. Ending session.")
                 return
+            
+            # Check for manual exit to avoid being deaf for 15 minutes
+            manual_exit_file = os.path.join(BASE_DIR, "manual_exit_flag.txt")
+            if os.path.exists(manual_exit_file):
+                os.remove(manual_exit_file)
+                logging.critical("🛑 MANUAL EXIT triggered during Gap Filter wait. Halting session.")
+                return
+                
             time.sleep(5)
         logging.info("✅ Gap settle period complete. Resuming normal operations.")
 
@@ -317,11 +325,14 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         # (stale prices, instant stop-loss on first tick, etc.)
         trade_duration = (datetime.now() - trade_entry_time).total_seconds()
         if trade_duration < 30 and stop_loss_hit not in ("MANUAL_EXIT", "TIME_EXIT", "MARKET_CLOSED"):
-            logging.critical(
-                f"⚠️ FLASH EXIT DETECTED! Trade lasted only {trade_duration:.0f}s. "
-                f"This likely means stale/incomplete price data triggered a false exit. "
-                f"Squaring off safely and pausing for 120 seconds."
-            )
+            if stop_loss_hit == "STOP_LOSS":
+                logging.critical(f"⚠️ GENUINE FLASH CRASH! Trade hit STOP LOSS in just {trade_duration:.0f}s. Squaring off and pausing for 120 seconds.")
+            else:
+                logging.critical(
+                    f"⚠️ FLASH EXIT DETECTED! Trade lasted only {trade_duration:.0f}s (Reason: {stop_loss_hit}). "
+                    f"This likely means stale/incomplete price data triggered a false exit. "
+                    f"Squaring off safely and pausing for 120 seconds."
+                )
             square_off_all(exit_prices)
             consecutive_losses += 1
             time.sleep(120)

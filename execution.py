@@ -90,12 +90,20 @@ def place_iron_butterfly_basket(legs, index_symbol, entry_prices, strikes):
                     order_type="MARKET", transaction_type=reverse_type, disclosed_quantity=0,
                     trigger_price=0.0, is_amo=False, slice=False
                 )
-                try:
-                    api_instance.place_order(rollback_body)
-                    logging.info(f"Rollback successful for {filled_order['token']}")
-                    time.sleep(0.15)
-                except Exception as rollback_err:
-                    logging.critical(f"FATAL: Rollback failed for {filled_order['token']}: {rollback_err}")
+                
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        api_instance.place_order(rollback_body)
+                        logging.info(f"Rollback successful for {filled_order['token']}")
+                        time.sleep(0.15)
+                        break
+                    except Exception as rollback_err:
+                        wait_time = 2 ** attempt
+                        logging.warning(f"Rollback failed for {filled_order['token']}: {rollback_err}. Retrying in {wait_time}s... ({attempt+1}/{max_retries})")
+                        time.sleep(wait_time)
+                else:
+                    logging.critical(f"FATAL: Rollback completely failed for {filled_order['token']} after {max_retries} retries!")
             
             return False 
                 
@@ -185,39 +193,45 @@ def square_off_all(exit_prices=None):
                     is_amo=False, slice=False
                 )
 
+            # Helper for executing an order with retries
+            def execute_with_retry(request_body, leg_name):
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        api_instance.place_order(request_body)
+                        logging.info(f"Live Exit: {leg_name} closed successfully.")
+                        time.sleep(0.15)
+                        return True
+                    except Exception as e:
+                        wait_time = 2 ** attempt
+                        logging.warning(f"Live Exit: Failed to close {leg_name}. Error: {e}. Retrying in {wait_time}s... ({attempt+1}/{max_retries})")
+                        time.sleep(wait_time)
+                logging.critical(f"FATAL: Failed to close {leg_name} after {max_retries} retries!")
+                return False
+
             success = True
             
             # --- THE NAKED EXIT FIX: Paired Execution ---
             
             # Pair 1: Call Side
-            try:
-                # 1. Close Short CE
-                api_instance.place_order(build_order_request(legs['sell_ce'], "BUY"))
-                logging.info("Live Exit: Short CE closed successfully.")
-                time.sleep(0.15) # THE RATE LIMIT FIX
-                
-                # 2. Close Long CE
-                api_instance.place_order(build_order_request(legs['buy_ce'], "SELL"))
-                logging.info("Live Exit: Long CE closed successfully.")
-                time.sleep(0.15)
-            except Exception as e:
-                logging.critical(f"🛑 FAILED TO CLOSE CALL SIDE! Keeping hedge active to prevent naked risk. Error: {e}")
+            logging.info("Attempting to close Call Side...")
+            if not execute_with_retry(build_order_request(legs['sell_ce'], "BUY"), "Short CE"):
+                success = False
+            if not execute_with_retry(build_order_request(legs['buy_ce'], "SELL"), "Long CE"):
                 success = False
 
+            if not success:
+                logging.critical("🛑 FAILED TO CLOSE CALL SIDE FULLY! Keeping hedge active to prevent naked risk.")
+
             # Pair 2: Put Side
-            try:
-                # 1. Close Short PE
-                api_instance.place_order(build_order_request(legs['sell_pe'], "BUY"))
-                logging.info("Live Exit: Short PE closed successfully.")
-                time.sleep(0.15)
-                
-                # 2. Close Long PE
-                api_instance.place_order(build_order_request(legs['buy_pe'], "SELL"))
-                logging.info("Live Exit: Long PE closed successfully.")
-                time.sleep(0.15)
-            except Exception as e:
-                logging.critical(f"🛑 FAILED TO CLOSE PUT SIDE! Keeping hedge active to prevent naked risk. Error: {e}")
+            logging.info("Attempting to close Put Side...")
+            if not execute_with_retry(build_order_request(legs['sell_pe'], "BUY"), "Short PE"):
                 success = False
+            if not execute_with_retry(build_order_request(legs['buy_pe'], "SELL"), "Long PE"):
+                success = False
+
+            if not success:
+                logging.critical("🛑 FAILED TO CLOSE PUT SIDE FULLY! Keeping hedge active to prevent naked risk.")
 
             log_trade("EXIT", index_symbol, exit_prices, exit_premium, pnl, "Live Exchange Exit")
 

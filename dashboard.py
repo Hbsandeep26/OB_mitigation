@@ -11,7 +11,51 @@ import urllib.parse
 import psutil
 import datetime
 
+try:
+    import plotly.graph_objects as go
+except ImportError:
+    go = None
+
 st.set_page_config(page_title="Iron Butterfly V4", layout="wide")
+
+# --- PREMIUM UI/UX CSS ---
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+    }
+    .stApp {
+        background-color: #0f172a;
+        color: #f8fafc;
+    }
+    div[data-testid="stMetric"] {
+        background: rgba(30, 41, 59, 0.7);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    div[data-testid="stDataFrame"] {
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    h1, h2, h3 {
+        color: #e2e8f0 !important;
+        font-weight: 800 !important;
+    }
+    .stButton>button {
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5);
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # --- ABSOLUTE PATHING ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -338,6 +382,39 @@ with col_status:
             
             st.markdown("---")
             
+            # --- PLOTLY GAUGE CHART ---
+            if go:
+                max_gauge = target_gross_pnl * 1.5 if target_gross_pnl > 0 else 5000
+                min_gauge = -target_gross_pnl if target_gross_pnl > 0 else -5000
+                
+                fig = go.Figure(go.Indicator(
+                    mode = "gauge+number+delta",
+                    value = gross_pnl,
+                    domain = {'x': [0, 1], 'y': [0, 1]},
+                    title = {'text': "Real-time PnL", 'font': {'size': 20, 'color': 'white'}},
+                    delta = {'reference': trail_floor_pnl, 'increasing': {'color': "#10b981"}, 'decreasing': {'color': "#ef4444"}},
+                    gauge = {
+                        'axis': {'range': [min_gauge, max_gauge], 'tickwidth': 1, 'tickcolor': "white"},
+                        'bar': {'color': "#3b82f6"},
+                        'bgcolor': "rgba(0,0,0,0)",
+                        'borderwidth': 2,
+                        'bordercolor': "gray",
+                        'steps': [
+                            {'range': [min_gauge, 0], 'color': "rgba(239, 68, 68, 0.2)"},
+                            {'range': [0, trail_floor_pnl], 'color': "rgba(234, 179, 8, 0.2)"},
+                            {'range': [trail_floor_pnl, target_gross_pnl], 'color': "rgba(16, 185, 129, 0.2)"}
+                        ],
+                        'threshold': {
+                            'line': {'color': "#10b981", 'width': 4},
+                            'thickness': 0.75,
+                            'value': target_gross_pnl
+                        }
+                    }
+                ))
+                fig.update_layout(height=250, margin=dict(l=20, r=20, t=30, b=20), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white", 'family': "Inter"})
+                st.plotly_chart(fig, use_container_width=True)
+                st.markdown("---")
+            
             # --- 4-COLUMN LAYOUT FOR METRICS AND HOT-SWAP ---
             metric_col1, metric_col2, metric_col3, metric_col4 = st.columns([1.3, 1.3, 1.2, 1.2])
             
@@ -420,6 +497,9 @@ if os.path.exists(CSV_LOG_FILE):
 else:
     st.info("No trades logged yet.")
 
-# Auto-refresh the dashboard every 3 seconds
-time.sleep(3)
-st.rerun()
+st.markdown("---")
+# --- AUTO-REFRESH TOGGLE ---
+auto_refresh = st.toggle("🔄 Auto Refresh Dashboard (3s)", value=True, help="Disable to interact with inputs without being interrupted.")
+if auto_refresh:
+    time.sleep(3)
+    st.rerun()

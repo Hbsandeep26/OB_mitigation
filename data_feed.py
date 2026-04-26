@@ -7,6 +7,7 @@ import upstox_client
 import json
 import time
 import os
+import tempfile
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -246,8 +247,10 @@ def monitor_live_prices(instrument_keys_dict, callback_function):
             if ws_state["latest_prices"]:
                 if time.time() - ws_state["last_write_time"] > 1.0:
                     live_prices_path = os.path.join(BASE_DIR, "live_prices.json")
-                    with open(live_prices_path, "w") as f:
+                    temp_fd, temp_path = tempfile.mkstemp(dir=os.path.dirname(live_prices_path))
+                    with os.fdopen(temp_fd, 'w') as f:
                         json.dump(ws_state["latest_prices"], f)
+                    os.replace(temp_path, live_prices_path)
                     ws_state["last_write_time"] = time.time()
                     
                 stop_loss_triggered, current_prices = callback_function(ws_state["latest_prices"], instrument_keys_dict)
