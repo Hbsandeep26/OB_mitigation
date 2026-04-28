@@ -187,13 +187,57 @@ def calculate_iron_butterfly_legs(index_symbol, spot_price, option_chain_data, w
     return legs, prices, strikes
 
 
+def evaluate_btst_health(live_data, legs, entries):
+    """
+    Evaluates whether the current butterfly structure is healthy enough
+    for overnight carry-forward. Returns (is_healthy, diagnosis_str).
+    """
+    try:
+        live_sell_ce = _fresh_ltp(live_data, legs["sell_ce"], "sell_ce")
+        live_sell_pe = _fresh_ltp(live_data, legs["sell_pe"], "sell_pe")
+        live_buy_ce = _fresh_ltp(live_data, legs["buy_ce"], "buy_ce")
+        live_buy_pe = _fresh_ltp(live_data, legs["buy_pe"], "buy_pe")
+    except ValueError as e:
+        return False, f"Missing/stale live prices: {e}"
+        
+    entry_net = (entries["sell_ce"] + entries["sell_pe"]) - (entries["buy_ce"] + entries["buy_pe"])
+    live_net = (live_sell_ce + live_sell_pe) - (live_buy_ce + live_buy_pe)
+    if live_net > entry_net:
+        return False, "Position is in loss (negative PnL)"
+        
+    ce_spread_val = live_sell_ce - live_buy_ce
+    pe_spread_val = live_sell_pe - live_buy_pe
+    
+    if ce_spread_val <= 0 or pe_spread_val <= 0:
+        return False, "Negative spread value detected"
+        
+    skew_ratio = max(ce_spread_val, pe_spread_val) / min(ce_spread_val, pe_spread_val)
+    if skew_ratio > config.BTST_MAX_SKEW_RATIO:
+        return False, f"Skew ratio {skew_ratio:.2f} exceeds max {config.BTST_MAX_SKEW_RATIO}"
+        
+    ce_retention = live_sell_ce / entries["sell_ce"]
+    pe_retention = live_sell_pe / entries["sell_pe"]
+    
+    if ce_retention < config.BTST_MIN_LEG_PCT:
+        return False, f"CE leg premium retention {ce_retention:.2f} < {config.BTST_MIN_LEG_PCT}"
+    if pe_retention < config.BTST_MIN_LEG_PCT:
+        return False, f"PE leg premium retention {pe_retention:.2f} < {config.BTST_MIN_LEG_PCT}"
+        
+    return True, "Healthy"
+
+
 def risk_management_evaluator(live_data, legs):
     state = state_manager.load_state()
     if not state or "entry_prices" not in state:
         return False, {}
 
     entries = state["entry_prices"]
-    current_prices = _best_effort_prices(live_data, legs, entries)
+    current_prices = {
+        "sell_ce": entries["sell_ce"],
+        "sell_pe": entries["sell_pe"],
+        "buy_ce": entries["buy_ce"],
+        "buy_pe": entries["buy_pe"]
+    }
 
     manual_exit_file = os.path.join(BASE_DIR, "manual_exit_flag.txt")
     if os.path.exists(manual_exit_file):
@@ -224,7 +268,12 @@ def risk_management_evaluator(live_data, legs):
             with open(btst_file, "r") as f:
                 btst_enabled = f.read().strip() == "TRUE"
         if btst_enabled:
-            return False, {}
+            is_healthy, diagnosis = evaluate_btst_health(live_data, legs, entries)
+            if is_healthy:
+                return False, {}
+            else:
+                logging.critical("BTST position unhealthy: %s. Forcing TIME_EXIT.", diagnosis)
+                return "BTST_RECENTER", current_prices
         logging.critical("END OF DAY (15:15) REACHED. Forcing Square Off.")
         return "TIME_EXIT", current_prices
 
@@ -276,6 +325,61 @@ def risk_management_evaluator(live_data, legs):
         profit_hwm = current_profit_pct
         state_manager.update_state("profit_high_water_mark", round(profit_hwm, 6))
 
+    profit_lock_tier = state.get("profit_lock_tier", 0)
+    profit_lock_floor = state.get("profit_lock_floor", 0.0)
+    
+    if current_profit_pct >= base_target_pct and profit_lock_tier < 4:
+        spot_distance = abs(live_spot - atm_strike) / atm_strike if live_spot > 0 and atm_strike > 0 else float('inf')
+        daily_expected_move = live_vix / 19.1
+        dynamic_zone_tolerance = (daily_expected_move / 100.0) * 0.60
+        
+        if spot_distance <= dynamic_zone_tolerance:
+            new_floor = base_target_pct * config.TRAIL_LOCK_FLOOR_PCT
+            state_manager.update_many({
+                "profit_lock_tier": 4,
+                "profit_lock_floor": round(new_floor, 6),
+                "trail_active": True,
+                "trail_floor": round(new_floor, 6),
+            })
+            profit_lock_floor = new_floor
+            trail_active = True
+            trail_floor = new_floor
+            logging.critical("Base target hit inside safe zone. Ratchet trail active at Tier 4.")
+        else:
+            logging.critical("Target reached outside safe zone. Taking profit.")
+            return "TAKE_PROFIT", current_prices
+            
+    elif current_profit_pct >= base_target_pct * config.PROFIT_LOCK_TIER3_TRIGGER and profit_lock_tier < 3:
+        new_floor = base_target_pct * config.PROFIT_LOCK_TIER3_FLOOR
+        state_manager.update_many({
+            "profit_lock_tier": 3,
+            "profit_lock_floor": round(new_floor, 6),
+            "trail_active": True,
+            "trail_floor": round(new_floor, 6),
+        })
+        profit_lock_floor = new_floor
+        trail_active = True
+        trail_floor = new_floor
+    elif current_profit_pct >= base_target_pct * config.PROFIT_LOCK_TIER2_TRIGGER and profit_lock_tier < 2:
+        new_floor = base_target_pct * config.PROFIT_LOCK_TIER2_FLOOR
+        state_manager.update_many({
+            "profit_lock_tier": 2,
+            "profit_lock_floor": round(new_floor, 6),
+        })
+        profit_lock_floor = new_floor
+    elif current_profit_pct >= base_target_pct * config.PROFIT_LOCK_TIER1_TRIGGER and profit_lock_tier < 1:
+        new_floor = base_target_pct * config.PROFIT_LOCK_TIER1_FLOOR
+        state_manager.update_many({
+            "profit_lock_tier": 1,
+            "profit_lock_floor": round(new_floor, 6),
+        })
+        profit_lock_floor = new_floor
+
+    if profit_lock_floor > 0 and current_profit_pct <= profit_lock_floor:
+        logging.critical("PROFIT LOCK FLOOR BREACHED (Tier %d). Exiting at %.2f%%", 
+                         profit_lock_tier, current_profit_pct * 100)
+        return "TAKE_PROFIT", current_prices
+
     if trail_active:
         new_trail_floor = max(trail_floor, profit_hwm * config.TRAIL_RATCHET_FACTOR)
         if new_trail_floor > trail_floor:
@@ -287,31 +391,10 @@ def risk_management_evaluator(live_data, legs):
             logging.critical("RATCHET TRAIL STOP HIT. Locking %.2f%% profit.", trail_floor * 100)
             return "TAKE_PROFIT", current_prices
 
-        greedy_target = base_target_pct * 2.0
+        greedy_target = base_target_pct * 1.5
         if current_profit_pct >= greedy_target:
             logging.critical("MAX RATCHET REACHED. Taking profit at %.2f%%.", current_profit_pct * 100)
             return "TAKE_PROFIT", current_prices
-    else:
-        target_exit_premium = entry_net * (1.0 - base_target_pct)
-        if live_net <= target_exit_premium:
-            if live_spot > 0 and atm_strike > 0:
-                spot_distance = abs(live_spot - atm_strike) / atm_strike
-                daily_expected_move = live_vix / 19.1
-                dynamic_zone_tolerance = (daily_expected_move / 100.0) * 0.40
-                if spot_distance <= dynamic_zone_tolerance:
-                    initial_floor = base_target_pct * config.TRAIL_LOCK_FLOOR_PCT
-                    state_manager.update_many({
-                        "trail_active": True,
-                        "trail_floor": round(initial_floor, 6),
-                        "profit_high_water_mark": round(current_profit_pct, 6),
-                    })
-                    logging.critical("Base target hit inside safe zone. Ratchet trail activated.")
-                else:
-                    logging.critical("Target reached outside safe zone. Taking profit.")
-                    return "TAKE_PROFIT", current_prices
-            else:
-                logging.critical("Target reached without spot data. Taking profit.")
-                return "TAKE_PROFIT", current_prices
 
     entry_sell_ce = float(entries["sell_ce"])
     entry_sell_pe = float(entries["sell_pe"])

@@ -10,6 +10,8 @@ import requests
 import urllib.parse
 import psutil
 import datetime
+import config
+import uuid
 
 try:
     import plotly.graph_objects as go
@@ -80,7 +82,7 @@ def save_settings(new_settings):
     atomic_write_json(SETTINGS_FILE, new_settings)
 
 def atomic_write_json(path, data):
-    temp_path = path + ".tmp"
+    temp_path = f"{path}.{uuid.uuid4().hex[:8]}.tmp"
     with open(temp_path, "w") as f:
         json.dump(data, f, indent=4)
     for _ in range(5):
@@ -91,7 +93,7 @@ def atomic_write_json(path, data):
             time.sleep(0.05)
 
 def atomic_write_text(path, text):
-    temp_path = path + ".tmp"
+    temp_path = f"{path}.{uuid.uuid4().hex[:8]}.tmp"
     with open(temp_path, "w", encoding="utf-8") as f:
         f.write(text)
     for _ in range(5):
@@ -123,8 +125,8 @@ def heartbeat_age():
 settings = load_settings()
 
 # --- 1. LOAD SAVED STATES FIRST ---
-saved_nifty = datetime.date.today()
-saved_sensex = datetime.date.today()
+saved_nifty = datetime.datetime.strptime(config.get_next_expiry("NIFTY"), "%Y-%m-%d").date()
+saved_sensex = datetime.datetime.strptime(config.get_next_expiry("SENSEX"), "%Y-%m-%d").date()
 
 # --- THE UNIFIED BRAIN FIX: Read Expiries from settings.json ---
 if "NIFTY_EXPIRY" in settings:
@@ -189,7 +191,8 @@ nifty_exp = st.sidebar.date_input("NIFTY Expiry Date", saved_nifty)
 sensex_exp = st.sidebar.date_input("SENSEX Expiry Date", saved_sensex)
 
 enable_btst = st.sidebar.toggle("🌙 Enable BTST (Carry Forward)", value=btst_state)
-atomic_write_text(BTST_FILE, "TRUE" if enable_btst else "FALSE")
+if enable_btst != btst_state:
+    atomic_write_text(BTST_FILE, "TRUE" if enable_btst else "FALSE")
 
 with st.sidebar.form("config_form"):
     env_mode = st.selectbox("Environment", ["SANDBOX", "LIVE"], index=0 if settings.get("ENVIRONMENT") == "SANDBOX" else 1)
@@ -342,9 +345,13 @@ with col_status:
                 st.metric("VIX Profile", f"{profile_emoji} {vix_profile}", delta=f"VIX: {session_vix:.1f}", delta_color="off")
             with badge_col2:
                 hwm = state.get("profit_high_water_mark", 0.0) * 100
-                trail_active = state.get("trail_active", False)
-                trail_status = "🟢 ACTIVE" if trail_active else "⚪ Waiting"
-                st.metric("Ratchet Trail", trail_status, delta=f"HWM: {hwm:.2f}%", delta_color="off")
+                profit_lock_tier = state.get("profit_lock_tier", 0)
+                if profit_lock_tier > 0:
+                    tier_emoji = ["⚪", "🛡️", "🔥", "🚀", "👑"][profit_lock_tier]
+                    trail_status = f"{tier_emoji} Tier {profit_lock_tier}"
+                else:
+                    trail_status = "⚪ Waiting"
+                st.metric("Profit Lock", trail_status, delta=f"HWM: {hwm:.2f}%", delta_color="off")
             with badge_col3:
                 drift_ratio = state.get("atm_drift_ratio", 0.0)
                 drift_color = "normal" if drift_ratio < 1.0 else "inverse"
@@ -422,9 +429,9 @@ with col_status:
             current_target_pct = state.get("applied_target_pct", settings.get("TARGET_PROFIT_PCT", 10))
             target_gross_pnl = (entry_net * (current_target_pct / 100.0)) * qty
 
-            # Show trail floor if ratchet is active
-            trail_floor_pct = state.get("trail_floor", 0.0) * 100
-            trail_floor_pnl = (entry_net * state.get("trail_floor", 0.0)) * qty if state.get("trail_active") else 0.0
+            # Show profit lock floor
+            lock_floor_pct = state.get("profit_lock_floor", 0.0) * 100
+            lock_floor_pnl = (entry_net * state.get("profit_lock_floor", 0.0)) * qty if state.get("profit_lock_floor", 0.0) > 0 else 0.0
             
             st.markdown("---")
             
@@ -438,7 +445,7 @@ with col_status:
                     value = gross_pnl,
                     domain = {'x': [0, 1], 'y': [0, 1]},
                     title = {'text': "Real-time PnL", 'font': {'size': 20, 'color': 'white'}},
-                    delta = {'reference': trail_floor_pnl, 'increasing': {'color': "#10b981"}, 'decreasing': {'color': "#ef4444"}},
+                    delta = {'reference': lock_floor_pnl, 'increasing': {'color': "#10b981"}, 'decreasing': {'color': "#ef4444"}},
                     gauge = {
                         'axis': {'range': [min_gauge, max_gauge], 'tickwidth': 1, 'tickcolor': "white"},
                         'bar': {'color': "#3b82f6"},
@@ -447,8 +454,8 @@ with col_status:
                         'bordercolor': "gray",
                         'steps': [
                             {'range': [min_gauge, 0], 'color': "rgba(239, 68, 68, 0.2)"},
-                            {'range': [0, trail_floor_pnl], 'color': "rgba(234, 179, 8, 0.2)"},
-                            {'range': [trail_floor_pnl, target_gross_pnl], 'color': "rgba(16, 185, 129, 0.2)"}
+                            {'range': [0, lock_floor_pnl], 'color': "rgba(234, 179, 8, 0.2)"},
+                            {'range': [lock_floor_pnl, target_gross_pnl], 'color': "rgba(16, 185, 129, 0.2)"}
                         ],
                         'threshold': {
                             'line': {'color': "#10b981", 'width': 4},
@@ -472,9 +479,9 @@ with col_status:
             
             with metric_col2:
                 target_label = f"🎯 Target ({current_target_pct}%)"
-                if state.get("trail_active"):
-                    target_label = f"🛡️ Trail Floor ({trail_floor_pct:.1f}%)"
-                    target_gross_pnl = trail_floor_pnl
+                if state.get("profit_lock_tier", 0) > 0:
+                    target_label = f"🛡️ Locked Floor ({lock_floor_pct:.1f}%)"
+                    target_gross_pnl = lock_floor_pnl
                 st.metric(target_label, f"₹{target_gross_pnl:.2f}", delta=f"VIX: {vix_profile}", delta_color="off")
             
             with metric_col3:

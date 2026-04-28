@@ -56,8 +56,43 @@ def get_target_profit_pct():
 
 SANDBOX_ACCESS_TOKEN = settings.get("SANDBOX_ACCESS_TOKEN", "")
 
-NIFTY_EXPIRY = settings.get("NIFTY_EXPIRY", "")
-SENSEX_EXPIRY = settings.get("SENSEX_EXPIRY", "")
+# --- MARKET HOLIDAYS (YYYY-MM-DD) ---
+MARKET_HOLIDAYS = [
+    "2026-04-14",
+    "2026-05-01",
+    "2026-08-15",
+]
+
+import datetime
+
+def get_next_expiry(index_symbol):
+    now = datetime.datetime.now()
+    today = now.date()
+    target_weekday = 3 if index_symbol == "NIFTY" else 4
+    
+    for i in range(14):
+        test_date = today + datetime.timedelta(days=i)
+        days_to_target = target_weekday - test_date.weekday()
+        nominal_expiry = test_date + datetime.timedelta(days=days_to_target)
+        
+        actual_expiry = nominal_expiry
+        while True:
+            date_str = actual_expiry.strftime("%Y-%m-%d")
+            is_weekend = actual_expiry.weekday() >= 5
+            is_holiday = date_str in MARKET_HOLIDAYS
+            if not is_weekend and not is_holiday:
+                break
+            actual_expiry -= datetime.timedelta(days=1)
+            
+        if actual_expiry > today:
+            return actual_expiry.strftime("%Y-%m-%d")
+        elif actual_expiry == today and now.hour < 16:
+            return actual_expiry.strftime("%Y-%m-%d")
+            
+    return today.strftime("%Y-%m-%d")
+
+NIFTY_EXPIRY = settings.get("NIFTY_EXPIRY", get_next_expiry("NIFTY"))
+SENSEX_EXPIRY = settings.get("SENSEX_EXPIRY", get_next_expiry("SENSEX"))
 
 
 def get_nifty_qty():
@@ -101,14 +136,20 @@ ATM_DRIFT_MULTIPLIER = 1.5
 
 # --- RATCHET TRAILING STOP ---
 TRAIL_LOCK_FLOOR_PCT = 0.80
-TRAIL_RATCHET_FACTOR = 0.75
+TRAIL_RATCHET_FACTOR = 0.85  # Tighter: keep 85% of peak (was 75%)
 
-# --- MARKET HOLIDAYS (YYYY-MM-DD) ---
-MARKET_HOLIDAYS = [
-    "2026-04-14",
-    "2026-05-01",
-    "2026-08-15",
-]
+# --- PROGRESSIVE PROFIT LOCK TIERS ---
+PROFIT_LOCK_TIER1_TRIGGER = 0.40   # 40% of target
+PROFIT_LOCK_TIER1_FLOOR = 0.15     # Lock 15% of target
+PROFIT_LOCK_TIER2_TRIGGER = 0.60   # 60% of target
+PROFIT_LOCK_TIER2_FLOOR = 0.35     # Lock 35% of target
+PROFIT_LOCK_TIER3_TRIGGER = 0.80   # 80% of target
+PROFIT_LOCK_TIER3_FLOOR = 0.60     # Lock 60% of target
+
+# --- BTST HEALTH CHECK ---
+BTST_MAX_SKEW_RATIO = 2.0          # Max CE/PE ratio for healthy BTST
+BTST_MIN_LEG_PCT = 0.30            # Min premium retention per leg (30%)
+BTST_RECENTER_CUTOFF_MINUTE = 20   # Latest minute past 15:xx to allow recenter
 
 # Prefer environment variables for secrets. settings.json remains supported for
 # local-only use, but credentials are no longer hard-coded in source.

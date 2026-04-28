@@ -515,9 +515,42 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
     
     btst_file = os.path.join(BASE_DIR, "btst_flag.txt")
     if os.path.exists(btst_file) and open(btst_file, "r").read().strip() == "TRUE":
-        if state_manager.load_state():
-            logging.critical(f"🌙 BTST ENABLED: Carrying forward {index_symbol} overnight.")
-            return 
+        state = state_manager.load_state()
+        if state and state.get("active"):
+            from strategy import evaluate_btst_health
+            live_file = os.path.join(BASE_DIR, "live_prices.json")
+            live_prices = {}
+            if os.path.exists(live_file):
+                try:
+                    with open(live_file, "r") as f:
+                        live_prices = json.load(f)
+                except Exception:
+                    pass
+            
+            is_healthy, diagnosis = evaluate_btst_health(live_prices, state['legs'], state['entry_prices'])
+            
+            if is_healthy:
+                logging.critical(f"🌙 BTST ENABLED: Structure healthy. Carrying forward {index_symbol}.")
+                return
+            else:
+                logging.critical(f"⚠️ BTST SKEW DETECTED: {diagnosis}. Squaring off broken butterfly.")
+                legs = state['legs']
+                exit_prices = {
+                    'sell_ce': live_prices.get(legs['sell_ce'], {}).get('ltp', 0),
+                    'sell_pe': live_prices.get(legs['sell_pe'], {}).get('ltp', 0),
+                    'buy_ce': live_prices.get(legs['buy_ce'], {}).get('ltp', 0),
+                    'buy_pe': live_prices.get(legs['buy_pe'], {}).get('ltp', 0)
+                }
+                square_off_all(exit_prices)
+                
+                now = datetime.now()
+                if now.hour == 15 and now.minute <= config.BTST_RECENTER_CUTOFF_MINUTE:
+                    logging.critical("🔄 BTST RECENTER: Deploying fresh ATM butterfly for overnight carry.")
+                    state_manager.update_state("active", False)
+                    continuous_trading_session(index_symbol, expiry_date, 15, 30)
+                    return
+                else:
+                    logging.warning("⏰ Too late to recenter. Going flat overnight.")
 
     final_state = state_manager.load_state()
     if final_state and final_state.get("active"):
