@@ -18,6 +18,9 @@ from execution import place_iron_butterfly_basket, square_off_all
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 HEARTBEAT_FILE = os.path.join(BASE_DIR, "engine_heartbeat.json")
 GRACEFUL_STOP_FILE = os.path.join(BASE_DIR, "graceful_stop_flag.txt")
+MANUAL_EXIT_FILE = os.path.join(BASE_DIR, "manual_exit_flag.txt")
+MANUAL_ENTRY_FILE = os.path.join(BASE_DIR, "manual_entry_flag.txt")
+PID_FILE = os.path.join(BASE_DIR, "engine_pid.txt")
 _last_heartbeat_write = 0.0
 
 # ============================================================================
@@ -54,7 +57,39 @@ def is_valid_expiry(expiry_date):
     """Validates that expiry_date is in YYYY-MM-DD format and not a placeholder."""
     if not expiry_date or expiry_date in ("UNKNOWN", "RECOVERY", ""):
         return False
-    return bool(re.match(r'^\d{4}-\d{2}-\d{2}$', expiry_date))
+    if not re.match(r'^\d{4}-\d{2}-\d{2}$', expiry_date):
+        return False
+    try:
+        datetime.strptime(expiry_date, "%Y-%m-%d")
+        return True
+    except ValueError:
+        return False
+
+
+def is_stale_expiry(expiry_date):
+    try:
+        return datetime.strptime(expiry_date, "%Y-%m-%d").date() < datetime.now().date()
+    except ValueError:
+        return True
+
+
+def clear_startup_flags():
+    for flag_path in (GRACEFUL_STOP_FILE, MANUAL_EXIT_FILE, MANUAL_ENTRY_FILE):
+        if os.path.exists(flag_path):
+            try:
+                os.remove(flag_path)
+                logging.info("Cleared stale startup flag: %s", os.path.basename(flag_path))
+            except Exception as err:
+                logging.warning("Could not clear stale startup flag %s: %s", flag_path, err)
+
+
+def mark_engine_stopped():
+    write_heartbeat("STOPPED")
+    if os.path.exists(PID_FILE):
+        try:
+            os.remove(PID_FILE)
+        except Exception:
+            pass
 
 
 def write_heartbeat(status="RUNNING"):
@@ -94,6 +129,23 @@ def consume_graceful_stop():
             pass
         return True
     return False
+
+
+def calendar_blocks_trading():
+    errors = config.validate_expiry_calendar()
+    if errors:
+        for error in errors:
+            logging.critical("Expiry calendar validation failed: %s", error)
+        import notifier
+        notifier.send_telegram_alert(
+            "<b>EXPIRY CALENDAR INVALID</b>\n" + "\n".join(errors)
+        )
+        return True
+    return False
+
+
+def current_expiries():
+    return config.get_next_expiry("NIFTY"), config.get_next_expiry("SENSEX")
 
 
 def exit_prices_from_rest(legs):
@@ -193,22 +245,21 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
     # ================================================================
     # EXPIRY DATE VALIDATION GUARD
     # ================================================================
-    if not is_valid_expiry(expiry_date):
+    if not is_valid_expiry(expiry_date) or is_stale_expiry(expiry_date):
         logging.critical(
             f"❌ INVALID EXPIRY DATE: '{expiry_date}' for {index_symbol}. "
-            f"Cannot deploy trades. Please fix the expiry in settings.json or the dashboard!"
+            f"Cannot deploy trades. Please fix expiries.json before starting the engine."
         )
         import notifier
         notifier.send_telegram_alert(
             f"❌ <b>INVALID EXPIRY DATE!</b>\n"
             f"{index_symbol}: '{expiry_date}'\n"
-            f"Fix settings.json and restart."
+            f"Fix expiries.json and restart."
         )
         return
 
-    manual_exit_file = os.path.join(BASE_DIR, "manual_exit_flag.txt")
-    if os.path.exists(manual_exit_file):
-        os.remove(manual_exit_file)
+    if os.path.exists(MANUAL_EXIT_FILE):
+        os.remove(MANUAL_EXIT_FILE)
         
     # ================================================================
     # PHASE 0: BTST CARRY FORWARD RECOVERY
@@ -241,7 +292,7 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             else:
                 logging.info(f"🔄 Exit Signal ({stop_loss_hit}) received on Carry Forward. Squaring off...")
                 
-            square_off_all(exit_prices)
+            square_off_all(exit_prices, exit_reason=stop_loss_hit)
             time.sleep(10)
             
         btst_file = os.path.join(BASE_DIR, "btst_flag.txt")
@@ -272,21 +323,20 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
                 logging.info(f"⏰ Cutoff reached during gap wait. Ending session.")
                 return
             
-            manual_exit_file = os.path.join(BASE_DIR, "manual_exit_flag.txt")
-            if os.path.exists(manual_exit_file):
-                os.remove(manual_exit_file)
+            if os.path.exists(MANUAL_EXIT_FILE):
+                os.remove(MANUAL_EXIT_FILE)
                 logging.critical("🛑 MANUAL EXIT triggered during Gap Filter wait. Halting session.")
                 return
                 
-            manual_entry_file = os.path.join(BASE_DIR, "manual_entry_flag.txt")
-            if os.path.exists(manual_entry_file):
-                os.remove(manual_entry_file)
+            if os.path.exists(MANUAL_ENTRY_FILE):
+                os.remove(MANUAL_ENTRY_FILE)
                 logging.critical("▶️ MANUAL ENTRY triggered! Skipping gap wait.")
                 break
                 
             if consume_graceful_stop():
                 logging.critical("Graceful stop requested during Gap Filter wait. Halting session.")
-                return
+                mark_engine_stopped()
+                raise SystemExit(0)
                 
             time.sleep(5)
         logging.info("✅ Gap settle period complete. Resuming normal operations.")
@@ -301,11 +351,11 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             write_heartbeat("ENTRY_WAIT")
             if consume_graceful_stop():
                 logging.critical("Graceful stop requested during entry wait. Halting session.")
-                return
+                mark_engine_stopped()
+                raise SystemExit(0)
                 
-            manual_entry_file = os.path.join(BASE_DIR, "manual_entry_flag.txt")
-            if os.path.exists(manual_entry_file):
-                os.remove(manual_entry_file)
+            if os.path.exists(MANUAL_ENTRY_FILE):
+                os.remove(MANUAL_ENTRY_FILE)
                 logging.critical("▶️ MANUAL ENTRY triggered! Skipping safe entry window wait.")
                 break
                 
@@ -331,7 +381,8 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
 
         if consume_graceful_stop():
             logging.critical("Graceful stop requested. No new trades will be deployed.")
-            break
+            mark_engine_stopped()
+            raise SystemExit(0)
 
         # --- CIRCUIT BREAKER CHECK ---
         if consecutive_losses >= config.MAX_CONSECUTIVE_LOSSES:
@@ -411,7 +462,7 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         else:
             logging.warning("Sync failed. Falling back to option chain prices.")
             
-        execution_success = place_iron_butterfly_basket(legs, index_symbol, entry_prices, strikes)
+        execution_success = place_iron_butterfly_basket(legs, index_symbol, entry_prices, strikes, spot_price=spot)
         
         if not execution_success:
             logging.critical("🛑 CRITICAL: Basket execution failed mid-flight! Halting session to prevent orphan legs.")
@@ -456,27 +507,30 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
                     f"This likely means stale/incomplete price data triggered a false exit. "
                     f"Squaring off safely and pausing for 120 seconds."
                 )
-            square_off_all(exit_prices)
+            square_off_all(exit_prices, exit_reason=stop_loss_hit)
             consecutive_losses += 1
             time.sleep(120)
             continue
 
         if stop_loss_hit in ("MANUAL_EXIT", "GRACEFUL_STOP"):
             logging.critical(f"🛑 User stop/exit executed. Squaring off {index_symbol}...")
-            square_off_all(exit_prices)
+            square_off_all(exit_prices, exit_reason=stop_loss_hit)
             logging.critical("Trading paused for this session due to user stop/exit.")
+            if stop_loss_hit == "GRACEFUL_STOP":
+                mark_engine_stopped()
+                raise SystemExit(0)
             break 
 
         elif stop_loss_hit == "TAKE_PROFIT":
             logging.critical(f"💰 PROFIT LOCKED for {index_symbol}! Squaring off positions.")
-            square_off_all(exit_prices)
+            square_off_all(exit_prices, exit_reason=stop_loss_hit)
             consecutive_losses = 0  # Reset circuit breaker on a win
             logging.info("Cooling down for 60 seconds before looking for new setups...")
             time.sleep(60)
 
         elif stop_loss_hit == "STOP_LOSS":
             logging.warning(f"🚨 Stop Loss hit for {index_symbol}! Squaring off...")
-            square_off_all(exit_prices)
+            square_off_all(exit_prices, exit_reason=stop_loss_hit)
             consecutive_losses += 1
             logging.info(f"🔌 Circuit Breaker: {consecutive_losses}/{config.MAX_CONSECUTIVE_LOSSES} consecutive losses.")
             logging.info("Cooling down for 60 seconds...")
@@ -484,7 +538,7 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
 
         elif stop_loss_hit == "ATM_DRIFT":
             logging.critical(f"🌊 ATM Drift exit for {index_symbol}! Structure compromised — squaring off...")
-            square_off_all(exit_prices)
+            square_off_all(exit_prices, exit_reason=stop_loss_hit)
             consecutive_losses += 1
             logging.info(f"🔌 Circuit Breaker: {consecutive_losses}/{config.MAX_CONSECUTIVE_LOSSES} consecutive losses.")
             logging.info("Cooling down for 60 seconds...")
@@ -496,7 +550,7 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
 
         elif stop_loss_hit == "SOCKET_DEAD_EXIT":
             logging.critical(f"WebSocket recovery failed for {index_symbol}. Squaring off with REST quote snapshot.")
-            square_off_all(exit_prices)
+            square_off_all(exit_prices, exit_reason=stop_loss_hit)
             break
 
         elif stop_loss_hit == "SOCKET_DEAD_FATAL":
@@ -506,12 +560,17 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
 
         elif stop_loss_hit == "TIME_EXIT":
             logging.critical(f"⏰ EOD Cutoff triggered for {index_symbol}. Squaring off and ending session.")
-            square_off_all(exit_prices)
+            square_off_all(exit_prices, exit_reason=stop_loss_hit)
             break 
+
+        elif stop_loss_hit == "BTST_RECENTER":
+            logging.critical("BTST unhealthy at cutoff. Squaring off and going flat.")
+            square_off_all(exit_prices, exit_reason=stop_loss_hit)
+            break
 
         elif stop_loss_hit:
             logging.warning(f"Stop Loss hit for {index_symbol}! Squaring off...")
-            square_off_all(exit_prices)
+            square_off_all(exit_prices, exit_reason=stop_loss_hit)
             consecutive_losses += 1
             logging.info("Cooling down for 60 seconds...")
             time.sleep(60)
@@ -554,16 +613,8 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
                     'buy_ce': live_prices.get(legs['buy_ce'], {}).get('ltp', 0),
                     'buy_pe': live_prices.get(legs['buy_pe'], {}).get('ltp', 0)
                 }
-                square_off_all(exit_prices)
-                
-                now = datetime.now()
-                if now.hour == 15 and now.minute <= config.BTST_RECENTER_CUTOFF_MINUTE:
-                    logging.critical("🔄 BTST RECENTER: Deploying fresh ATM butterfly for overnight carry.")
-                    state_manager.update_state("active", False)
-                    continuous_trading_session(index_symbol, expiry_date, 15, 30)
-                    return
-                else:
-                    logging.warning("⏰ Too late to recenter. Going flat overnight.")
+                square_off_all(exit_prices, exit_reason="BTST_UNHEALTHY")
+                return
 
     final_state = state_manager.load_state()
     if final_state and final_state.get("active"):
@@ -590,7 +641,7 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
                     }
                 except AttributeError: pass 
                     
-        square_off_all(exit_prices)
+        square_off_all(exit_prices, exit_reason="FINAL_SAFETY")
 
 
 # ============================================================================
@@ -613,15 +664,10 @@ def build_todays_schedule():
         logging.critical(f"🌴 MARKET HOLIDAY DETECTED ({today_str}). The bot will sleep all day.")
         return 
 
-    nifty_expiry, sensex_expiry = "UNKNOWN", "UNKNOWN"
-    settings_file = os.path.join(BASE_DIR, "settings.json")
-    if os.path.exists(settings_file):
-        try:
-            with open(settings_file, "r") as f:
-                data = json.load(f)
-                nifty_expiry = data.get("NIFTY_EXPIRY", "UNKNOWN")
-                sensex_expiry = data.get("SENSEX_EXPIRY", "UNKNOWN")
-        except Exception: pass
+    if calendar_blocks_trading():
+        return
+
+    nifty_expiry, sensex_expiry = current_expiries()
 
     # ================================================================
     # EXPIRY DAY STRATEGY:
@@ -632,7 +678,7 @@ def build_todays_schedule():
     if today_str == nifty_expiry:
         logging.critical(f"🎯 NIFTY EXPIRY DETECTED ({today_str}). Expiry Strategy: Nifty MORNING (theta capture), Sensex AFTERNOON.")
         # Nifty in the morning (expiring — capture rapid theta decay)
-        schedule.every().day.at("09:15").do(
+        schedule.every().day.at(config.EXPIRY_ENTRY_TIME).do(
             continuous_trading_session, index_symbol="NIFTY", 
             expiry_date=nifty_expiry, cutoff_hour=12, cutoff_minute=30
         ).tag('trading_jobs')
@@ -645,7 +691,7 @@ def build_todays_schedule():
     elif today_str == sensex_expiry:
         logging.critical(f"🎯 SENSEX EXPIRY DETECTED ({today_str}). Expiry Strategy: Sensex MORNING (theta capture), Nifty AFTERNOON.")
         # Sensex in the morning (expiring — capture rapid theta decay)
-        schedule.every().day.at("09:15").do(
+        schedule.every().day.at(config.EXPIRY_ENTRY_TIME).do(
             continuous_trading_session, index_symbol="SENSEX", 
             expiry_date=sensex_expiry, cutoff_hour=12, cutoff_minute=30
         ).tag('trading_jobs')
@@ -659,10 +705,10 @@ def build_todays_schedule():
         weekday = now.strftime("%A").upper()
         if weekday in ["WEDNESDAY", "THURSDAY"]:
             logging.info(f"📅 Normal Trading Day ({today_str} - {weekday}). Defaulting to SENSEX.")
-            schedule.every().day.at("09:15").do(continuous_trading_session, index_symbol="SENSEX", expiry_date=sensex_expiry, cutoff_hour=15, cutoff_minute=15).tag('trading_jobs')
+            schedule.every().day.at(config.NORMAL_ENTRY_TIME).do(continuous_trading_session, index_symbol="SENSEX", expiry_date=sensex_expiry, cutoff_hour=15, cutoff_minute=15).tag('trading_jobs')
         else:
             logging.info(f"📅 Normal Trading Day ({today_str} - {weekday}). Defaulting to NIFTY.")
-            schedule.every().day.at("09:15").do(continuous_trading_session, index_symbol="NIFTY", expiry_date=nifty_expiry, cutoff_hour=15, cutoff_minute=15).tag('trading_jobs')
+            schedule.every().day.at(config.NORMAL_ENTRY_TIME).do(continuous_trading_session, index_symbol="NIFTY", expiry_date=nifty_expiry, cutoff_hour=15, cutoff_minute=15).tag('trading_jobs')
 
 
 # ============================================================================
@@ -670,6 +716,7 @@ def build_todays_schedule():
 # ============================================================================
 
 if __name__ == "__main__":
+    clear_startup_flags()
     # Handler setup already done at module level — no need to duplicate here
         
     logging.info("System Architect Bot V5 Initialized — Master Architecture Active 🏛️")
@@ -682,17 +729,12 @@ if __name__ == "__main__":
     logging.info(f"  Expiry Day Strategy: Expiring index trades MORNING, other AFTERNOON")
     logging.info(f"  Weekend Guard: ON")
 
-    nifty_expiry, sensex_expiry = "UNKNOWN", "UNKNOWN"
-    settings_file = os.path.join(BASE_DIR, "settings.json")
-    if os.path.exists(settings_file):
-        try:
-            with open(settings_file, "r") as f:
-                data = json.load(f)
-                nifty_expiry, sensex_expiry = data.get("NIFTY_EXPIRY", "UNKNOWN"), data.get("SENSEX_EXPIRY", "UNKNOWN")
-        except Exception: pass
+    calendar_invalid = calendar_blocks_trading()
+    nifty_expiry, sensex_expiry = current_expiries()
 
-    build_todays_schedule()
-    schedule.every().day.at("08:00").do(build_todays_schedule)
+    if not calendar_invalid:
+        build_todays_schedule()
+        schedule.every().day.at("08:00").do(build_todays_schedule)
 
     recovered_state = state_manager.load_state()
 
@@ -711,12 +753,12 @@ if __name__ == "__main__":
     
     now = datetime.now()
     today_str = now.strftime("%Y-%m-%d")
+    eod_cutoff = datetime.strptime("15:15", "%H:%M").time()
     
-    if not (hasattr(config, 'MARKET_HOLIDAYS') and today_str in config.MARKET_HOLIDAYS) and now.weekday() < 5:
+    if not calendar_invalid and not (hasattr(config, 'MARKET_HOLIDAYS') and today_str in config.MARKET_HOLIDAYS) and now.weekday() < 5:
         current_time = now.time()
-        morning_start = datetime.strptime("09:15", "%H:%M").time() 
+        morning_start = datetime.strptime(config.NORMAL_ENTRY_TIME, "%H:%M").time()
         afternoon_start = datetime.strptime("12:31", "%H:%M").time()
-        eod_cutoff = datetime.strptime("15:15", "%H:%M").time()
 
         # --- EXPIRY DAY STRATEGY: Expiring index trades MORNING, other AFTERNOON ---
         if today_str == nifty_expiry:
@@ -745,11 +787,15 @@ if __name__ == "__main__":
     while True:
         write_heartbeat("WAITING")
         schedule.run_pending()
+
+        if consume_graceful_stop():
+            logging.critical("Graceful stop requested while idle. Engine stopping.")
+            mark_engine_stopped()
+            raise SystemExit(0)
         
-        manual_entry_file = os.path.join(BASE_DIR, "manual_entry_flag.txt")
-        if os.path.exists(manual_entry_file):
+        if os.path.exists(MANUAL_ENTRY_FILE):
             try:
-                os.remove(manual_entry_file)
+                os.remove(MANUAL_ENTRY_FILE)
             except Exception:
                 pass
             
@@ -765,7 +811,12 @@ if __name__ == "__main__":
                 idx = "SENSEX" if now_dt.strftime("%A").upper() in ["WEDNESDAY", "THURSDAY"] else "NIFTY"
                 exp = sensex_expiry if idx == "SENSEX" else nifty_expiry
             
-            continuous_trading_session(idx, exp, 15, 15)
-            logging.info("Returned to idle state after manual entry session.")
+            if calendar_invalid:
+                logging.critical("Manual entry ignored because expiry calendar is invalid.")
+            elif datetime.now().time() >= eod_cutoff:
+                logging.info("Soft Cutoff (15:15) reached. No manual entry will be taken.")
+            else:
+                continuous_trading_session(idx, exp, 15, 15)
+                logging.info("Returned to idle state after manual entry session.")
             
         time.sleep(1)

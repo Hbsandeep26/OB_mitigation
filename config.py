@@ -1,8 +1,10 @@
 import json
 import os
+import datetime
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SETTINGS_FILE = os.path.join(BASE_DIR, "settings.json")
+EXPIRIES_FILE = os.path.join(BASE_DIR, "expiries.json")
 
 
 def load_settings():
@@ -56,43 +58,105 @@ def get_target_profit_pct():
 
 SANDBOX_ACCESS_TOKEN = settings.get("SANDBOX_ACCESS_TOKEN", "")
 
-# --- MARKET HOLIDAYS (YYYY-MM-DD) ---
-MARKET_HOLIDAYS = [
-    "2026-04-14",
-    "2026-05-01",
-    "2026-08-15",
-]
 
-import datetime
+def _parse_date(date_str):
+    return datetime.datetime.strptime(str(date_str), "%Y-%m-%d").date()
 
-def get_next_expiry(index_symbol):
-    now = datetime.datetime.now()
+
+def load_expiry_calendar():
+    """Load manually maintained weekly expiries and holidays.
+
+    Supports the old {"NIFTY": "YYYY-MM-DD"} shape and the new
+    {"NIFTY": ["YYYY-MM-DD"], "SENSEX": [...], "HOLIDAYS": [...]} shape.
+    """
+    data = {}
+    if os.path.exists(EXPIRIES_FILE):
+        try:
+            with open(EXPIRIES_FILE, "r") as f:
+                data = json.load(f)
+        except Exception:
+            data = {}
+
+    def normalize_list(key):
+        value = data.get(key, [])
+        if isinstance(value, str):
+            value = [value]
+        if not isinstance(value, list):
+            value = []
+        valid = []
+        for item in value:
+            try:
+                valid.append(_parse_date(item).strftime("%Y-%m-%d"))
+            except (TypeError, ValueError):
+                continue
+        return sorted(set(valid))
+
+    return {
+        "NIFTY": normalize_list("NIFTY"),
+        "SENSEX": normalize_list("SENSEX"),
+        "HOLIDAYS": normalize_list("HOLIDAYS") or normalize_list("MARKET_HOLIDAYS"),
+    }
+
+
+def get_market_holidays():
+    calendar = load_expiry_calendar()
+    fallback = settings.get("MARKET_HOLIDAYS", [])
+    if isinstance(fallback, str):
+        fallback = [fallback]
+    return sorted(set(calendar["HOLIDAYS"] + [str(day) for day in fallback]))
+
+
+MARKET_HOLIDAYS = get_market_holidays()
+
+
+def get_next_expiry(index_symbol, now=None):
+    now = now or datetime.datetime.now()
     today = now.date()
-    target_weekday = 3 if index_symbol == "NIFTY" else 4
-    
-    for i in range(14):
-        test_date = today + datetime.timedelta(days=i)
-        days_to_target = target_weekday - test_date.weekday()
-        nominal_expiry = test_date + datetime.timedelta(days=days_to_target)
-        
-        actual_expiry = nominal_expiry
-        while True:
-            date_str = actual_expiry.strftime("%Y-%m-%d")
-            is_weekend = actual_expiry.weekday() >= 5
-            is_holiday = date_str in MARKET_HOLIDAYS
-            if not is_weekend and not is_holiday:
-                break
-            actual_expiry -= datetime.timedelta(days=1)
-            
-        if actual_expiry > today:
-            return actual_expiry.strftime("%Y-%m-%d")
-        elif actual_expiry == today and now.hour < 16:
-            return actual_expiry.strftime("%Y-%m-%d")
-            
-    return today.strftime("%Y-%m-%d")
+    calendar = load_expiry_calendar()
+    expiries = calendar.get(index_symbol, [])
+    holidays = set(calendar.get("HOLIDAYS", []))
 
-NIFTY_EXPIRY = settings.get("NIFTY_EXPIRY", get_next_expiry("NIFTY"))
-SENSEX_EXPIRY = settings.get("SENSEX_EXPIRY", get_next_expiry("SENSEX"))
+    for expiry in expiries:
+        try:
+            expiry_date = _parse_date(expiry)
+        except ValueError:
+            continue
+        if expiry in holidays or expiry_date.weekday() >= 5:
+            continue
+        if expiry_date > today or (expiry_date == today and now.time() < datetime.time(16, 0)):
+            return expiry
+
+    configured = settings.get(f"{index_symbol}_EXPIRY")
+    if configured:
+        return configured
+    return "UNKNOWN"
+
+
+def validate_expiry_calendar(now=None):
+    now = now or datetime.datetime.now()
+    errors = []
+    calendar = load_expiry_calendar()
+    today = now.date()
+
+    for index_symbol in ("NIFTY", "SENSEX"):
+        expiries = calendar.get(index_symbol, [])
+        if not expiries:
+            errors.append(f"{index_symbol}: no weekly expiries configured in expiries.json")
+            continue
+        next_expiry = get_next_expiry(index_symbol, now)
+        if next_expiry == "UNKNOWN":
+            errors.append(f"{index_symbol}: no valid future weekly expiry found in expiries.json")
+            continue
+        try:
+            if _parse_date(next_expiry) < today:
+                errors.append(f"{index_symbol}: next expiry {next_expiry} is stale")
+        except ValueError:
+            errors.append(f"{index_symbol}: next expiry {next_expiry} is invalid")
+    return errors
+
+
+NIFTY_EXPIRY = get_next_expiry("NIFTY")
+SENSEX_EXPIRY = get_next_expiry("SENSEX")
 
 
 def get_nifty_qty():
@@ -130,6 +194,8 @@ WEBSOCKET_SILENT_SECONDS = _float_setting("WEBSOCKET_SILENT_SECONDS", 60.0)
 HEARTBEAT_INTERVAL_SECONDS = _float_setting("HEARTBEAT_INTERVAL_SECONDS", 5.0)
 NET_STOP_LOSS_MULTIPLIER = _float_setting("NET_STOP_LOSS_MULTIPLIER", 2.0)
 MAX_DEFINED_LOSS_RUPEES = _float_setting("MAX_DEFINED_LOSS_RUPEES", 0.0)
+NORMAL_ENTRY_TIME = _setting("NORMAL_ENTRY_TIME", "09:16")
+EXPIRY_ENTRY_TIME = _setting("EXPIRY_ENTRY_TIME", "09:20")
 
 # --- ATM DRIFT GUARD ---
 ATM_DRIFT_MULTIPLIER = 1.5
@@ -150,6 +216,10 @@ PROFIT_LOCK_TIER3_FLOOR = 0.60     # Lock 60% of target
 BTST_MAX_SKEW_RATIO = 2.0          # Max CE/PE ratio for healthy BTST
 BTST_MIN_LEG_PCT = 0.30            # Min premium retention per leg (30%)
 BTST_RECENTER_CUTOFF_MINUTE = 20   # Latest minute past 15:xx to allow recenter
+
+# --- PROFIT LOCK ATM GRACE ---
+PROFIT_LOCK_ATM_GRACE_SECONDS = _float_setting("PROFIT_LOCK_ATM_GRACE_SECONDS", 20.0)
+PROFIT_LOCK_ATM_GRACE_RATIO = _float_setting("PROFIT_LOCK_ATM_GRACE_RATIO", 0.35)
 
 # Prefer environment variables for secrets. settings.json remains supported for
 # local-only use, but credentials are no longer hard-coded in source.

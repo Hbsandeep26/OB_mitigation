@@ -3,6 +3,8 @@ import sys
 import time
 import unittest
 import types
+import json
+import datetime
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -47,6 +49,7 @@ fake_schedule.run_pending = lambda: None
 sys.modules.setdefault("schedule", fake_schedule)
 
 import config
+import broker
 import execution
 import main
 import state_manager
@@ -92,6 +95,8 @@ class SafetyHardeningTests(unittest.TestCase):
         self.old_state_file = state_manager.STATE_FILE
         self.old_env = config.ENVIRONMENT
         self.old_qty = config.get_nifty_qty
+        self.old_expiries_file = config.EXPIRIES_FILE
+        self.old_strategy_base = strategy.BASE_DIR
         self.current_state_file = os.path.join(self.tmp_name, "trade_state.json")
         if os.path.exists(self.current_state_file):
             os.remove(self.current_state_file)
@@ -100,6 +105,9 @@ class SafetyHardeningTests(unittest.TestCase):
         state_manager._last_mtime = 0.0
         config.ENVIRONMENT = "LIVE"
         config.get_nifty_qty = lambda: 65
+        config.EXPIRIES_FILE = os.path.join(self.tmp_name, "expiries.json")
+        strategy.BASE_DIR = self.tmp_name
+        broker.set_broker_for_tests(None)
 
     def tearDown(self):
         try:
@@ -113,6 +121,9 @@ class SafetyHardeningTests(unittest.TestCase):
         state_manager._last_mtime = 0.0
         config.ENVIRONMENT = self.old_env
         config.get_nifty_qty = self.old_qty
+        config.EXPIRIES_FILE = self.old_expiries_file
+        strategy.BASE_DIR = self.old_strategy_base
+        broker.set_broker_for_tests(None)
 
     def test_confirmed_entry_saves_actual_average_prices(self):
         v3 = FakeOrderApiV3()
@@ -235,6 +246,80 @@ class SafetyHardeningTests(unittest.TestCase):
         legs, prices, strikes = strategy.calculate_iron_butterfly_legs("NIFTY", 126, chain, wing_delta=50)
         self.assertEqual(strikes["sell_ce"], 150)
         self.assertEqual(legs["sell_ce"], "C150")
+
+    def test_calendar_selects_next_weekly_expiry_from_manual_json(self):
+        with open(config.EXPIRIES_FILE, "w") as f:
+            json.dump({
+                "NIFTY": ["2026-04-23", "2026-04-30", "2026-05-07"],
+                "SENSEX": ["2026-04-24", "2026-05-01", "2026-05-08"],
+                "HOLIDAYS": ["2026-05-01"],
+            }, f)
+
+        now = datetime.datetime(2026, 4, 29, 10, 0)
+        self.assertEqual(config.get_next_expiry("NIFTY", now=now), "2026-04-30")
+        self.assertEqual(config.get_next_expiry("SENSEX", now=now), "2026-05-08")
+        self.assertEqual(config.validate_expiry_calendar(now=now), [])
+
+    def test_manual_exit_uses_fresh_broker_quotes_for_pnl(self):
+        class FreshQuoteBroker:
+            def get_fresh_option_quotes(self, instrument_keys):
+                return {"SCE": 18.0, "SPE": 17.0, "BCE": 4.0, "BPE": 4.0}
+
+        broker.set_broker_for_tests(FreshQuoteBroker())
+        config.ENVIRONMENT = "SANDBOX"
+        state_manager.save_state(
+            "NIFTY",
+            {"buy_ce": "BCE", "buy_pe": "BPE", "sell_ce": "SCE", "sell_pe": "SPE"},
+            {"buy_ce": 5.0, "buy_pe": 5.0, "sell_ce": 20.0, "sell_pe": 20.0},
+            65,
+            {"buy_ce": 110, "buy_pe": 90, "sell_ce": 100, "sell_pe": 100},
+        )
+
+        with patch.object(execution, "send_telegram_alert"), patch.object(execution, "log_trade") as log_trade:
+            execution.square_off_all({"buy_ce": 5.0, "buy_pe": 5.0, "sell_ce": 20.0, "sell_pe": 20.0}, exit_reason="MANUAL_EXIT")
+
+        args, kwargs = log_trade.call_args
+        self.assertEqual(args[0], "EXIT")
+        self.assertEqual(args[5], "Local Paper Trade Closed (Fresh broker quote snapshot)")
+        self.assertEqual(args[4], 195.0)
+        self.assertEqual(kwargs["exit_reason"], "MANUAL_EXIT")
+
+    def test_profit_lock_floor_gets_short_atm_grace_before_exit(self):
+        class MarketHoursDatetime(datetime.datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return cls(2026, 4, 29, 10, 30)
+
+        state_manager.save_state(
+            "NIFTY",
+            {"buy_ce": "BCE", "buy_pe": "BPE", "sell_ce": "SCE", "sell_pe": "SPE"},
+            {"buy_ce": 5.0, "buy_pe": 5.0, "sell_ce": 20.0, "sell_pe": 20.0},
+            65,
+            {"buy_ce": 110, "buy_pe": 90, "sell_ce": 100, "sell_pe": 100},
+        )
+        state_manager.update_many({
+            "applied_target_pct": 10,
+            "profit_lock_tier": 2,
+            "profit_lock_floor": 0.035,
+        })
+        live_data = {
+            "SCE": {"ltp": 19.0, "ts": time.time()},
+            "SPE": {"ltp": 18.2, "ts": time.time()},
+            "BCE": {"ltp": 4.0, "ts": time.time()},
+            "BPE": {"ltp": 4.0, "ts": time.time()},
+            "NSE_INDEX|Nifty 50": {"ltp": 100.0, "ts": time.time()},
+            "NSE_INDEX|India VIX": {"ltp": 15.0, "ts": time.time()},
+        }
+
+        with patch.object(strategy.datetime, "datetime", MarketHoursDatetime):
+            result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
+        self.assertFalse(result)
+
+        old_grace = time.time() - config.PROFIT_LOCK_ATM_GRACE_SECONDS - 1
+        state_manager.update_state("profit_lock_grace_started_ts", old_grace)
+        with patch.object(strategy.datetime, "datetime", MarketHoursDatetime):
+            result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
+        self.assertEqual(result, "TAKE_PROFIT")
 
 
 if __name__ == "__main__":

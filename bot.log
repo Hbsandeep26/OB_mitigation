@@ -859,3 +859,223 @@ x_selling\\Upstox_IronButterfly_Bot\\engine_heartbeat.json'
 2026-04-29 15:17:16,891 - INFO - ⏰ Soft Cutoff (15:15) reached. No NEW SENSEX trades will be taken.
 2026-04-29 15:17:16,891 - INFO - --- END OF SESSION FOR SENSEX ---
 2026-04-29 15:17:16,892 - INFO - Returned to idle state after manual entry session.
+2026-04-29 23:41:08,404 - INFO - Calculating Iron Butterfly strikes & prices (Wing delta=50)...
+2026-04-29 23:41:08,404 - INFO - Wing CE: Strike 200, LTP 5.00 (via Greeks delta, target delta=50)
+2026-04-29 23:41:08,404 - INFO - Wing PE: Strike 100, LTP 5.00 (via Greeks delta, target delta=50)
+2026-04-29 23:41:08,404 - INFO - Selected Execution Legs: {'sell_ce': 'C150', 'sell_pe': 'P150', 'buy_ce': 'C200', 'buy_pe': 'P100'}
+2026-04-29 23:41:08,405 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 5, 'buy_pe': 5}
+2026-04-29 23:41:08,405 - INFO - Selected Strikes: {'sell_ce': 150, 'sell_pe': 150, 'buy_ce': 200, 'buy_pe': 100}
+2026-04-29 23:41:08,406 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:41:08,406 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-04-29 23:41:08,556 - INFO - Confirmed fill: BUY buy_pe qty=65 avg=4.00 order_id=o2
+2026-04-29 23:41:08,707 - INFO - Confirmed fill: SELL sell_ce qty=65 avg=20.00 order_id=o3
+2026-04-29 23:41:08,858 - INFO - Confirmed fill: SELL sell_pe qty=65 avg=21.00 order_id=o4
+2026-04-29 23:41:09,012 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-04-29 23:41:09,012 - CRITICAL - Routing exit orders to LIVE Upstox with fill confirmation.
+2026-04-29 23:41:09,012 - CRITICAL - Failed to close sell_ce. Keeping buy_ce hedge intact. Error: sell_ce: REJECTED - 
+2026-04-29 23:41:09,012 - INFO - Confirmed fill: BUY sell_pe qty=65 avg=10.00 order_id=o2
+2026-04-29 23:41:09,163 - INFO - Confirmed fill: SELL buy_pe qty=65 avg=4.00 order_id=o3
+2026-04-29 23:41:09,315 - CRITICAL - STATE RETAINED: exit execution failed. Manual recovery required.
+2026-04-29 23:41:09,317 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:41:09,317 - CRITICAL - Partial fill during entry: buy_ce: unexpected fill quantity 10/65
+2026-04-29 23:41:09,317 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-04-29 23:41:09,317 - INFO - Confirmed fill: SELL buy_ce qty=10 avg=5.00 order_id=o2
+2026-04-29 23:41:09,317 - INFO - Rollback confirmed for buy_ce: o2
+2026-04-29 23:41:09,318 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:41:09,318 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-04-29 23:41:09,469 - CRITICAL - Basket execution failed before full confirmation: buy_pe: REJECTED - 
+2026-04-29 23:41:09,469 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-04-29 23:41:09,469 - INFO - Confirmed fill: SELL buy_ce qty=65 avg=5.00 order_id=o3
+2026-04-29 23:41:09,469 - INFO - Rollback confirmed for buy_ce: o3
+2026-04-29 23:41:09,470 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/3.
+2026-04-29 23:53:27,856 - INFO - Calculating Iron Butterfly strikes & prices (Wing delta=50)...
+2026-04-29 23:53:27,857 - INFO - Wing CE: Strike 200, LTP 5.00 (via Greeks delta, target delta=50)
+2026-04-29 23:53:27,857 - INFO - Wing PE: Strike 100, LTP 5.00 (via Greeks delta, target delta=50)
+2026-04-29 23:53:27,857 - INFO - Selected Execution Legs: {'sell_ce': 'C150', 'sell_pe': 'P150', 'buy_ce': 'C200', 'buy_pe': 'P100'}
+2026-04-29 23:53:27,858 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 5, 'buy_pe': 5}
+2026-04-29 23:53:27,858 - INFO - Selected Strikes: {'sell_ce': 150, 'sell_pe': 150, 'buy_ce': 200, 'buy_pe': 100}
+2026-04-29 23:53:27,858 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:53:27,859 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-04-29 23:53:28,010 - INFO - Confirmed fill: BUY buy_pe qty=65 avg=4.00 order_id=o2
+2026-04-29 23:53:28,160 - INFO - Confirmed fill: SELL sell_ce qty=65 avg=20.00 order_id=o3
+2026-04-29 23:53:28,311 - INFO - Confirmed fill: SELL sell_pe qty=65 avg=21.00 order_id=o4
+2026-04-29 23:53:28,471 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-04-29 23:53:28,471 - CRITICAL - Routing exit orders to LIVE Upstox with fill confirmation.
+2026-04-29 23:53:28,471 - CRITICAL - Failed to close sell_ce. Keeping buy_ce hedge intact. Error: sell_ce: REJECTED - 
+2026-04-29 23:53:28,471 - INFO - Confirmed fill: BUY sell_pe qty=65 avg=10.00 order_id=o2
+2026-04-29 23:53:28,623 - INFO - Confirmed fill: SELL buy_pe qty=65 avg=4.00 order_id=o3
+2026-04-29 23:53:28,777 - CRITICAL - STATE RETAINED: exit execution failed. Manual recovery required.
+2026-04-29 23:53:28,779 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:53:28,779 - CRITICAL - Partial fill during entry: buy_ce: unexpected fill quantity 10/65
+2026-04-29 23:53:28,779 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-04-29 23:53:28,779 - INFO - Confirmed fill: SELL buy_ce qty=10 avg=5.00 order_id=o2
+2026-04-29 23:53:28,779 - INFO - Rollback confirmed for buy_ce: o2
+2026-04-29 23:53:28,780 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:53:28,781 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-04-29 23:53:28,932 - CRITICAL - Basket execution failed before full confirmation: buy_pe: REJECTED - 
+2026-04-29 23:53:28,932 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-04-29 23:53:28,932 - INFO - Confirmed fill: SELL buy_ce qty=65 avg=5.00 order_id=o3
+2026-04-29 23:53:28,932 - INFO - Rollback confirmed for buy_ce: o3
+2026-04-29 23:53:28,935 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/3.
+2026-04-29 23:53:54,262 - INFO - Calculating Iron Butterfly strikes & prices (Wing delta=50)...
+2026-04-29 23:53:54,263 - INFO - Wing CE: Strike 200, LTP 5.00 (via Greeks delta, target delta=50)
+2026-04-29 23:53:54,263 - INFO - Wing PE: Strike 100, LTP 5.00 (via Greeks delta, target delta=50)
+2026-04-29 23:53:54,263 - INFO - Selected Execution Legs: {'sell_ce': 'C150', 'sell_pe': 'P150', 'buy_ce': 'C200', 'buy_pe': 'P100'}
+2026-04-29 23:53:54,263 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 5, 'buy_pe': 5}
+2026-04-29 23:53:54,263 - INFO - Selected Strikes: {'sell_ce': 150, 'sell_pe': 150, 'buy_ce': 200, 'buy_pe': 100}
+2026-04-29 23:53:54,269 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:53:54,269 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-04-29 23:53:54,420 - INFO - Confirmed fill: BUY buy_pe qty=65 avg=4.00 order_id=o2
+2026-04-29 23:53:54,572 - INFO - Confirmed fill: SELL sell_ce qty=65 avg=20.00 order_id=o3
+2026-04-29 23:53:54,722 - INFO - Confirmed fill: SELL sell_pe qty=65 avg=21.00 order_id=o4
+2026-04-29 23:53:54,881 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-04-29 23:53:54,881 - CRITICAL - Routing exit orders to LIVE Upstox with fill confirmation.
+2026-04-29 23:53:54,881 - CRITICAL - Failed to close sell_ce. Keeping buy_ce hedge intact. Error: sell_ce: REJECTED - 
+2026-04-29 23:53:54,881 - INFO - Confirmed fill: BUY sell_pe qty=65 avg=10.00 order_id=o2
+2026-04-29 23:53:55,033 - INFO - Confirmed fill: SELL buy_pe qty=65 avg=4.00 order_id=o3
+2026-04-29 23:53:55,187 - CRITICAL - STATE RETAINED: exit execution failed. Manual recovery required.
+2026-04-29 23:53:55,189 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-04-29 23:53:55,190 - INFO - Simulated PnL for this trade: 195.00
+2026-04-29 23:53:55,191 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:53:55,193 - CRITICAL - Partial fill during entry: buy_ce: unexpected fill quantity 10/65
+2026-04-29 23:53:55,193 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-04-29 23:53:55,193 - INFO - Confirmed fill: SELL buy_ce qty=10 avg=5.00 order_id=o2
+2026-04-29 23:53:55,193 - INFO - Rollback confirmed for buy_ce: o2
+2026-04-29 23:53:55,204 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:53:55,204 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-04-29 23:53:55,355 - CRITICAL - Basket execution failed before full confirmation: buy_pe: REJECTED - 
+2026-04-29 23:53:55,355 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-04-29 23:53:55,355 - INFO - Confirmed fill: SELL buy_ce qty=65 avg=5.00 order_id=o3
+2026-04-29 23:53:55,355 - INFO - Rollback confirmed for buy_ce: o3
+2026-04-29 23:53:55,357 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/3.
+2026-04-29 23:54:33,013 - INFO - Calculating Iron Butterfly strikes & prices (Wing delta=50)...
+2026-04-29 23:54:33,015 - INFO - Wing CE: Strike 200, LTP 5.00 (via Greeks delta, target delta=50)
+2026-04-29 23:54:33,015 - INFO - Wing PE: Strike 100, LTP 5.00 (via Greeks delta, target delta=50)
+2026-04-29 23:54:33,015 - INFO - Selected Execution Legs: {'sell_ce': 'C150', 'sell_pe': 'P150', 'buy_ce': 'C200', 'buy_pe': 'P100'}
+2026-04-29 23:54:33,015 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 5, 'buy_pe': 5}
+2026-04-29 23:54:33,015 - INFO - Selected Strikes: {'sell_ce': 150, 'sell_pe': 150, 'buy_ce': 200, 'buy_pe': 100}
+2026-04-29 23:54:33,018 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:54:33,018 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-04-29 23:54:33,169 - INFO - Confirmed fill: BUY buy_pe qty=65 avg=4.00 order_id=o2
+2026-04-29 23:54:33,321 - INFO - Confirmed fill: SELL sell_ce qty=65 avg=20.00 order_id=o3
+2026-04-29 23:54:33,471 - INFO - Confirmed fill: SELL sell_pe qty=65 avg=21.00 order_id=o4
+2026-04-29 23:54:33,631 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-04-29 23:54:33,632 - CRITICAL - Routing exit orders to LIVE Upstox with fill confirmation.
+2026-04-29 23:54:33,632 - CRITICAL - Failed to close sell_ce. Keeping buy_ce hedge intact. Error: sell_ce: REJECTED - 
+2026-04-29 23:54:33,632 - INFO - Confirmed fill: BUY sell_pe qty=65 avg=10.00 order_id=o2
+2026-04-29 23:54:33,783 - INFO - Confirmed fill: SELL buy_pe qty=65 avg=4.00 order_id=o3
+2026-04-29 23:54:33,937 - CRITICAL - STATE RETAINED: exit execution failed. Manual recovery required.
+2026-04-29 23:54:33,941 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-04-29 23:54:33,941 - INFO - Simulated PnL for this trade: 195.00
+2026-04-29 23:54:33,943 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:54:33,943 - CRITICAL - Partial fill during entry: buy_ce: unexpected fill quantity 10/65
+2026-04-29 23:54:33,944 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-04-29 23:54:33,944 - INFO - Confirmed fill: SELL buy_ce qty=10 avg=5.00 order_id=o2
+2026-04-29 23:54:33,944 - INFO - Rollback confirmed for buy_ce: o2
+2026-04-29 23:54:33,950 - CRITICAL - END OF DAY (15:15) REACHED. Forcing Square Off.
+2026-04-29 23:54:33,953 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:54:33,953 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-04-29 23:54:34,104 - CRITICAL - Basket execution failed before full confirmation: buy_pe: REJECTED - 
+2026-04-29 23:54:34,104 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-04-29 23:54:34,104 - INFO - Confirmed fill: SELL buy_ce qty=65 avg=5.00 order_id=o3
+2026-04-29 23:54:34,104 - INFO - Rollback confirmed for buy_ce: o3
+2026-04-29 23:54:34,106 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/3.
+2026-04-29 23:54:44,090 - INFO - Calculating Iron Butterfly strikes & prices (Wing delta=50)...
+2026-04-29 23:54:44,091 - INFO - Wing CE: Strike 200, LTP 5.00 (via Greeks delta, target delta=50)
+2026-04-29 23:54:44,091 - INFO - Wing PE: Strike 100, LTP 5.00 (via Greeks delta, target delta=50)
+2026-04-29 23:54:44,091 - INFO - Selected Execution Legs: {'sell_ce': 'C150', 'sell_pe': 'P150', 'buy_ce': 'C200', 'buy_pe': 'P100'}
+2026-04-29 23:54:44,091 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 5, 'buy_pe': 5}
+2026-04-29 23:54:44,091 - INFO - Selected Strikes: {'sell_ce': 150, 'sell_pe': 150, 'buy_ce': 200, 'buy_pe': 100}
+2026-04-29 23:54:44,096 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:54:44,097 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-04-29 23:54:44,248 - INFO - Confirmed fill: BUY buy_pe qty=65 avg=4.00 order_id=o2
+2026-04-29 23:54:44,398 - INFO - Confirmed fill: SELL sell_ce qty=65 avg=20.00 order_id=o3
+2026-04-29 23:54:44,550 - INFO - Confirmed fill: SELL sell_pe qty=65 avg=21.00 order_id=o4
+2026-04-29 23:54:44,708 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-04-29 23:54:44,709 - CRITICAL - Routing exit orders to LIVE Upstox with fill confirmation.
+2026-04-29 23:54:44,709 - CRITICAL - Failed to close sell_ce. Keeping buy_ce hedge intact. Error: sell_ce: REJECTED - 
+2026-04-29 23:54:44,709 - INFO - Confirmed fill: BUY sell_pe qty=65 avg=10.00 order_id=o2
+2026-04-29 23:54:44,861 - INFO - Confirmed fill: SELL buy_pe qty=65 avg=4.00 order_id=o3
+2026-04-29 23:54:45,016 - CRITICAL - STATE RETAINED: exit execution failed. Manual recovery required.
+2026-04-29 23:54:45,021 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-04-29 23:54:45,021 - INFO - Simulated PnL for this trade: 195.00
+2026-04-29 23:54:45,023 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:54:45,023 - CRITICAL - Partial fill during entry: buy_ce: unexpected fill quantity 10/65
+2026-04-29 23:54:45,023 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-04-29 23:54:45,023 - INFO - Confirmed fill: SELL buy_ce qty=10 avg=5.00 order_id=o2
+2026-04-29 23:54:45,024 - INFO - Rollback confirmed for buy_ce: o2
+2026-04-29 23:54:45,037 - WARNING - Profit lock floor touched near ATM. Holding for 20s grace before exit.
+2026-04-29 23:54:45,045 - CRITICAL - PROFIT LOCK FLOOR BREACHED (Tier 2). Exiting at 2.67%
+2026-04-29 23:54:45,050 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:54:45,050 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-04-29 23:54:45,202 - CRITICAL - Basket execution failed before full confirmation: buy_pe: REJECTED - 
+2026-04-29 23:54:45,202 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-04-29 23:54:45,202 - INFO - Confirmed fill: SELL buy_ce qty=65 avg=5.00 order_id=o3
+2026-04-29 23:54:45,202 - INFO - Rollback confirmed for buy_ce: o3
+2026-04-29 23:54:45,206 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/3.
+2026-04-29 23:55:25,293 - INFO - Calculating Iron Butterfly strikes & prices (Wing delta=50)...
+2026-04-29 23:55:25,293 - INFO - Wing CE: Strike 200, LTP 5.00 (via Greeks delta, target delta=50)
+2026-04-29 23:55:25,294 - INFO - Wing PE: Strike 100, LTP 5.00 (via Greeks delta, target delta=50)
+2026-04-29 23:55:25,294 - INFO - Selected Execution Legs: {'sell_ce': 'C150', 'sell_pe': 'P150', 'buy_ce': 'C200', 'buy_pe': 'P100'}
+2026-04-29 23:55:25,294 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 5, 'buy_pe': 5}
+2026-04-29 23:55:25,294 - INFO - Selected Strikes: {'sell_ce': 150, 'sell_pe': 150, 'buy_ce': 200, 'buy_pe': 100}
+2026-04-29 23:55:25,304 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:55:25,306 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-04-29 23:55:25,457 - INFO - Confirmed fill: BUY buy_pe qty=65 avg=4.00 order_id=o2
+2026-04-29 23:55:25,608 - INFO - Confirmed fill: SELL sell_ce qty=65 avg=20.00 order_id=o3
+2026-04-29 23:55:25,759 - INFO - Confirmed fill: SELL sell_pe qty=65 avg=21.00 order_id=o4
+2026-04-29 23:55:25,917 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-04-29 23:55:25,917 - CRITICAL - Routing exit orders to LIVE Upstox with fill confirmation.
+2026-04-29 23:55:25,918 - CRITICAL - Failed to close sell_ce. Keeping buy_ce hedge intact. Error: sell_ce: REJECTED - 
+2026-04-29 23:55:25,918 - INFO - Confirmed fill: BUY sell_pe qty=65 avg=10.00 order_id=o2
+2026-04-29 23:55:26,068 - INFO - Confirmed fill: SELL buy_pe qty=65 avg=4.00 order_id=o3
+2026-04-29 23:55:26,223 - CRITICAL - STATE RETAINED: exit execution failed. Manual recovery required.
+2026-04-29 23:55:26,226 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-04-29 23:55:26,227 - INFO - Simulated PnL for this trade: 195.00
+2026-04-29 23:55:26,229 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:55:26,229 - CRITICAL - Partial fill during entry: buy_ce: unexpected fill quantity 10/65
+2026-04-29 23:55:26,230 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-04-29 23:55:26,230 - INFO - Confirmed fill: SELL buy_ce qty=10 avg=5.00 order_id=o2
+2026-04-29 23:55:26,230 - INFO - Rollback confirmed for buy_ce: o2
+2026-04-29 23:55:26,243 - WARNING - Profit lock floor touched near ATM. Holding for 20s grace before exit.
+2026-04-29 23:55:26,248 - CRITICAL - PROFIT LOCK FLOOR BREACHED (Tier 2). Exiting at 2.67%
+2026-04-29 23:55:26,252 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:55:26,253 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-04-29 23:55:26,403 - CRITICAL - Basket execution failed before full confirmation: buy_pe: REJECTED - 
+2026-04-29 23:55:26,403 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-04-29 23:55:26,403 - INFO - Confirmed fill: SELL buy_ce qty=65 avg=5.00 order_id=o3
+2026-04-29 23:55:26,403 - INFO - Rollback confirmed for buy_ce: o3
+2026-04-29 23:55:26,405 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/3.
+2026-04-29 23:56:06,130 - INFO - Calculating Iron Butterfly strikes & prices (Wing delta=50)...
+2026-04-29 23:56:06,131 - INFO - Wing CE: Strike 200, LTP 5.00 (via Greeks delta, target delta=50)
+2026-04-29 23:56:06,131 - INFO - Wing PE: Strike 100, LTP 5.00 (via Greeks delta, target delta=50)
+2026-04-29 23:56:06,131 - INFO - Selected Execution Legs: {'sell_ce': 'C150', 'sell_pe': 'P150', 'buy_ce': 'C200', 'buy_pe': 'P100'}
+2026-04-29 23:56:06,131 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 5, 'buy_pe': 5}
+2026-04-29 23:56:06,131 - INFO - Selected Strikes: {'sell_ce': 150, 'sell_pe': 150, 'buy_ce': 200, 'buy_pe': 100}
+2026-04-29 23:56:06,137 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:56:06,138 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-04-29 23:56:06,288 - INFO - Confirmed fill: BUY buy_pe qty=65 avg=4.00 order_id=o2
+2026-04-29 23:56:06,439 - INFO - Confirmed fill: SELL sell_ce qty=65 avg=20.00 order_id=o3
+2026-04-29 23:56:06,590 - INFO - Confirmed fill: SELL sell_pe qty=65 avg=21.00 order_id=o4
+2026-04-29 23:56:06,751 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-04-29 23:56:06,751 - CRITICAL - Routing exit orders to LIVE Upstox with fill confirmation.
+2026-04-29 23:56:06,752 - CRITICAL - Failed to close sell_ce. Keeping buy_ce hedge intact. Error: sell_ce: REJECTED - 
+2026-04-29 23:56:06,752 - INFO - Confirmed fill: BUY sell_pe qty=65 avg=10.00 order_id=o2
+2026-04-29 23:56:06,902 - INFO - Confirmed fill: SELL buy_pe qty=65 avg=4.00 order_id=o3
+2026-04-29 23:56:07,055 - CRITICAL - STATE RETAINED: exit execution failed. Manual recovery required.
+2026-04-29 23:56:07,059 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-04-29 23:56:07,060 - INFO - Simulated PnL for this trade: 195.00
+2026-04-29 23:56:07,062 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:56:07,062 - CRITICAL - Partial fill during entry: buy_ce: unexpected fill quantity 10/65
+2026-04-29 23:56:07,062 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-04-29 23:56:07,062 - INFO - Confirmed fill: SELL buy_ce qty=10 avg=5.00 order_id=o2
+2026-04-29 23:56:07,062 - INFO - Rollback confirmed for buy_ce: o2
+2026-04-29 23:56:07,076 - WARNING - Profit lock floor touched near ATM. Holding for 20s grace before exit.
+2026-04-29 23:56:07,084 - CRITICAL - PROFIT LOCK FLOOR BREACHED (Tier 2). Exiting at 2.67%
+2026-04-29 23:56:07,088 - CRITICAL - LIVE MODE: routing orders to Upstox with fill confirmation.
+2026-04-29 23:56:07,089 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-04-29 23:56:07,240 - CRITICAL - Basket execution failed before full confirmation: buy_pe: REJECTED - 
+2026-04-29 23:56:07,240 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-04-29 23:56:07,240 - INFO - Confirmed fill: SELL buy_ce qty=65 avg=5.00 order_id=o3
+2026-04-29 23:56:07,240 - INFO - Rollback confirmed for buy_ce: o3
+2026-04-29 23:56:07,242 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/3.

@@ -1,6 +1,7 @@
 import logging
 import time
 
+from broker import get_broker
 import config
 import upstox_client
 from logger import log_trade
@@ -34,10 +35,7 @@ def validate_trade_quantity(index_symbol, quantity):
 
 
 def _make_order_apis():
-    configuration = upstox_client.Configuration()
-    configuration.access_token = config.get_live_token()
-    api_client = upstox_client.ApiClient(configuration)
-    return upstox_client.OrderApiV3(api_client), upstox_client.OrderApi(api_client)
+    return get_broker().make_order_apis()
 
 
 def _field(obj, name, default=None):
@@ -194,7 +192,7 @@ def _preflight_risk_check(index_symbol, entry_prices, quantity, strikes):
     return defined_loss
 
 
-def place_iron_butterfly_basket(legs, index_symbol, entry_prices, strikes):
+def place_iron_butterfly_basket(legs, index_symbol, entry_prices, strikes, spot_price=0.0):
     trade_quantity = config.get_nifty_qty() if index_symbol == "NIFTY" else config.get_sensex_qty()
     try:
         defined_loss = _preflight_risk_check(index_symbol, entry_prices, trade_quantity, strikes)
@@ -216,8 +214,12 @@ def place_iron_butterfly_basket(legs, index_symbol, entry_prices, strikes):
             ],
         }
         logging.info("Simulated basket executed successfully.")
-        log_trade("ENTRY", index_symbol, entry_prices, net_premium, 0.0, "Local Paper Trade (Simulated)")
+        log_trade(
+            "ENTRY", index_symbol, entry_prices, net_premium, 0.0,
+            "Local Paper Trade (Simulated)", spot_price=spot_price, strikes=strikes
+        )
         state_manager.save_state(index_symbol, legs, entry_prices, trade_quantity, strikes, execution_info=execution_info)
+        state_manager.update_state("entry_spot", spot_price)
         return True
 
     if config.ENVIRONMENT != "LIVE":
@@ -272,8 +274,12 @@ def place_iron_butterfly_basket(legs, index_symbol, entry_prices, strikes):
         "defined_loss_rupees": round(defined_loss, 2),
         "fills": confirmed_fills,
     }
-    log_trade("ENTRY", index_symbol, actual_prices, net_premium, 0.0, "Live Basket Confirmed")
+    log_trade(
+        "ENTRY", index_symbol, actual_prices, net_premium, 0.0,
+        "Live Basket Confirmed", spot_price=spot_price, strikes=strikes
+    )
     state_manager.save_state(index_symbol, legs, actual_prices, trade_quantity, strikes, execution_info=execution_info)
+    state_manager.update_state("entry_spot", spot_price)
     send_telegram_alert(
         f"<b>TRADE DEPLOYED: {index_symbol}</b>\n"
         f"Net Premium Collected: {net_premium:.2f}\n"
@@ -283,17 +289,45 @@ def place_iron_butterfly_basket(legs, index_symbol, entry_prices, strikes):
     return True
 
 
-def _safe_exit_prices(exit_prices, entry):
-    exit_prices = exit_prices or {}
-    all_zeros = exit_prices and all(exit_prices.get(k, 0) == 0 for k in ("sell_ce", "sell_pe", "buy_ce", "buy_pe"))
-    if all_zeros:
-        logging.warning("All exit prices are zero. Falling back to entry prices for accounting only.")
-    return {
-        "sell_ce": exit_prices.get("sell_ce", entry["sell_ce"]) if not all_zeros else entry["sell_ce"],
-        "sell_pe": exit_prices.get("sell_pe", entry["sell_pe"]) if not all_zeros else entry["sell_pe"],
-        "buy_ce": exit_prices.get("buy_ce", entry["buy_ce"]) if not all_zeros else entry["buy_ce"],
-        "buy_pe": exit_prices.get("buy_pe", entry["buy_pe"]) if not all_zeros else entry["buy_pe"],
+def _fresh_exit_prices_from_broker(legs):
+    try:
+        quotes = get_broker().get_fresh_option_quotes(list(legs.values()))
+    except Exception as err:
+        logging.warning("Fresh exit quote fetch failed: %s", err)
+        return None
+
+    prices = {
+        "sell_ce": quotes.get(legs["sell_ce"], 0),
+        "sell_pe": quotes.get(legs["sell_pe"], 0),
+        "buy_ce": quotes.get(legs["buy_ce"], 0),
+        "buy_pe": quotes.get(legs["buy_pe"], 0),
     }
+    return prices if all(value > 0 for value in prices.values()) else None
+
+
+def _safe_exit_prices(exit_prices, entry, legs=None, prefer_fresh=False):
+    exit_prices = exit_prices or {}
+    if prefer_fresh and legs:
+        fresh_prices = _fresh_exit_prices_from_broker(legs)
+        if fresh_prices:
+            return fresh_prices, "Fresh broker quote snapshot"
+
+    all_zeros = exit_prices and all(exit_prices.get(k, 0) == 0 for k in ("sell_ce", "sell_pe", "buy_ce", "buy_pe"))
+    has_missing = any(exit_prices.get(k, 0) <= 0 for k in ("sell_ce", "sell_pe", "buy_ce", "buy_pe"))
+    if (all_zeros or has_missing) and legs:
+        fresh_prices = _fresh_exit_prices_from_broker(legs)
+        if fresh_prices:
+            return fresh_prices, "Fresh broker quote snapshot"
+
+    if all_zeros or has_missing:
+        logging.warning("Exit prices missing/zero. Falling back to entry prices for accounting only.")
+        note = "Estimated from entry prices; fresh quote unavailable"
+    else:
+        note = ""
+    return ({
+        key: exit_prices.get(key, 0) if exit_prices.get(key, 0) > 0 else entry[key]
+        for key in ("sell_ce", "sell_pe", "buy_ce", "buy_pe")
+    }, note)
 
 
 def _pnl(entry, exits, qty):
@@ -302,13 +336,13 @@ def _pnl(entry, exits, qty):
     return pnl
 
 
-def square_off_all(exit_prices=None):
+def square_off_all(exit_prices=None, exit_reason=""):
     logging.critical("TRIGGERING SQUARE OFF SEQUENCE!")
     success = True
     state = state_manager.load_state()
 
     if not state:
-        log_trade("EXIT", "UNKNOWN", {}, 0.0, 0.0, "Emergency Square Off")
+        log_trade("EXIT", "UNKNOWN", {}, 0.0, 0.0, "Emergency Square Off", exit_reason=exit_reason)
         send_telegram_alert("<b>EMERGENCY SQUARE OFF TRIGGERED!</b> Check terminal immediately.")
         return
 
@@ -316,14 +350,28 @@ def square_off_all(exit_prices=None):
     qty = int(state.get("quantity", 0))
     legs = state["legs"]
     index_symbol = state["index_symbol"]
-    safe_exits = _safe_exit_prices(exit_prices, entry)
+    prefer_fresh = exit_reason in ("MANUAL_EXIT", "GRACEFUL_STOP")
+    safe_exits, price_note = _safe_exit_prices(exit_prices, entry, legs, prefer_fresh=prefer_fresh)
     exit_premium = (safe_exits["sell_ce"] + safe_exits["sell_pe"]) - (safe_exits["buy_ce"] + safe_exits["buy_pe"])
     pnl = _pnl(entry, safe_exits, qty)
+    strikes = state.get("strikes", {})
+    spot_price = state.get("last_spot") or state.get("entry_spot") or strikes.get("sell_ce", 0)
+    notes = "Local Paper Trade Closed" if config.ENVIRONMENT == "SANDBOX" else "Live Exchange Exit"
+    if price_note:
+        notes = f"{notes} ({price_note})"
 
     if config.ENVIRONMENT == "SANDBOX":
-        log_trade("EXIT", index_symbol, safe_exits, exit_premium, pnl, "Local Paper Trade Closed")
+        log_trade(
+            "EXIT", index_symbol, safe_exits, exit_premium, pnl, notes,
+            spot_price=spot_price, strikes=strikes, exit_reason=exit_reason
+        )
         logging.info("Simulated PnL for this trade: %.2f", pnl)
-        send_telegram_alert(f"<b>TRADE CLOSED (PAPER): {index_symbol}</b>\nRealized PnL: <b>{pnl:.2f}</b>")
+        send_telegram_alert(
+            f"<b>TRADE CLOSED (PAPER): {index_symbol}</b>\n"
+            f"Reason: <b>{exit_reason or 'EXIT'}</b>\n"
+            f"Realized PnL: <b>{pnl:.2f}</b>\n"
+            f"Net Premium Exited: {exit_premium:.2f}"
+        )
         state_manager.clear_state()
         return
 
@@ -356,11 +404,15 @@ def square_off_all(exit_prices=None):
             success = False
             logging.critical("Short %s closed, but hedge %s close failed: %s", short_leg, hedge_leg, err)
 
-    log_trade("EXIT", index_symbol, safe_exits, exit_premium, pnl, "Live Exchange Exit")
+    log_trade(
+        "EXIT", index_symbol, safe_exits, exit_premium, pnl, notes,
+        spot_price=spot_price, strikes=strikes, exit_reason=exit_reason
+    )
     state_manager.update_many({"last_exit_fills": exit_fills, "last_exit_success": success})
 
     send_telegram_alert(
         f"<b>TRADE CLOSED (LIVE): {index_symbol}</b>\n"
+        f"Reason: <b>{exit_reason or 'EXIT'}</b>\n"
         f"Realized PnL: <b>{pnl:.2f}</b>\n"
         f"Net Premium Exited: {exit_premium:.2f}\n"
         f"Status: {'Execution Safe' if success else 'WARNING: Leg Failure'}"

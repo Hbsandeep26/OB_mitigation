@@ -5,6 +5,7 @@ import time
 
 import config
 import state_manager
+from notifier import send_telegram_alert
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -245,12 +246,18 @@ def risk_management_evaluator(live_data, legs):
             if f.read().strip() == "TRUE":
                 logging.critical("MANUAL EXIT TRIGGERED FROM UI. Forcing Square Off.")
                 os.remove(manual_exit_file)
+                send_telegram_alert(
+                    f"<b>MANUAL EXIT REQUESTED</b>\n{state.get('index_symbol', 'UNKNOWN')}: square off started."
+                )
                 return "MANUAL_EXIT", current_prices
 
     graceful_stop_file = os.path.join(BASE_DIR, "graceful_stop_flag.txt")
     if os.path.exists(graceful_stop_file):
         logging.critical("GRACEFUL STOP requested from UI. Forcing Square Off.")
         os.remove(graceful_stop_file)
+        send_telegram_alert(
+            f"<b>GRACEFUL STOP REQUESTED</b>\n{state.get('index_symbol', 'UNKNOWN')}: square off started."
+        )
         return "GRACEFUL_STOP", current_prices
 
     live_sell_ce = _fresh_ltp(live_data, legs["sell_ce"], "sell_ce")
@@ -304,7 +311,10 @@ def risk_management_evaluator(live_data, legs):
     live_vix = live_data.get(vix_key, {}).get("ltp", 15.0)
     strikes = state.get("strikes", {})
     atm_strike = strikes.get("sell_ce", 0.0)
+    if live_spot > 0:
+        state_manager.update_state("last_spot", round(live_spot, 2))
 
+    atm_grace_allowed = False
     if live_spot > 0 and atm_strike > 0 and strikes:
         ce_wing_width = abs(strikes.get("buy_ce", atm_strike) - atm_strike)
         pe_wing_width = abs(atm_strike - strikes.get("buy_pe", atm_strike))
@@ -313,6 +323,7 @@ def risk_management_evaluator(live_data, legs):
             drift_distance = abs(live_spot - atm_strike)
             drift_ratio = drift_distance / avg_wing_width
             state_manager.update_state("atm_drift_ratio", round(drift_ratio, 3))
+            atm_grace_allowed = drift_ratio <= config.PROFIT_LOCK_ATM_GRACE_RATIO
             if drift_ratio > config.ATM_DRIFT_MULTIPLIER:
                 logging.critical("ATM DRIFT DETECTED: %.2fx wing width. Forcing exit.", drift_ratio)
                 return "ATM_DRIFT", current_prices
@@ -376,9 +387,26 @@ def risk_management_evaluator(live_data, legs):
         profit_lock_floor = new_floor
 
     if profit_lock_floor > 0 and current_profit_pct <= profit_lock_floor:
-        logging.critical("PROFIT LOCK FLOOR BREACHED (Tier %d). Exiting at %.2f%%", 
+        grace_started = state.get("profit_lock_grace_started_ts")
+        now_ts = time.time()
+        if atm_grace_allowed:
+            if not grace_started:
+                state_manager.update_state("profit_lock_grace_started_ts", now_ts)
+                logging.warning(
+                    "Profit lock floor touched near ATM. Holding for %.0fs grace before exit.",
+                    config.PROFIT_LOCK_ATM_GRACE_SECONDS,
+                )
+                return False, {}
+            if now_ts - float(grace_started) < config.PROFIT_LOCK_ATM_GRACE_SECONDS:
+                logging.info("Profit lock ATM grace active for %.1fs.", now_ts - float(grace_started))
+                return False, {}
+
+        logging.critical("PROFIT LOCK FLOOR BREACHED (Tier %d). Exiting at %.2f%%",
                          profit_lock_tier, current_profit_pct * 100)
+        state_manager.update_state("profit_lock_grace_started_ts", None)
         return "TAKE_PROFIT", current_prices
+    elif state.get("profit_lock_grace_started_ts"):
+        state_manager.update_state("profit_lock_grace_started_ts", None)
 
     if trail_active:
         new_trail_floor = max(trail_floor, profit_hwm * config.TRAIL_RATCHET_FACTOR)

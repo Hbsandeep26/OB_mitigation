@@ -71,6 +71,8 @@ PANIC_FILE = os.path.join(BASE_DIR, "panic_flag.txt")
 LIVE_FILE = os.path.join(BASE_DIR, "live_prices.json")
 HEARTBEAT_FILE = os.path.join(BASE_DIR, "engine_heartbeat.json")
 GRACEFUL_STOP_FILE = os.path.join(BASE_DIR, "graceful_stop_flag.txt")
+MANUAL_EXIT_FILE = os.path.join(BASE_DIR, "manual_exit_flag.txt")
+MANUAL_ENTRY_FILE = os.path.join(BASE_DIR, "manual_entry_flag.txt")
 
 def load_settings():
     if os.path.exists(SETTINGS_FILE):
@@ -111,6 +113,14 @@ def read_pid():
             return int(f.read().strip())
     except Exception:
         return None
+
+
+def remove_flag(path):
+    if os.path.exists(path):
+        try:
+            os.remove(path)
+        except Exception:
+            pass
 
 def heartbeat_age():
     if not os.path.exists(HEARTBEAT_FILE):
@@ -230,6 +240,9 @@ with col_start:
             if is_running:
                 st.warning("Engine is already running!")
             else:
+                remove_flag(GRACEFUL_STOP_FILE)
+                remove_flag(MANUAL_EXIT_FILE)
+                remove_flag(MANUAL_ENTRY_FILE)
                 log_file = open(LOG_FILE_PATH, "a")
                 process = subprocess.Popen(
                     [sys.executable, "main.py"], 
@@ -243,7 +256,7 @@ with col_start:
 with col_stop:
     if st.button("⏹️ Stop"):
         atomic_write_text(GRACEFUL_STOP_FILE, "TRUE")
-        st.warning("Graceful stop requested. Engine will avoid new trades and square off active trades.")
+        st.warning("Graceful stop requested. Engine will stop after the current safety check.")
 
 with col_force:
     if st.button("Kill"):
@@ -302,14 +315,15 @@ with col2:
     exit_locked = (not is_trade_active) or (not is_trading_hours)
     
     if st.button("🛑 MANUAL EXIT", type="primary", disabled=exit_locked):
-        manual_file = os.path.join(BASE_DIR, "manual_exit_flag.txt")
-        atomic_write_text(manual_file, "TRUE")
-        st.toast("Manual exit signal sent! Engine will square off immediately.")
+        if os.path.exists(MANUAL_EXIT_FILE):
+            st.toast("Manual exit is already requested. Waiting for engine confirmation.")
+        else:
+            atomic_write_text(MANUAL_EXIT_FILE, "TRUE")
+            st.toast("Manual exit signal sent! Engine will square off immediately.")
         
     entry_locked = is_trade_active or (not is_trading_hours)
     if st.button("▶️ MANUAL ENTRY", type="secondary", disabled=entry_locked):
-        manual_entry_file = os.path.join(BASE_DIR, "manual_entry_flag.txt")
-        atomic_write_text(manual_entry_file, "TRUE")
+        atomic_write_text(MANUAL_ENTRY_FILE, "TRUE")
         st.toast("Manual entry signal sent! Engine will deploy a fresh trade.")
         
     if not is_trading_hours:
