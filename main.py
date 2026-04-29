@@ -25,7 +25,7 @@ _last_heartbeat_write = 0.0
 # When launched via dashboard's subprocess.Popen(stdout=log_file), stdout IS
 # bot.log, so StreamHandler + RotatingFileHandler both write to bot.log = dupes.
 # ============================================================================
-from logging.handlers import RotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.propagate = False
@@ -34,7 +34,7 @@ if logger.hasHandlers():
     logger.handlers.clear()
 
 log_file_path = os.path.join(BASE_DIR, "bot.log")
-file_handler = RotatingFileHandler(log_file_path, maxBytes=5*1024*1024, backupCount=3, encoding="utf-8")
+file_handler = TimedRotatingFileHandler(log_file_path, when="midnight", interval=1, backupCount=7, encoding="utf-8")
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
@@ -272,12 +272,18 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
                 logging.info(f"⏰ Cutoff reached during gap wait. Ending session.")
                 return
             
-            # Check for manual exit to avoid being deaf for 15 minutes
             manual_exit_file = os.path.join(BASE_DIR, "manual_exit_flag.txt")
             if os.path.exists(manual_exit_file):
                 os.remove(manual_exit_file)
                 logging.critical("🛑 MANUAL EXIT triggered during Gap Filter wait. Halting session.")
                 return
+                
+            manual_entry_file = os.path.join(BASE_DIR, "manual_entry_flag.txt")
+            if os.path.exists(manual_entry_file):
+                os.remove(manual_entry_file)
+                logging.critical("▶️ MANUAL ENTRY triggered! Skipping gap wait.")
+                break
+                
             if consume_graceful_stop():
                 logging.critical("Graceful stop requested during Gap Filter wait. Halting session.")
                 return
@@ -296,6 +302,13 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             if consume_graceful_stop():
                 logging.critical("Graceful stop requested during entry wait. Halting session.")
                 return
+                
+            manual_entry_file = os.path.join(BASE_DIR, "manual_entry_flag.txt")
+            if os.path.exists(manual_entry_file):
+                os.remove(manual_entry_file)
+                logging.critical("▶️ MANUAL ENTRY triggered! Skipping safe entry window wait.")
+                break
+                
             if not logged_wait:
                 logging.info("⏳ Waiting for 09:20 AM safe entry window before deploying fresh trade...")
                 logged_wait = True
@@ -732,4 +745,27 @@ if __name__ == "__main__":
     while True:
         write_heartbeat("WAITING")
         schedule.run_pending()
+        
+        manual_entry_file = os.path.join(BASE_DIR, "manual_entry_flag.txt")
+        if os.path.exists(manual_entry_file):
+            try:
+                os.remove(manual_entry_file)
+            except Exception:
+                pass
+            
+            logging.critical("▶️ MANUAL ENTRY triggered from idle state!")
+            now_dt = datetime.now()
+            today_date_str = now_dt.strftime("%Y-%m-%d")
+            
+            if today_date_str == nifty_expiry:
+                idx, exp = "NIFTY", nifty_expiry
+            elif today_date_str == sensex_expiry:
+                idx, exp = "SENSEX", sensex_expiry
+            else:
+                idx = "SENSEX" if now_dt.strftime("%A").upper() in ["WEDNESDAY", "THURSDAY"] else "NIFTY"
+                exp = sensex_expiry if idx == "SENSEX" else nifty_expiry
+            
+            continuous_trading_session(idx, exp, 15, 15)
+            logging.info("Returned to idle state after manual entry session.")
+            
         time.sleep(1)

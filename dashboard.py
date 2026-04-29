@@ -299,12 +299,18 @@ market_close = now.replace(hour=15, minute=30, second=0, microsecond=0)
 is_trading_hours = (market_open <= now <= market_close) and (now.weekday() < 5)
 
 with col2:
-    button_locked = (not is_trade_active) or (not is_trading_hours)
+    exit_locked = (not is_trade_active) or (not is_trading_hours)
     
-    if st.button("🛑 MANUAL EXIT", type="primary", disabled=button_locked):
+    if st.button("🛑 MANUAL EXIT", type="primary", disabled=exit_locked):
         manual_file = os.path.join(BASE_DIR, "manual_exit_flag.txt")
         atomic_write_text(manual_file, "TRUE")
         st.toast("Manual exit signal sent! Engine will square off immediately.")
+        
+    entry_locked = is_trade_active or (not is_trading_hours)
+    if st.button("▶️ MANUAL ENTRY", type="secondary", disabled=entry_locked):
+        manual_entry_file = os.path.join(BASE_DIR, "manual_entry_flag.txt")
+        atomic_write_text(manual_entry_file, "TRUE")
+        st.toast("Manual entry signal sent! Engine will deploy a fresh trade.")
         
     if not is_trading_hours:
         st.caption("🔒 Locked: Outside Market Hours")
