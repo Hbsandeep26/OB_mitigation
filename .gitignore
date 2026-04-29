@@ -1,2 +1,5 @@
 __pycache__
 venv
+engine_pid.txt
+engine_heartbeat.json
+btst_flag.txt
