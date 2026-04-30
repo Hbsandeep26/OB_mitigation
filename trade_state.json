@@ -1,0 +1,74 @@
+{
+    "active": true,
+    "index_symbol": "NIFTY",
+    "legs": {
+        "sell_ce": "NSE_FO|74135",
+        "sell_pe": "NSE_FO|74146",
+        "buy_ce": "NSE_FO|74175",
+        "buy_pe": "NSE_FO|74104"
+    },
+    "entry_prices": {
+        "sell_ce": 178.1,
+        "sell_pe": 186.75,
+        "buy_ce": 40.55,
+        "buy_pe": 47.05
+    },
+    "quantity": 65,
+    "strikes": {
+        "sell_ce": 23950.0,
+        "sell_pe": 23950.0,
+        "buy_ce": 24400.0,
+        "buy_pe": 23500.0
+    },
+    "execution_info": {
+        "mode": "SANDBOX",
+        "defined_loss_rupees": 11228.75,
+        "fills": [
+            {
+                "leg_name": "sell_ce",
+                "token": "NSE_FO|74135",
+                "transaction_type": "SELL",
+                "filled_quantity": 65,
+                "average_price": 178.1,
+                "status": "SIMULATED"
+            },
+            {
+                "leg_name": "sell_pe",
+                "token": "NSE_FO|74146",
+                "transaction_type": "SELL",
+                "filled_quantity": 65,
+                "average_price": 186.75,
+                "status": "SIMULATED"
+            },
+            {
+                "leg_name": "buy_ce",
+                "token": "NSE_FO|74175",
+                "transaction_type": "BUY",
+                "filled_quantity": 65,
+                "average_price": 40.55,
+                "status": "SIMULATED"
+            },
+            {
+                "leg_name": "buy_pe",
+                "token": "NSE_FO|74104",
+                "transaction_type": "BUY",
+                "filled_quantity": 65,
+                "average_price": 47.05,
+                "status": "SIMULATED"
+            }
+        ]
+    },
+    "created_at": "2026-04-30 13:09:16",
+    "entry_spot": 23937.15,
+    "applied_target_pct": 25,
+    "vix_profile": "HIGH_VIX",
+    "session_vix": 18.45,
+    "profit_high_water_mark": 0.015329,
+    "trail_active": false,
+    "trail_floor": 0.0,
+    "atm_drift_ratio": 0.018,
+    "cutoff_hour": 15,
+    "cutoff_minute": 15,
+    "feed_status": "LIVE",
+    "last_spot": 23957.95
+}

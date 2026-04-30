@@ -1079,3 +1079,168 @@ x_selling\\Upstox_IronButterfly_Bot\\engine_heartbeat.json'
 2026-04-29 23:56:07,240 - INFO - Confirmed fill: SELL buy_ce qty=65 avg=5.00 order_id=o3
 2026-04-29 23:56:07,240 - INFO - Rollback confirmed for buy_ce: o3
 2026-04-29 23:56:07,242 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/3.
+2026-04-30 09:07:09,505 - INFO - System Architect Bot V5 Initialized — Master Architecture Active 🏛️
+2026-04-30 09:07:09,505 - INFO -   VIX Adaptive Profiles: ON (Low<13, High>18)
+2026-04-30 09:07:09,505 - INFO -   Delta-Based Wings: ON
+2026-04-30 09:07:09,506 - INFO -   Ratchet Trailing Stop: ON (Floor=80%, Ratchet=85%)
+2026-04-30 09:07:09,506 - INFO -   ATM Drift Guard: ON (1.5x wing width)
+2026-04-30 09:07:09,506 - INFO -   Circuit Breaker: ON (2 consecutive losses)
+2026-04-30 09:07:09,506 - INFO -   Opening Range Gap Filter: ON (0.8% threshold, 15min settle)
+2026-04-30 09:07:09,506 - INFO -   Expiry Day Strategy: Expiring index trades MORNING, other AFTERNOON
+2026-04-30 09:07:09,506 - INFO -   Weekend Guard: ON
+2026-04-30 09:07:09,506 - CRITICAL - Expiry calendar validation failed: NIFTY: no weekly expiries configured in expiries.json
+2026-04-30 09:07:09,506 - CRITICAL - Expiry calendar validation failed: SENSEX: no weekly expiries configured in expiries.json
+2026-04-30 09:07:09,506 - WARNING - Telegram alert skipped because TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not configured.
+2026-04-30 09:07:09,507 - INFO - Waiting for scheduled events...
+2026-04-30 09:24:42,290 - INFO - System Architect Bot V5 Initialized — Master Architecture Active 🏛️
+2026-04-30 09:24:42,290 - INFO -   VIX Adaptive Profiles: ON (Low<13, High>18)
+2026-04-30 09:24:42,290 - INFO -   Delta-Based Wings: ON
+2026-04-30 09:24:42,290 - INFO -   Ratchet Trailing Stop: ON (Floor=80%, Ratchet=85%)
+2026-04-30 09:24:42,290 - INFO -   ATM Drift Guard: ON (1.5x wing width)
+2026-04-30 09:24:42,290 - INFO -   Circuit Breaker: ON (2 consecutive losses)
+2026-04-30 09:24:42,290 - INFO -   Opening Range Gap Filter: ON (0.8% threshold, 15min settle)
+2026-04-30 09:24:42,290 - INFO -   Expiry Day Strategy: Expiring index trades MORNING, other AFTERNOON
+2026-04-30 09:24:42,290 - INFO -   Weekend Guard: ON
+2026-04-30 09:24:42,293 - CRITICAL - 🎯 SENSEX EXPIRY DETECTED (2026-04-30). Expiry Strategy: Sensex MORNING (theta capture), Nifty AFTERNOON.
+2026-04-30 09:24:42,294 - CRITICAL - 🏃 LATE BOOT DETECTED! Jumping straight into Morning Session (SENSEX)...
+2026-04-30 09:24:42,294 - INFO - --- STARTING CONTINUOUS SESSION FOR SENSEX ---
+2026-04-30 09:24:42,644 - INFO - SENSEX LTP: 76612.2, Prev Close: 76612.2
+2026-04-30 09:24:42,645 - INFO - 📊 Gap Analysis: SENSEX opened at 76612.20, Prev Close: 76612.20, Gap: 0.00% DOWN
+2026-04-30 09:24:42,645 - INFO - ✅ Gap within tolerance (0.00% < 0.8%). Proceeding normally.
+2026-04-30 09:24:42,645 - INFO - Deploying fresh Iron Butterfly for SENSEX...
+2026-04-30 09:24:42,645 - INFO - Fetching live spot price for SENSEX...
+2026-04-30 09:24:42,841 - INFO - Live Spot Price for SENSEX is: 76612.2
+2026-04-30 09:24:42,842 - INFO - Fetching option chain for SENSEX expiring on 2026-04-30...
+2026-04-30 09:24:43,398 - INFO - India VIX: 18.36
+2026-04-30 09:24:43,398 - INFO - VIX Profile Selected: HIGH_VIX (VIX=18.36) -> Wing delta=12, Target=25%
+2026-04-30 09:24:43,398 - INFO - Calculating Iron Butterfly strikes & prices (Wing delta=12)...
+2026-04-30 09:24:43,399 - INFO - Wing CE: Strike 77100.0, LTP 45.60 (via Premium Proxy, target delta=12)
+2026-04-30 09:24:43,400 - INFO - Wing PE: Strike 76100.0, LTP 44.50 (via Premium Proxy, target delta=12)
+2026-04-30 09:24:43,400 - INFO - Selected Execution Legs: {'sell_ce': 'BSE_FO|849890', 'sell_pe': 'BSE_FO|851639', 'buy_ce': 'BSE_FO|855656', 'buy_pe': 'BSE_FO|852589'}
+2026-04-30 09:24:43,400 - INFO - Target Entry Prices: {'sell_ce': 196.45, 'sell_pe': 200.15, 'buy_ce': 45.6, 'buy_pe': 44.5}
+2026-04-30 09:24:43,400 - INFO - Selected Strikes: {'sell_ce': 76600.0, 'sell_pe': 76600.0, 'buy_ce': 77100.0, 'buy_pe': 76100.0}
+2026-04-30 09:24:43,400 - INFO - Synchronizing with Live Exchange Quotes to bypass cached API data...
+2026-04-30 09:24:43,603 - INFO - Absolute Real-Time Entry Prices: {'sell_ce': 196.45, 'sell_pe': 200.15, 'buy_ce': 45.6, 'buy_pe': 44.5}
+2026-04-30 09:24:43,604 - INFO - SANDBOX MODE: simulating local paper execution.
+2026-04-30 09:24:43,604 - INFO - Simulated basket executed successfully.
+2026-04-30 09:24:43,614 - INFO - Entering live risk monitoring phase...
+2026-04-30 09:24:43,614 - INFO - Initializing broker WebSocket connection for live risk management...
+2026-04-30 09:24:43,617 - INFO - WebSocket connected. Streaming live market data...
+2026-04-30 09:24:44,609 - INFO - Websocket connected
+2026-04-30 10:09:27,362 - WARNING - Profit lock floor touched near ATM. Holding for 20s grace before exit.
+2026-04-30 10:09:27,510 - INFO - Profit lock ATM grace active for 0.1s.
+2026-04-30 10:09:27,667 - INFO - Profit lock ATM grace active for 0.3s.
+2026-04-30 10:09:27,809 - INFO - Profit lock ATM grace active for 0.4s.
+2026-04-30 10:09:28,109 - INFO - Profit lock ATM grace active for 0.7s.
+2026-04-30 10:09:29,309 - WARNING - Profit lock floor touched near ATM. Holding for 20s grace before exit.
+2026-04-30 10:09:29,610 - INFO - Profit lock ATM grace active for 0.3s.
+2026-04-30 10:17:16,110 - CRITICAL - PROFIT LOCK FLOOR BREACHED (Tier 1). Exiting at 3.41%
+2026-04-30 10:17:16,110 - CRITICAL - Exit Signal Received: TAKE_PROFIT. Terminating WebSocket.
+2026-04-30 10:17:17,042 - CRITICAL - 💰 PROFIT LOCKED for SENSEX! Squaring off positions.
+2026-04-30 10:17:17,042 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-04-30 10:17:17,042 - INFO - Simulated PnL for this trade: 209.00
+2026-04-30 10:17:17,042 - WARNING - Telegram alert skipped because TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not configured.
+2026-04-30 10:17:17,042 - INFO - Cooling down for 60 seconds before looking for new setups...
+2026-04-30 10:18:17,103 - INFO - Deploying fresh Iron Butterfly for SENSEX...
+2026-04-30 10:18:17,103 - INFO - Fetching live spot price for SENSEX...
+2026-04-30 10:18:17,444 - INFO - Live Spot Price for SENSEX is: 76377.18
+2026-04-30 10:18:17,444 - INFO - Fetching option chain for SENSEX expiring on 2026-04-30...
+2026-04-30 10:18:17,936 - INFO - India VIX: 19.29
+2026-04-30 10:18:17,936 - INFO - VIX Profile Selected: HIGH_VIX (VIX=19.29) -> Wing delta=12, Target=25%
+2026-04-30 10:18:17,936 - INFO - Calculating Iron Butterfly strikes & prices (Wing delta=12)...
+2026-04-30 10:18:17,937 - INFO - Wing CE: Strike 76800.0, LTP 38.35 (via Premium Proxy, target delta=12)
+2026-04-30 10:18:17,937 - INFO - Wing PE: Strike 76000.0, LTP 52.25 (via Premium Proxy, target delta=12)
+2026-04-30 10:18:17,937 - INFO - Selected Execution Legs: {'sell_ce': 'BSE_FO|849349', 'sell_pe': 'BSE_FO|851095', 'buy_ce': 'BSE_FO|850426', 'buy_pe': 'BSE_FO|854628'}
+2026-04-30 10:18:17,937 - INFO - Target Entry Prices: {'sell_ce': 144.75, 'sell_pe': 190.9, 'buy_ce': 38.35, 'buy_pe': 52.25}
+2026-04-30 10:18:17,938 - INFO - Selected Strikes: {'sell_ce': 76400.0, 'sell_pe': 76400.0, 'buy_ce': 76800.0, 'buy_pe': 76000.0}
+2026-04-30 10:18:17,938 - INFO - Synchronizing with Live Exchange Quotes to bypass cached API data...
+2026-04-30 10:18:18,143 - INFO - Absolute Real-Time Entry Prices: {'sell_ce': 144.75, 'sell_pe': 190.9, 'buy_ce': 38.35, 'buy_pe': 52.25}
+2026-04-30 10:18:18,143 - INFO - SANDBOX MODE: simulating local paper execution.
+2026-04-30 10:18:18,144 - INFO - Simulated basket executed successfully.
+2026-04-30 10:18:18,150 - INFO - Entering live risk monitoring phase...
+2026-04-30 10:18:18,150 - INFO - Initializing broker WebSocket connection for live risk management...
+2026-04-30 10:18:18,152 - INFO - WebSocket connected. Streaming live market data...
+2026-04-30 10:18:19,236 - INFO - Websocket connected
+2026-04-30 12:14:07,267 - WARNING - Profit lock floor touched near ATM. Holding for 20s grace before exit.
+2026-04-30 12:14:08,464 - CRITICAL - PROFIT LOCK FLOOR BREACHED (Tier 1). Exiting at 3.31%
+2026-04-30 12:14:08,465 - CRITICAL - Exit Signal Received: TAKE_PROFIT. Terminating WebSocket.
+2026-04-30 12:14:08,732 - CRITICAL - 💰 PROFIT LOCKED for SENSEX! Squaring off positions.
+2026-04-30 12:14:08,733 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-04-30 12:14:08,733 - INFO - Simulated PnL for this trade: 162.00
+2026-04-30 12:14:08,733 - WARNING - Telegram alert skipped because TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not configured.
+2026-04-30 12:14:08,733 - INFO - Cooling down for 60 seconds before looking for new setups...
+2026-04-30 12:15:08,739 - INFO - Deploying fresh Iron Butterfly for SENSEX...
+2026-04-30 12:15:08,739 - INFO - Fetching live spot price for SENSEX...
+2026-04-30 12:15:09,098 - INFO - Live Spot Price for SENSEX is: 76631.91
+2026-04-30 12:15:09,099 - INFO - Fetching option chain for SENSEX expiring on 2026-04-30...
+2026-04-30 12:15:09,634 - INFO - India VIX: 18.75
+2026-04-30 12:15:09,635 - INFO - VIX Profile Selected: HIGH_VIX (VIX=18.75) -> Wing delta=12, Target=25%
+2026-04-30 12:15:09,635 - INFO - Calculating Iron Butterfly strikes & prices (Wing delta=12)...
+2026-04-30 12:15:09,635 - INFO - Wing CE: Strike 77000.0, LTP 42.35 (via Premium Proxy, target delta=12)
+2026-04-30 12:15:09,636 - INFO - Wing PE: Strike 76200.0, LTP 23.95 (via Premium Proxy, target delta=12)
+2026-04-30 12:15:09,636 - INFO - Selected Execution Legs: {'sell_ce': 'BSE_FO|849890', 'sell_pe': 'BSE_FO|851639', 'buy_ce': 'BSE_FO|849532', 'buy_pe': 'BSE_FO|850593'}
+2026-04-30 12:15:09,636 - INFO - Target Entry Prices: {'sell_ce': 169.05, 'sell_pe': 114.8, 'buy_ce': 42.35, 'buy_pe': 23.95}
+2026-04-30 12:15:09,636 - INFO - Selected Strikes: {'sell_ce': 76600.0, 'sell_pe': 76600.0, 'buy_ce': 77000.0, 'buy_pe': 76200.0}
+2026-04-30 12:15:09,636 - INFO - Synchronizing with Live Exchange Quotes to bypass cached API data...
+2026-04-30 12:15:09,827 - INFO - Absolute Real-Time Entry Prices: {'sell_ce': 169.05, 'sell_pe': 114.8, 'buy_ce': 42.35, 'buy_pe': 23.95}
+2026-04-30 12:15:09,827 - INFO - SANDBOX MODE: simulating local paper execution.
+2026-04-30 12:15:09,828 - INFO - Simulated basket executed successfully.
+2026-04-30 12:15:09,831 - INFO - Entering live risk monitoring phase...
+2026-04-30 12:15:09,831 - INFO - Initializing broker WebSocket connection for live risk management...
+2026-04-30 12:15:09,833 - INFO - WebSocket connected. Streaming live market data...
+2026-04-30 12:15:10,949 - INFO - Websocket connected
+2026-04-30 13:08:10,262 - WARNING - Profit lock floor touched near ATM. Holding for 20s grace before exit.
+2026-04-30 13:08:10,562 - INFO - Profit lock ATM grace active for 0.3s.
+2026-04-30 13:08:10,712 - INFO - Profit lock ATM grace active for 0.5s.
+2026-04-30 13:08:11,165 - WARNING - Profit lock floor touched near ATM. Holding for 20s grace before exit.
+2026-04-30 13:08:11,609 - INFO - Profit lock ATM grace active for 0.4s.
+2026-04-30 13:08:11,761 - INFO - Profit lock ATM grace active for 0.6s.
+2026-04-30 13:08:11,909 - INFO - Profit lock ATM grace active for 0.7s.
+2026-04-30 13:08:12,072 - INFO - Profit lock ATM grace active for 0.9s.
+2026-04-30 13:08:12,210 - INFO - Profit lock ATM grace active for 1.0s.
+2026-04-30 13:08:12,361 - INFO - Profit lock ATM grace active for 1.2s.
+2026-04-30 13:08:12,509 - INFO - Profit lock ATM grace active for 1.3s.
+2026-04-30 13:08:12,662 - INFO - Profit lock ATM grace active for 1.5s.
+2026-04-30 13:08:13,262 - WARNING - Profit lock floor touched near ATM. Holding for 20s grace before exit.
+2026-04-30 13:08:13,409 - INFO - Profit lock ATM grace active for 0.1s.
+2026-04-30 13:08:13,561 - INFO - Profit lock ATM grace active for 0.3s.
+2026-04-30 13:08:13,709 - INFO - Profit lock ATM grace active for 0.4s.
+2026-04-30 13:08:13,861 - INFO - Profit lock ATM grace active for 0.6s.
+2026-04-30 13:08:14,164 - INFO - Profit lock ATM grace active for 0.9s.
+2026-04-30 13:08:14,460 - INFO - Profit lock ATM grace active for 1.2s.
+2026-04-30 13:08:14,619 - INFO - Profit lock ATM grace active for 1.4s.
+2026-04-30 13:08:14,910 - INFO - Profit lock ATM grace active for 1.6s.
+2026-04-30 13:08:15,061 - CRITICAL - PROFIT LOCK FLOOR BREACHED (Tier 1). Exiting at 1.54%
+2026-04-30 13:08:15,062 - CRITICAL - Exit Signal Received: TAKE_PROFIT. Terminating WebSocket.
+2026-04-30 13:08:15,305 - CRITICAL - 💰 PROFIT LOCKED for SENSEX! Squaring off positions.
+2026-04-30 13:08:15,305 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-04-30 13:08:15,307 - INFO - Simulated PnL for this trade: 67.00
+2026-04-30 13:08:15,307 - WARNING - Telegram alert skipped because TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not configured.
+2026-04-30 13:08:15,307 - INFO - Cooling down for 60 seconds before looking for new setups...
+2026-04-30 13:09:15,309 - INFO - ⏰ Soft Cutoff (12:30) reached. No NEW SENSEX trades will be taken.
+2026-04-30 13:09:15,309 - INFO - --- END OF SESSION FOR SENSEX ---
+2026-04-30 13:09:15,310 - INFO - Waiting for scheduled events...
+2026-04-30 13:09:15,311 - INFO - --- STARTING CONTINUOUS SESSION FOR NIFTY ---
+2026-04-30 13:09:15,656 - INFO - NIFTY LTP: 23937.15, Prev Close: 23937.15
+2026-04-30 13:09:15,657 - INFO - 📊 Gap Analysis: NIFTY opened at 23937.15, Prev Close: 23937.15, Gap: 0.00% DOWN
+2026-04-30 13:09:15,657 - INFO - ✅ Gap within tolerance (0.00% < 0.8%). Proceeding normally.
+2026-04-30 13:09:15,657 - INFO - Deploying fresh Iron Butterfly for NIFTY...
+2026-04-30 13:09:15,657 - INFO - Fetching live spot price for NIFTY...
+2026-04-30 13:09:15,879 - INFO - Live Spot Price for NIFTY is: 23937.15
+2026-04-30 13:09:15,879 - INFO - Fetching option chain for NIFTY expiring on 2026-05-05...
+2026-04-30 13:09:16,365 - INFO - India VIX: 18.45
+2026-04-30 13:09:16,366 - INFO - VIX Profile Selected: HIGH_VIX (VIX=18.45) -> Wing delta=12, Target=25%
+2026-04-30 13:09:16,366 - INFO - Calculating Iron Butterfly strikes & prices (Wing delta=12)...
+2026-04-30 13:09:16,366 - INFO - Wing CE: Strike 24400.0, LTP 40.55 (via Premium Proxy, target delta=12)
+2026-04-30 13:09:16,366 - INFO - Wing PE: Strike 23500.0, LTP 47.05 (via Premium Proxy, target delta=12)
+2026-04-30 13:09:16,366 - INFO - Selected Execution Legs: {'sell_ce': 'NSE_FO|74135', 'sell_pe': 'NSE_FO|74146', 'buy_ce': 'NSE_FO|74175', 'buy_pe': 'NSE_FO|74104'}
+2026-04-30 13:09:16,366 - INFO - Target Entry Prices: {'sell_ce': 178.1, 'sell_pe': 186.75, 'buy_ce': 40.55, 'buy_pe': 47.05}
+2026-04-30 13:09:16,367 - INFO - Selected Strikes: {'sell_ce': 23950.0, 'sell_pe': 23950.0, 'buy_ce': 24400.0, 'buy_pe': 23500.0}
+2026-04-30 13:09:16,367 - INFO - Synchronizing with Live Exchange Quotes to bypass cached API data...
+2026-04-30 13:09:16,581 - INFO - Absolute Real-Time Entry Prices: {'sell_ce': 178.1, 'sell_pe': 186.75, 'buy_ce': 40.55, 'buy_pe': 47.05}
+2026-04-30 13:09:16,581 - INFO - SANDBOX MODE: simulating local paper execution.
+2026-04-30 13:09:16,581 - INFO - Simulated basket executed successfully.
+2026-04-30 13:09:16,587 - INFO - Entering live risk monitoring phase...
+2026-04-30 13:09:16,588 - INFO - Initializing broker WebSocket connection for live risk management...
+2026-04-30 13:09:16,589 - INFO - WebSocket connected. Streaming live market data...
+2026-04-30 13:09:17,684 - INFO - Websocket connected
