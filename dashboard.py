@@ -135,8 +135,16 @@ def heartbeat_age():
 settings = load_settings()
 
 # --- 1. LOAD SAVED STATES FIRST ---
-saved_nifty = datetime.datetime.strptime(config.get_next_expiry("NIFTY"), "%Y-%m-%d").date()
-saved_sensex = datetime.datetime.strptime(config.get_next_expiry("SENSEX"), "%Y-%m-%d").date()
+def safe_expiry_date(index_symbol):
+    expiry = config.get_next_expiry(index_symbol)
+    try:
+        return datetime.datetime.strptime(expiry, "%Y-%m-%d").date()
+    except Exception:
+        return datetime.datetime.now().date()
+
+
+saved_nifty = safe_expiry_date("NIFTY")
+saved_sensex = safe_expiry_date("SENSEX")
 
 # --- THE UNIFIED BRAIN FIX: Read Expiries from settings.json ---
 if "NIFTY_EXPIRY" in settings:
@@ -208,11 +216,13 @@ with st.sidebar.form("config_form"):
     env_mode = st.selectbox("Environment", ["SANDBOX", "LIVE"], index=0 if settings.get("ENVIRONMENT") == "SANDBOX" else 1)
     nifty_qty = st.number_input("Nifty Qty (Multiples of 65)", value=settings.get("NIFTY_LOT_SIZE", 65), step=65)
     sensex_qty = st.number_input("Sensex Qty (Multiples of 20)", value=settings.get("SENSEX_LOT_SIZE", 20), step=20)
+    sniper_wing_delta = st.number_input("Sniper Wing Delta", value=float(settings.get("SNIPER_WING_DELTA", config.SNIPER_WING_DELTA)), step=1.0, min_value=1.0, max_value=20.0)
     
     if st.form_submit_button("💾 Save Settings"):
         settings["ENVIRONMENT"] = env_mode
         settings["NIFTY_LOT_SIZE"] = nifty_qty
         settings["SENSEX_LOT_SIZE"] = sensex_qty
+        settings["SNIPER_WING_DELTA"] = sniper_wing_delta
         
         # --- THE UNIFIED BRAIN FIX: Save Expiries to settings.json ---
         settings["NIFTY_EXPIRY"] = str(nifty_exp)
@@ -347,35 +357,16 @@ with col_status:
         if state.get("active"):
             st.success(f"🟢 ACTIVE TRADE: {state['index_symbol']} | Qty: {state.get('quantity', 'N/A')}")
 
-            # ================================================================
-            # VIX PROFILE BADGES (NEW — reads from trade_state.json)
-            # ================================================================
-            vix_profile = state.get("vix_profile", "N/A")
-            session_vix = state.get("session_vix", 0.0)
-            
-            profile_colors = {
-                "LOW_VIX": "🟢",
-                "MID_VIX": "🟡", 
-                "HIGH_VIX": "🔴"
-            }
-            profile_emoji = profile_colors.get(vix_profile, "⚪")
-            
             badge_col1, badge_col2, badge_col3 = st.columns(3)
             with badge_col1:
-                st.metric("VIX Profile", f"{profile_emoji} {vix_profile}", delta=f"VIX: {session_vix:.1f}", delta_color="off")
+                st.metric("Sniper State", state.get("sniper_state", "INITIAL"), delta=f"Wing Δ: {config.SNIPER_WING_DELTA}", delta_color="off")
             with badge_col2:
-                hwm = state.get("profit_high_water_mark", 0.0) * 100
-                profit_lock_tier = state.get("profit_lock_tier", 0)
-                if profit_lock_tier > 0:
-                    tier_emoji = ["⚪", "🛡️", "🔥", "🚀", "👑"][profit_lock_tier]
-                    trail_status = f"{tier_emoji} Tier {profit_lock_tier}"
-                else:
-                    trail_status = "⚪ Waiting"
-                st.metric("Profit Lock", trail_status, delta=f"HWM: {hwm:.2f}%", delta_color="off")
+                live_net_state = state.get("live_net_premium", 0.0)
+                st.metric("Live Net Premium", f"{live_net_state:.2f}", delta=f"Kill: {state.get('catastrophe_threshold', 0):.2f}", delta_color="off")
             with badge_col3:
                 drift_ratio = state.get("atm_drift_ratio", 0.0)
-                drift_color = "normal" if drift_ratio < 1.0 else "inverse"
-                st.metric("ATM Drift", f"{drift_ratio:.2f}x", delta=f"Limit: 1.5x", delta_color=drift_color)
+                drift_color = "normal" if drift_ratio < config.SNIPER_DRIFT_EJECT_RATIO else "inverse"
+                st.metric("ATM Drift", f"{drift_ratio:.2f}x", delta=f"Eject: {config.SNIPER_DRIFT_EJECT_RATIO:.2f}x", delta_color=drift_color)
 
             st.markdown("")
 
@@ -442,30 +433,26 @@ with col_status:
             # --- GROSS PNL FIX APPLIED HERE ---
             gross_pnl = (entry_net - live_net) * qty
             
-            # ================================================================
-            # TARGET MATH — READS FROM TRADE STATE (VIX-SYNCED!)
-            # Falls back to settings.json if trade_state doesn't have it
-            # ================================================================
-            current_target_pct = state.get("applied_target_pct", settings.get("TARGET_PROFIT_PCT", 10))
-            target_gross_pnl = (entry_net * (current_target_pct / 100.0)) * qty
-
-            # Show profit lock floor
-            lock_floor_pct = state.get("profit_lock_floor", 0.0) * 100
-            lock_floor_pnl = (entry_net * state.get("profit_lock_floor", 0.0)) * qty if state.get("profit_lock_floor", 0.0) > 0 else 0.0
+            sniper_target_pct = state.get("sniper_target_pct", config.SNIPER_TARGET_PCT)
+            level_up_target_pct = state.get("level_up_target_pct", config.SNIPER_LEVEL_UP_TARGET_PCT)
+            level_up_floor_pct = state.get("level_up_floor_pct", config.SNIPER_LEVEL_UP_FLOOR_PCT)
+            sniper_target_pnl = (entry_net * (sniper_target_pct / 100.0)) * qty
+            level_up_target_pnl = (entry_net * (level_up_target_pct / 100.0)) * qty
+            level_up_floor_pnl = (entry_net * (level_up_floor_pct / 100.0)) * qty
             
             st.markdown("---")
             
             # --- PLOTLY GAUGE CHART ---
             if go:
-                max_gauge = target_gross_pnl * 1.5 if target_gross_pnl > 0 else 5000
-                min_gauge = -target_gross_pnl if target_gross_pnl > 0 else -5000
+                max_gauge = level_up_target_pnl * 1.4 if level_up_target_pnl > 0 else 5000
+                min_gauge = -sniper_target_pnl if sniper_target_pnl > 0 else -5000
                 
                 fig = go.Figure(go.Indicator(
                     mode = "gauge+number+delta",
                     value = gross_pnl,
                     domain = {'x': [0, 1], 'y': [0, 1]},
                     title = {'text': "Real-time PnL", 'font': {'size': 20, 'color': 'white'}},
-                    delta = {'reference': lock_floor_pnl, 'increasing': {'color': "#10b981"}, 'decreasing': {'color': "#ef4444"}},
+                    delta = {'reference': level_up_floor_pnl, 'increasing': {'color': "#10b981"}, 'decreasing': {'color': "#ef4444"}},
                     gauge = {
                         'axis': {'range': [min_gauge, max_gauge], 'tickwidth': 1, 'tickcolor': "white"},
                         'bar': {'color': "#3b82f6"},
@@ -474,13 +461,13 @@ with col_status:
                         'bordercolor': "gray",
                         'steps': [
                             {'range': [min_gauge, 0], 'color': "rgba(239, 68, 68, 0.2)"},
-                            {'range': [0, lock_floor_pnl], 'color': "rgba(234, 179, 8, 0.2)"},
-                            {'range': [lock_floor_pnl, target_gross_pnl], 'color': "rgba(16, 185, 129, 0.2)"}
+                            {'range': [0, level_up_floor_pnl], 'color': "rgba(234, 179, 8, 0.2)"},
+                            {'range': [level_up_floor_pnl, level_up_target_pnl], 'color': "rgba(16, 185, 129, 0.2)"}
                         ],
                         'threshold': {
                             'line': {'color': "#10b981", 'width': 4},
                             'thickness': 0.75,
-                            'value': target_gross_pnl
+                            'value': sniper_target_pnl
                         }
                     }
                 ))
@@ -488,7 +475,7 @@ with col_status:
                 st.plotly_chart(fig, use_container_width=True)
                 st.markdown("---")
             
-            # --- 4-COLUMN LAYOUT FOR METRICS AND HOT-SWAP ---
+            # --- 4-COLUMN LAYOUT FOR SNIPER METRICS ---
             metric_col1, metric_col2, metric_col3, metric_col4 = st.columns([1.3, 1.3, 1.2, 1.2])
             
             with metric_col1:
@@ -498,43 +485,13 @@ with col_status:
                     st.metric("Live Gross PnL", f"-₹{abs(gross_pnl):.2f}", delta="In Loss", delta_color="inverse")
             
             with metric_col2:
-                target_label = f"🎯 Target ({current_target_pct}%)"
-                if state.get("profit_lock_tier", 0) > 0:
-                    target_label = f"🛡️ Locked Floor ({lock_floor_pct:.1f}%)"
-                    target_gross_pnl = lock_floor_pnl
-                st.metric(target_label, f"₹{target_gross_pnl:.2f}", delta=f"VIX: {vix_profile}", delta_color="off")
+                st.metric(f"Sniper Target ({sniper_target_pct:.1f}%)", f"₹{sniper_target_pnl:.2f}", delta=f"Pin <= {config.SNIPER_PINNED_DRIFT_RATIO:.2f}x", delta_color="off")
             
             with metric_col3:
-                # Show what determined the target
-                target_source = "VIX Auto" if "applied_target_pct" in state else "Manual"
-                st.metric("Target Source", target_source, delta=f"{current_target_pct}%", delta_color="off")
+                st.metric(f"Level Up Target ({level_up_target_pct:.1f}%)", f"₹{level_up_target_pnl:.2f}", delta=f"Floor ₹{level_up_floor_pnl:.2f}", delta_color="off")
                 
             with metric_col4:
-                with st.form("hot_swap_form"):
-                    new_target = st.number_input(
-                        "Hot-Swap Target (%)", 
-                        value=int(current_target_pct) if current_target_pct else 10, 
-                        step=1,
-                        help="Override the VIX target. Click Apply to save."
-                    )
-                    submit_target = st.form_submit_button("Apply Target")
-                
-                if submit_target and new_target != current_target_pct:
-                    settings["TARGET_PROFIT_PCT"] = new_target
-                    save_settings(settings)
-                    
-                    # Also update the trade_state so the engine picks it up
-                    if os.path.exists(STATE_FILE):
-                        try:
-                            with open(STATE_FILE, "r") as f:
-                                live_state = json.load(f)
-                            live_state["applied_target_pct"] = new_target
-                            atomic_write_json(STATE_FILE, live_state)
-                        except Exception:
-                            pass
-                    
-                    st.toast(f"Target overridden to {new_target}%! (Manual takes priority over VIX)")
-                    st.rerun()
+                st.metric("Catastrophe Kill", f"{config.SNIPER_CATASTROPHE_MULTIPLIER:.2f}x", delta=f"Net {state.get('catastrophe_threshold', 0):.2f}", delta_color="off")
 
         else:
             st.warning("🟡 SYSTEM IDLE: Waiting for schedule.")

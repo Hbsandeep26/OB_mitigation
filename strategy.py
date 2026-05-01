@@ -50,16 +50,13 @@ def _fresh_ltp(live_data, token, leg_name):
 
 
 def get_vix_session_profile(live_vix):
-    if live_vix < config.VIX_LOW_THRESHOLD:
-        profile = {"name": "LOW_VIX", "wing_delta": 8, "target_pct": 12}
-    elif live_vix > config.VIX_HIGH_THRESHOLD:
-        profile = {"name": "HIGH_VIX", "wing_delta": 12, "target_pct": 25}
-    else:
-        profile = {"name": "MID_VIX", "wing_delta": 10, "target_pct": 20}
-
+    profile = {
+        "name": "SNIPER_SHIELD",
+        "wing_delta": config.SNIPER_WING_DELTA,
+        "target_pct": config.SNIPER_TARGET_PCT,
+    }
     logging.info(
-        "VIX Profile Selected: %s (VIX=%.2f) -> Wing delta=%s, Target=%s%%",
-        profile["name"],
+        "Sniper & Shield profile selected: VIX=%.2f, wing delta=%s, target=%s%%",
         live_vix,
         profile["wing_delta"],
         profile["target_pct"],
@@ -69,10 +66,9 @@ def get_vix_session_profile(live_vix):
 
 def _find_wing_by_delta(option_chain_data, atm_strike, atm_premium, side, target_delta):
     target_delta_decimal = target_delta / 100.0
-    target_premium = atm_premium * (target_delta / 50.0)
 
     best_delta = None
-    best_premium = None
+    farthest_usable = None
 
     for strike_data in option_chain_data:
         strike = strike_data.get("strike_price", 0)
@@ -101,21 +97,26 @@ def _find_wing_by_delta(option_chain_data, atm_strike, atm_premium, side, target
             if best_delta is None or delta_distance < best_delta[0]:
                 best_delta = (delta_distance, instrument_key, ltp, strike)
         else:
-            premium_distance = abs(ltp - target_premium)
-            if best_premium is None or premium_distance < best_premium[0]:
-                best_premium = (premium_distance, instrument_key, ltp, strike)
+            strike_distance = abs(float(strike) - float(atm_strike))
+            candidate = (strike_distance, -float(ltp), instrument_key, ltp, strike)
+            if farthest_usable is None or candidate > farthest_usable:
+                farthest_usable = candidate
 
-    selected = best_delta or best_premium
+    selected = best_delta
     if not selected:
-        return None, 0, 0
+        if not farthest_usable:
+            return None, 0, 0
+        _, _, best_key, best_ltp, best_strike = farthest_usable
+        logging.info("Wing %s: Strike %s, LTP %.2f (via farthest usable fallback)", side, best_strike, best_ltp)
+        return best_key, best_ltp, best_strike
 
-    method = "Greeks delta" if best_delta else "Premium Proxy"
     _, best_key, best_ltp, best_strike = selected
-    logging.info("Wing %s: Strike %s, LTP %.2f (via %s, target delta=%s)", side, best_strike, best_ltp, method, target_delta)
+    logging.info("Wing %s: Strike %s, LTP %.2f (via Greeks delta, target delta=%s)", side, best_strike, best_ltp, target_delta)
     return best_key, best_ltp, best_strike
 
 
-def calculate_iron_butterfly_legs(index_symbol, spot_price, option_chain_data, wing_delta=10):
+def calculate_iron_butterfly_legs(index_symbol, spot_price, option_chain_data, wing_delta=None):
+    wing_delta = config.SNIPER_WING_DELTA if wing_delta is None else wing_delta
     logging.info("Calculating Iron Butterfly strikes & prices (Wing delta=%s)...", wing_delta)
     atm_strike = _nearest_chain_strike(option_chain_data, spot_price)
     if atm_strike is None:
@@ -227,6 +228,27 @@ def evaluate_btst_health(live_data, legs, entries):
     return True, "Healthy"
 
 
+def _entry_net(entries):
+    return (entries["sell_ce"] + entries["sell_pe"]) - (entries["buy_ce"] + entries["buy_pe"])
+
+
+def _live_net(prices):
+    return (prices["sell_ce"] + prices["sell_pe"]) - (prices["buy_ce"] + prices["buy_pe"])
+
+
+def _atm_drift_ratio(live_spot, strikes):
+    atm_strike = strikes.get("sell_ce", 0.0)
+    if live_spot <= 0 or atm_strike <= 0:
+        return 0.0
+
+    ce_wing_width = abs(strikes.get("buy_ce", atm_strike) - atm_strike)
+    pe_wing_width = abs(atm_strike - strikes.get("buy_pe", atm_strike))
+    avg_wing_width = (ce_wing_width + pe_wing_width) / 2.0
+    if avg_wing_width <= 0:
+        return 0.0
+    return abs(live_spot - atm_strike) / avg_wing_width
+
+
 def risk_management_evaluator(live_data, legs):
     state = state_manager.load_state()
     if not state or "entry_prices" not in state:
@@ -267,6 +289,37 @@ def risk_management_evaluator(live_data, legs):
     current_prices = {"sell_ce": live_sell_ce, "sell_pe": live_sell_pe, "buy_ce": live_buy_ce, "buy_pe": live_buy_pe}
     state_manager.update_state("feed_status", "LIVE")
 
+    index_symbol = state.get("index_symbol", "NIFTY")
+    spot_key = "NSE_INDEX|Nifty 50" if index_symbol == "NIFTY" else "BSE_INDEX|SENSEX"
+    live_spot = live_data.get(spot_key, {}).get("ltp", 0.0)
+    strikes = state.get("strikes", {})
+    entry_net = float(state.get("entry_net_premium") or _entry_net(entries))
+    live_net = _live_net(current_prices)
+    current_profit_pct = (entry_net - live_net) / entry_net if entry_net > 0 else 0.0
+    drift_ratio = _atm_drift_ratio(live_spot, strikes)
+    sniper_state = state.get("sniper_state", "INITIAL")
+
+    state_manager.update_many({
+        "sniper_state": sniper_state,
+        "entry_net_premium": round(entry_net, 4),
+        "sniper_target_pct": config.SNIPER_TARGET_PCT,
+        "level_up_target_pct": config.SNIPER_LEVEL_UP_TARGET_PCT,
+        "level_up_floor_pct": config.SNIPER_LEVEL_UP_FLOOR_PCT,
+        "atm_drift_ratio": round(drift_ratio, 3),
+        "live_net_premium": round(live_net, 4),
+        "current_profit_pct": round(current_profit_pct, 6),
+        "catastrophe_threshold": round(entry_net * config.SNIPER_CATASTROPHE_MULTIPLIER, 4),
+        "last_spot": round(live_spot, 2) if live_spot else state.get("last_spot", 0),
+    })
+
+    if entry_net > 0 and live_net >= entry_net * config.SNIPER_CATASTROPHE_MULTIPLIER:
+        logging.critical(
+            "CATASTROPHE KILL: live net %.2f >= %.2f.",
+            live_net,
+            entry_net * config.SNIPER_CATASTROPHE_MULTIPLIER,
+        )
+        return "CATASTROPHE_KILL", current_prices
+
     now = datetime.datetime.now()
     if now.hour > 15 or (now.hour == 15 and now.minute >= 15):
         btst_file = os.path.join(BASE_DIR, "btst_flag.txt")
@@ -279,167 +332,31 @@ def risk_management_evaluator(live_data, legs):
             if is_healthy:
                 return False, {}
             else:
-                logging.critical("BTST position unhealthy: %s. Forcing TIME_EXIT.", diagnosis)
+                logging.critical("BTST position unhealthy: %s. Forcing BTST recenter.", diagnosis)
                 return "BTST_RECENTER", current_prices
         logging.critical("END OF DAY (15:15) REACHED. Forcing Square Off.")
         return "TIME_EXIT", current_prices
 
-    entry_net = (entries["sell_ce"] + entries["sell_pe"]) - (entries["buy_ce"] + entries["buy_pe"])
-    live_net = (live_sell_ce + live_sell_pe) - (live_buy_ce + live_buy_pe)
-    current_profit_pct = (entry_net - live_net) / entry_net if entry_net > 0 else 0.0
+    if drift_ratio >= config.SNIPER_DRIFT_EJECT_RATIO:
+        logging.critical("ATM DRIFT EJECTOR: %.2fx >= %.2fx.", drift_ratio, config.SNIPER_DRIFT_EJECT_RATIO)
+        return "ATM_DRIFT", current_prices
 
-    net_sl_breach_count = state.get("net_sl_breach_count", 0)
-    net_stop = entry_net * config.NET_STOP_LOSS_MULTIPLIER
-    if live_net >= net_stop:
-        net_sl_breach_count += 1
-        state_manager.update_state("net_sl_breach_count", net_sl_breach_count)
-        logging.warning("Net premium SL warning: %.2f >= %.2f (%s/3)", live_net, net_stop, net_sl_breach_count)
-        if net_sl_breach_count >= 3:
-            logging.critical("CONFIRMED NET STOP LOSS. Exiting.")
-            return "STOP_LOSS", current_prices
-        return False, {}
-    elif net_sl_breach_count > 0:
-        state_manager.update_state("net_sl_breach_count", 0)
-
-    applied_target_pct = state.get("applied_target_pct", config.get_target_profit_pct())
-    base_target_pct = applied_target_pct / 100.0
-
-    index_symbol = state.get("index_symbol", "NIFTY")
-    spot_key = "NSE_INDEX|Nifty 50" if index_symbol == "NIFTY" else "BSE_INDEX|SENSEX"
-    vix_key = "NSE_INDEX|India VIX"
-    live_spot = live_data.get(spot_key, {}).get("ltp", 0.0)
-    live_vix = live_data.get(vix_key, {}).get("ltp", 15.0)
-    strikes = state.get("strikes", {})
-    atm_strike = strikes.get("sell_ce", 0.0)
-    if live_spot > 0:
-        state_manager.update_state("last_spot", round(live_spot, 2))
-
-    atm_grace_allowed = False
-    if live_spot > 0 and atm_strike > 0 and strikes:
-        ce_wing_width = abs(strikes.get("buy_ce", atm_strike) - atm_strike)
-        pe_wing_width = abs(atm_strike - strikes.get("buy_pe", atm_strike))
-        avg_wing_width = (ce_wing_width + pe_wing_width) / 2.0
-        if avg_wing_width > 0:
-            drift_distance = abs(live_spot - atm_strike)
-            drift_ratio = drift_distance / avg_wing_width
-            state_manager.update_state("atm_drift_ratio", round(drift_ratio, 3))
-            atm_grace_allowed = drift_ratio <= config.PROFIT_LOCK_ATM_GRACE_RATIO
-            if drift_ratio > config.ATM_DRIFT_MULTIPLIER:
-                logging.critical("ATM DRIFT DETECTED: %.2fx wing width. Forcing exit.", drift_ratio)
-                return "ATM_DRIFT", current_prices
-
-    profit_hwm = state.get("profit_high_water_mark", 0.0)
-    trail_active = state.get("trail_active", False)
-    trail_floor = state.get("trail_floor", 0.0)
-
-    if current_profit_pct > profit_hwm:
-        profit_hwm = current_profit_pct
-        state_manager.update_state("profit_high_water_mark", round(profit_hwm, 6))
-
-    profit_lock_tier = state.get("profit_lock_tier", 0)
-    profit_lock_floor = state.get("profit_lock_floor", 0.0)
-    
-    if current_profit_pct >= base_target_pct and profit_lock_tier < 4:
-        spot_distance = abs(live_spot - atm_strike) / atm_strike if live_spot > 0 and atm_strike > 0 else float('inf')
-        daily_expected_move = live_vix / 19.1
-        dynamic_zone_tolerance = (daily_expected_move / 100.0) * 0.60
-        
-        if spot_distance <= dynamic_zone_tolerance:
-            new_floor = base_target_pct * config.TRAIL_LOCK_FLOOR_PCT
-            state_manager.update_many({
-                "profit_lock_tier": 4,
-                "profit_lock_floor": round(new_floor, 6),
-                "trail_active": True,
-                "trail_floor": round(new_floor, 6),
-            })
-            profit_lock_floor = new_floor
-            trail_active = True
-            trail_floor = new_floor
-            logging.critical("Base target hit inside safe zone. Ratchet trail active at Tier 4.")
-        else:
-            logging.critical("Target reached outside safe zone. Taking profit.")
-            return "TAKE_PROFIT", current_prices
-            
-    elif current_profit_pct >= base_target_pct * config.PROFIT_LOCK_TIER3_TRIGGER and profit_lock_tier < 3:
-        new_floor = base_target_pct * config.PROFIT_LOCK_TIER3_FLOOR
-        state_manager.update_many({
-            "profit_lock_tier": 3,
-            "profit_lock_floor": round(new_floor, 6),
-            "trail_active": True,
-            "trail_floor": round(new_floor, 6),
-        })
-        profit_lock_floor = new_floor
-        trail_active = True
-        trail_floor = new_floor
-    elif current_profit_pct >= base_target_pct * config.PROFIT_LOCK_TIER2_TRIGGER and profit_lock_tier < 2:
-        new_floor = base_target_pct * config.PROFIT_LOCK_TIER2_FLOOR
-        state_manager.update_many({
-            "profit_lock_tier": 2,
-            "profit_lock_floor": round(new_floor, 6),
-        })
-        profit_lock_floor = new_floor
-    elif current_profit_pct >= base_target_pct * config.PROFIT_LOCK_TIER1_TRIGGER and profit_lock_tier < 1:
-        new_floor = base_target_pct * config.PROFIT_LOCK_TIER1_FLOOR
-        state_manager.update_many({
-            "profit_lock_tier": 1,
-            "profit_lock_floor": round(new_floor, 6),
-        })
-        profit_lock_floor = new_floor
-
-    if profit_lock_floor > 0 and current_profit_pct <= profit_lock_floor:
-        grace_started = state.get("profit_lock_grace_started_ts")
-        now_ts = time.time()
-        if atm_grace_allowed:
-            if not grace_started:
-                state_manager.update_state("profit_lock_grace_started_ts", now_ts)
-                logging.warning(
-                    "Profit lock floor touched near ATM. Holding for %.0fs grace before exit.",
-                    config.PROFIT_LOCK_ATM_GRACE_SECONDS,
-                )
-                return False, {}
-            if now_ts - float(grace_started) < config.PROFIT_LOCK_ATM_GRACE_SECONDS:
-                logging.info("Profit lock ATM grace active for %.1fs.", now_ts - float(grace_started))
-                return False, {}
-
-        logging.critical("PROFIT LOCK FLOOR BREACHED (Tier %d). Exiting at %.2f%%",
-                         profit_lock_tier, current_profit_pct * 100)
-        state_manager.update_state("profit_lock_grace_started_ts", None)
-        return "TAKE_PROFIT", current_prices
-    elif state.get("profit_lock_grace_started_ts"):
-        state_manager.update_state("profit_lock_grace_started_ts", None)
-
-    if trail_active:
-        new_trail_floor = max(trail_floor, profit_hwm * config.TRAIL_RATCHET_FACTOR)
-        if new_trail_floor > trail_floor:
-            trail_floor = new_trail_floor
-            state_manager.update_state("trail_floor", round(trail_floor, 6))
-            logging.info("Ratchet Trail: HWM=%.2f%%, Floor=%.2f%%", profit_hwm * 100, trail_floor * 100)
-
-        if current_profit_pct <= trail_floor:
-            logging.critical("RATCHET TRAIL STOP HIT. Locking %.2f%% profit.", trail_floor * 100)
-            return "TAKE_PROFIT", current_prices
-
-        greedy_target = base_target_pct * 1.5
-        if current_profit_pct >= greedy_target:
-            logging.critical("MAX RATCHET REACHED. Taking profit at %.2f%%.", current_profit_pct * 100)
-            return "TAKE_PROFIT", current_prices
-
-    entry_sell_ce = float(entries["sell_ce"])
-    entry_sell_pe = float(entries["sell_pe"])
-    limit_ce = entry_sell_ce * 2.0
-    limit_pe = entry_sell_pe * 2.0
-    sl_breach_count = state.get("sl_breach_count", 0)
-
-    if float(live_sell_ce) >= limit_ce or float(live_sell_pe) >= limit_pe:
-        sl_breach_count += 1
-        state_manager.update_state("sl_breach_count", sl_breach_count)
-        logging.warning("Leg SL warning. Confirmation count: %s/3", sl_breach_count)
-        if sl_breach_count >= 3:
-            logging.critical("CONFIRMED LEG STOP LOSS. Exiting.")
-            return "STOP_LOSS", current_prices
+    if sniper_state == "LEVEL_UP":
+        if current_profit_pct >= config.SNIPER_LEVEL_UP_TARGET_PCT / 100.0:
+            logging.critical("LEVEL UP TARGET HIT at %.2f%%.", current_profit_pct * 100)
+            return "LEVEL_UP_TARGET", current_prices
+        if current_profit_pct <= config.SNIPER_LEVEL_UP_FLOOR_PCT / 100.0:
+            logging.critical("LEVEL UP FLOOR HIT at %.2f%%.", current_profit_pct * 100)
+            return "LEVEL_UP_FLOOR", current_prices
         return False, {}
 
-    if sl_breach_count > 0:
-        state_manager.update_state("sl_breach_count", 0)
+    if current_profit_pct >= config.SNIPER_TARGET_PCT / 100.0:
+        if drift_ratio > config.SNIPER_PINNED_DRIFT_RATIO:
+            logging.critical("SNIPER TARGET HIT with drift %.2fx. Exiting.", drift_ratio)
+            return "SNIPER_TARGET", current_prices
+
+        state_manager.update_state("sniper_state", "LEVEL_UP")
+        logging.critical("SNIPER TARGET HIT while pinned. Level Up state activated.")
+        return False, {}
 
     return False, {}
