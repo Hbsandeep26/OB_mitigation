@@ -111,6 +111,10 @@ class SafetyHardeningTests(unittest.TestCase):
 
     def tearDown(self):
         try:
+            for filename in ("btst_flag.txt", "manual_exit_flag.txt", "graceful_stop_flag.txt", "expiries.json"):
+                flag_path = os.path.join(self.tmp_name, filename)
+                if os.path.exists(flag_path):
+                    os.remove(flag_path)
             if os.path.exists(self.current_state_file):
                 os.remove(self.current_state_file)
             os.rmdir(self.tmp_name)
@@ -210,7 +214,7 @@ class SafetyHardeningTests(unittest.TestCase):
 
         def fake_monitor(legs, callback):
             calls.append(legs)
-            return ("SOCKET_DEAD", {}) if len(calls) == 1 else ("TAKE_PROFIT", {"sell_ce": 1})
+            return ("SOCKET_DEAD", {}) if len(calls) == 1 else ("SNIPER_TARGET", {"sell_ce": 1})
 
         with patch.object(main, "monitor_live_prices", side_effect=fake_monitor), \
              patch.object(main.state_manager, "load_state", return_value={"active": True}), \
@@ -219,7 +223,7 @@ class SafetyHardeningTests(unittest.TestCase):
              patch.object(main.time, "sleep"):
             result = main.monitor_with_reconnects({"sell_ce": "SCE"}, "NIFTY")
 
-        self.assertEqual(result[0], "TAKE_PROFIT")
+        self.assertEqual(result[0], "SNIPER_TARGET")
         self.assertEqual(len(calls), 2)
 
     def test_stale_ticks_block_risk_decision(self):
@@ -284,42 +288,211 @@ class SafetyHardeningTests(unittest.TestCase):
         self.assertEqual(args[4], 195.0)
         self.assertEqual(kwargs["exit_reason"], "MANUAL_EXIT")
 
-    def test_profit_lock_floor_gets_short_atm_grace_before_exit(self):
-        class MarketHoursDatetime(datetime.datetime):
-            @classmethod
-            def now(cls, tz=None):
-                return cls(2026, 4, 29, 10, 30)
-
+    def _save_sniper_state(self, sniper_state="INITIAL"):
         state_manager.save_state(
             "NIFTY",
             {"buy_ce": "BCE", "buy_pe": "BPE", "sell_ce": "SCE", "sell_pe": "SPE"},
             {"buy_ce": 5.0, "buy_pe": 5.0, "sell_ce": 20.0, "sell_pe": 20.0},
             65,
-            {"buy_ce": 110, "buy_pe": 90, "sell_ce": 100, "sell_pe": 100},
+            {"buy_ce": 150, "buy_pe": 50, "sell_ce": 100, "sell_pe": 100},
         )
         state_manager.update_many({
-            "applied_target_pct": 10,
-            "profit_lock_tier": 2,
-            "profit_lock_floor": 0.035,
+            "sniper_state": sniper_state,
+            "entry_net_premium": 30.0,
         })
-        live_data = {
-            "SCE": {"ltp": 19.0, "ts": time.time()},
-            "SPE": {"ltp": 18.2, "ts": time.time()},
-            "BCE": {"ltp": 4.0, "ts": time.time()},
-            "BPE": {"ltp": 4.0, "ts": time.time()},
-            "NSE_INDEX|Nifty 50": {"ltp": 100.0, "ts": time.time()},
-            "NSE_INDEX|India VIX": {"ltp": 15.0, "ts": time.time()},
+
+    def _sniper_live_data(self, sell_ce, sell_pe, buy_ce, buy_pe, spot=100.0):
+        now = time.time()
+        return {
+            "SCE": {"ltp": sell_ce, "ts": now},
+            "SPE": {"ltp": sell_pe, "ts": now},
+            "BCE": {"ltp": buy_ce, "ts": now},
+            "BPE": {"ltp": buy_pe, "ts": now},
+            "NSE_INDEX|Nifty 50": {"ltp": spot, "ts": now},
         }
 
-        with patch.object(strategy.datetime, "datetime", MarketHoursDatetime):
+    def _market_time_patch(self, hour=10, minute=30):
+        class MarketHoursDatetime(datetime.datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return cls(2026, 4, 29, hour, minute)
+
+        return patch.object(strategy.datetime, "datetime", MarketHoursDatetime)
+
+    def test_default_wide_wing_selection_uses_configured_five_delta(self):
+        old_delta = config.SNIPER_WING_DELTA
+        config.SNIPER_WING_DELTA = 5.0
+        try:
+            chain = []
+            for strike, ce_delta, pe_delta in (
+                (50, 0.95, -0.05),
+                (75, 0.75, -0.20),
+                (100, 0.50, -0.50),
+                (125, 0.20, -0.75),
+                (150, 0.05, -0.95),
+            ):
+                chain.append({
+                    "strike_price": strike,
+                    "call_options": {
+                        "instrument_key": f"C{strike}",
+                        "market_data": {"ltp": 20 if strike == 100 else 3},
+                        "greeks": {"delta": ce_delta},
+                    },
+                    "put_options": {
+                        "instrument_key": f"P{strike}",
+                        "market_data": {"ltp": 20 if strike == 100 else 3},
+                        "greeks": {"delta": pe_delta},
+                    },
+                })
+
+            legs, _, strikes = strategy.calculate_iron_butterfly_legs("NIFTY", 101, chain)
+        finally:
+            config.SNIPER_WING_DELTA = old_delta
+
+        self.assertEqual(legs["buy_ce"], "C150")
+        self.assertEqual(legs["buy_pe"], "P50")
+        self.assertEqual(strikes["sell_ce"], 100)
+
+    def test_wing_selection_falls_back_to_farthest_valid_otm_when_greeks_missing(self):
+        chain = []
+        for strike in (50, 75, 100, 125, 150):
+            chain.append({
+                "strike_price": strike,
+                "call_options": {"instrument_key": f"C{strike}", "market_data": {"ltp": 20 if strike == 100 else 2}, "greeks": {}},
+                "put_options": {"instrument_key": f"P{strike}", "market_data": {"ltp": 20 if strike == 100 else 2}, "greeks": {}},
+            })
+
+        legs, _, _ = strategy.calculate_iron_butterfly_legs("NIFTY", 100, chain)
+
+        self.assertEqual(legs["buy_ce"], "C150")
+        self.assertEqual(legs["buy_pe"], "P50")
+
+    def test_catastrophe_kill_overrides_drift_and_profit_logic(self):
+        self._save_sniper_state()
+        live_data = self._sniper_live_data(23.0, 23.0, 5.0, 5.0, spot=100.0)
+
+        with self._market_time_patch():
             result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
+
+        self.assertEqual(result, "CATASTROPHE_KILL")
+
+    def test_drift_ejector_exits_before_profit_logic(self):
+        self._save_sniper_state()
+        live_data = self._sniper_live_data(17.0, 17.0, 3.8, 3.8, spot=117.5)
+
+        with self._market_time_patch():
+            result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
+
+        self.assertEqual(result, "ATM_DRIFT")
+
+    def test_sniper_target_exits_when_market_is_not_pinned(self):
+        self._save_sniper_state()
+        live_data = self._sniper_live_data(17.0, 17.0, 3.8, 3.8, spot=111.0)
+
+        with self._market_time_patch():
+            result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
+
+        self.assertEqual(result, "SNIPER_TARGET")
+
+    def test_sniper_target_enters_level_up_when_market_is_pinned(self):
+        self._save_sniper_state()
+        live_data = self._sniper_live_data(17.0, 17.0, 3.8, 3.8, spot=105.0)
+
+        with self._market_time_patch():
+            result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
+
+        self.assertFalse(result)
+        self.assertEqual(state_manager.load_state()["sniper_state"], "LEVEL_UP")
+
+    def test_level_up_exits_at_extended_target(self):
+        self._save_sniper_state(sniper_state="LEVEL_UP")
+        live_data = self._sniper_live_data(16.4, 16.4, 4.2, 4.2, spot=100.0)
+
+        with self._market_time_patch():
+            result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
+
+        self.assertEqual(result, "LEVEL_UP_TARGET")
+
+    def test_level_up_exits_at_profit_floor(self):
+        self._save_sniper_state(sniper_state="LEVEL_UP")
+        live_data = self._sniper_live_data(17.5, 17.5, 4.0, 4.0, spot=100.0)
+
+        with self._market_time_patch():
+            result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
+
+        self.assertEqual(result, "LEVEL_UP_FLOOR")
+
+    def test_old_leg_stop_loss_no_longer_triggers_strategy_exit(self):
+        self._save_sniper_state()
+        live_data = self._sniper_live_data(45.0, 5.0, 10.0, 10.0, spot=100.0)
+
+        with self._market_time_patch():
+            result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
+
         self.assertFalse(result)
 
-        old_grace = time.time() - config.PROFIT_LOCK_ATM_GRACE_SECONDS - 1
-        state_manager.update_state("profit_lock_grace_started_ts", old_grace)
-        with patch.object(strategy.datetime, "datetime", MarketHoursDatetime):
+    def test_btst_healthy_trade_carries_at_cutoff(self):
+        self._save_sniper_state()
+        btst_file = os.path.join(strategy.BASE_DIR, "btst_flag.txt")
+        with open(btst_file, "w") as f:
+            f.write("TRUE")
+        live_data = self._sniper_live_data(18.0, 18.0, 4.5, 4.5, spot=100.0)
+
+        with self._market_time_patch(15, 15):
             result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
-        self.assertEqual(result, "TAKE_PROFIT")
+
+        self.assertFalse(result)
+
+    def test_btst_unhealthy_trade_requests_single_recenter(self):
+        self._save_sniper_state()
+        btst_file = os.path.join(strategy.BASE_DIR, "btst_flag.txt")
+        with open(btst_file, "w") as f:
+            f.write("TRUE")
+        live_data = self._sniper_live_data(21.0, 21.0, 5.0, 5.0, spot=100.0)
+
+        with self._market_time_patch(15, 15):
+            result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
+
+        self.assertEqual(result, "BTST_RECENTER")
+
+    def test_btst_recenter_helper_attempts_exactly_one_fresh_entry(self):
+        calls = []
+
+        def fake_basket(legs, index_symbol, entry_prices, strikes, **kwargs):
+            calls.append((legs, index_symbol, entry_prices, strikes, kwargs))
+            state_manager.save_state(index_symbol, legs, entry_prices, 65, strikes)
+            return True
+
+        with patch.object(main, "get_spot_price", return_value=100.0), \
+             patch.object(main, "get_option_chain", return_value=[
+                 {
+                     "strike_price": 50,
+                     "call_options": {"instrument_key": "C50", "market_data": {"ltp": 50}, "greeks": {"delta": 0.95}},
+                     "put_options": {"instrument_key": "P50", "market_data": {"ltp": 3}, "greeks": {"delta": -0.05}},
+                 },
+                 {
+                     "strike_price": 100,
+                     "call_options": {"instrument_key": "C100", "market_data": {"ltp": 20}, "greeks": {"delta": 0.50}},
+                     "put_options": {"instrument_key": "P100", "market_data": {"ltp": 20}, "greeks": {"delta": -0.50}},
+                 },
+                 {
+                     "strike_price": 150,
+                     "call_options": {"instrument_key": "C150", "market_data": {"ltp": 3}, "greeks": {"delta": 0.05}},
+                     "put_options": {"instrument_key": "P150", "market_data": {"ltp": 50}, "greeks": {"delta": -0.95}},
+                 },
+             ]), \
+             patch.object(main, "get_fresh_option_quotes", return_value={
+                 "C100": 20.0,
+                 "P100": 20.0,
+                 "C150": 3.0,
+                 "P50": 3.0,
+             }), \
+             patch.object(main, "place_iron_butterfly_basket", side_effect=fake_basket):
+            self.assertTrue(main.deploy_single_sniper_trade("NIFTY", "2026-05-07", reason="BTST_RECENTER"))
+
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(state_manager.load_state()["sniper_state"], "INITIAL")
+        self.assertEqual(state_manager.load_state()["recenter_reason"], "BTST_RECENTER")
 
 
 if __name__ == "__main__":

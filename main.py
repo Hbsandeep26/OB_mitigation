@@ -10,9 +10,8 @@ from datetime import datetime, timedelta
 import config
 import state_manager
 
-# Note the new imports: get_fresh_option_quotes, get_india_vix, get_spot_with_ohlc
-from data_feed import get_spot_price, get_option_chain, monitor_live_prices, get_fresh_option_quotes, get_india_vix, get_spot_with_ohlc
-from strategy import calculate_iron_butterfly_legs, risk_management_evaluator, get_vix_session_profile
+from data_feed import get_spot_price, get_option_chain, monitor_live_prices, get_fresh_option_quotes, get_spot_with_ohlc
+from strategy import calculate_iron_butterfly_legs, risk_management_evaluator
 from execution import place_iron_butterfly_basket, square_off_all
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -161,6 +160,54 @@ def exit_prices_from_rest(legs):
     return prices if all(value > 0 for value in prices.values()) else None
 
 
+def initialize_sniper_state(entry_prices):
+    entry_net = (entry_prices["sell_ce"] + entry_prices["sell_pe"]) - (entry_prices["buy_ce"] + entry_prices["buy_pe"])
+    state_manager.update_many({
+        "sniper_state": "INITIAL",
+        "entry_net_premium": round(entry_net, 4),
+        "sniper_target_pct": config.SNIPER_TARGET_PCT,
+        "level_up_target_pct": config.SNIPER_LEVEL_UP_TARGET_PCT,
+        "level_up_floor_pct": config.SNIPER_LEVEL_UP_FLOOR_PCT,
+        "atm_drift_ratio": 0.0,
+        "live_net_premium": round(entry_net, 4),
+        "current_profit_pct": 0.0,
+        "catastrophe_threshold": round(entry_net * config.SNIPER_CATASTROPHE_MULTIPLIER, 4),
+    })
+
+
+def deploy_single_sniper_trade(index_symbol, expiry_date, reason="REGULAR"):
+    logging.info("Deploying %s Sniper & Shield Iron Butterfly for %s...", reason, index_symbol)
+    spot = get_spot_price(index_symbol)
+    chain = get_option_chain(index_symbol, expiry_date) if spot else None
+    if not spot or not chain:
+        logging.critical("Cannot deploy %s trade: spot found=%s, chain found=%s.", reason, bool(spot), bool(chain))
+        return False
+
+    legs, entry_prices, strikes = calculate_iron_butterfly_legs(
+        index_symbol, spot, chain, wing_delta=config.SNIPER_WING_DELTA
+    )
+    if not legs:
+        logging.critical("Cannot deploy %s trade: wide-wing calculation failed.", reason)
+        return False
+
+    fresh_quotes = get_fresh_option_quotes(list(legs.values()))
+    if fresh_quotes:
+        for leg_name, token in legs.items():
+            if token in fresh_quotes and fresh_quotes[token] > 0:
+                entry_prices[leg_name] = fresh_quotes[token]
+        logging.info("Absolute real-time entry prices: %s", entry_prices)
+    else:
+        logging.warning("Fresh quote sync failed. Falling back to option chain prices.")
+
+    execution_success = place_iron_butterfly_basket(
+        legs, index_symbol, entry_prices, strikes, spot_price=spot
+    )
+    if execution_success:
+        initialize_sniper_state(entry_prices)
+        state_manager.update_state("recenter_reason", reason if reason != "REGULAR" else "")
+    return execution_success
+
+
 def monitor_with_reconnects(legs, index_symbol):
     reconnects = 0
     while True:
@@ -279,10 +326,10 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
                 return
             elif stop_loss_hit == "SOCKET_DEAD_EXIT":
                 logging.critical("Socket recovery failed on carry-forward. Squaring off with REST quotes...")
-            elif stop_loss_hit == "TAKE_PROFIT":
-                logging.critical(f"💰 PROFIT LOCKED on {index_symbol} Carry Forward trade! Squaring off...")
-            elif stop_loss_hit == "STOP_LOSS":
-                logging.warning(f"🚨 Stop Loss hit on {index_symbol} Carry Forward trade! Squaring off...")
+            elif stop_loss_hit in ("SNIPER_TARGET", "LEVEL_UP_TARGET", "LEVEL_UP_FLOOR"):
+                logging.critical(f"💰 Sniper profit exit on {index_symbol} Carry Forward trade! Squaring off...")
+            elif stop_loss_hit == "CATASTROPHE_KILL":
+                logging.warning(f"🚨 Catastrophe kill on {index_symbol} Carry Forward trade! Squaring off...")
             elif stop_loss_hit == "ATM_DRIFT":
                 logging.critical(f"🌊 ATM Drift detected on {index_symbol} Carry Forward. Structure broken — squaring off...")
             elif stop_loss_hit == "TIME_EXIT":
@@ -365,9 +412,8 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             time.sleep(2)
 
     # ================================================================
-    # PHASE 3: MAIN TRADING LOOP (with Circuit Breaker + API Retry Limit)
+    # PHASE 3: MAIN TRADING LOOP (Sniper & Shield + API Retry Limit)
     # ================================================================
-    consecutive_losses = 0
     api_retry_count = 0
     MAX_API_RETRIES = 5
 
@@ -383,20 +429,6 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             logging.critical("Graceful stop requested. No new trades will be deployed.")
             mark_engine_stopped()
             raise SystemExit(0)
-
-        # --- CIRCUIT BREAKER CHECK ---
-        if consecutive_losses >= config.MAX_CONSECUTIVE_LOSSES:
-            logging.critical(
-                f"🔌 CIRCUIT BREAKER TRIPPED! {consecutive_losses} consecutive losses detected. "
-                f"Halting ALL new trades for {index_symbol} this session."
-            )
-            import notifier
-            notifier.send_telegram_alert(
-                f"🔌 <b>CIRCUIT BREAKER ACTIVATED!</b>\n"
-                f"{index_symbol}: {consecutive_losses} consecutive losses.\n"
-                f"Bot has halted trading for this session."
-            )
-            break
 
         logging.info(f"Deploying fresh Iron Butterfly for {index_symbol}...")
 
@@ -426,17 +458,8 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         # Reset API retry counter on success
         api_retry_count = 0
 
-        # --- FETCH INDIA VIX & DETERMINE SESSION PROFILE ---
-        live_vix = get_india_vix()
-        if live_vix is None:
-            live_vix = 15.0  # Safe default if VIX API fails
-            logging.warning(f"⚠️ VIX fetch failed. Using default VIX={live_vix}")
-        
-        session_profile = get_vix_session_profile(live_vix)
-
-        # --- CALCULATE IRON BUTTERFLY WITH DELTA-BASED WINGS ---
         legs, entry_prices, strikes = calculate_iron_butterfly_legs(
-            index_symbol, spot, chain, wing_delta=session_profile['wing_delta']
+            index_symbol, spot, chain, wing_delta=config.SNIPER_WING_DELTA
         )
         
         if not legs:
@@ -470,20 +493,12 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             notifier.send_telegram_alert(f"🚨 <b>URGENT ACTION REQUIRED!</b> 🚨\n{index_symbol} basket order failed mid-execution. Check Upstox App immediately.")
             break 
 
-        # --- INJECT VIX PROFILE INTO TRADE STATE (Dashboard Sync) ---
-        state_manager.update_state("applied_target_pct", session_profile['target_pct'])
-        state_manager.update_state("vix_profile", session_profile['name'])
-        state_manager.update_state("session_vix", round(live_vix, 2))
-        state_manager.update_state("profit_high_water_mark", 0.0)
-        state_manager.update_state("trail_active", False)
-        state_manager.update_state("trail_floor", 0.0)
-        state_manager.update_state("atm_drift_ratio", 0.0)
+        initialize_sniper_state(entry_prices)
             
         state_manager.update_state("cutoff_hour", cutoff_hour)
         state_manager.update_state("cutoff_minute", cutoff_minute)
             
         logging.info("Entering live risk monitoring phase...")
-        trade_entry_time = datetime.now()  # Track when this trade was deployed
 
         stop_loss_hit, exit_prices = monitor_with_reconnects(legs, index_symbol)
 
@@ -491,27 +506,6 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         # EXIT SIGNAL HANDLING
         # ================================================================
         
-        # --- MINIMUM TRADE DURATION GUARD ---
-        # If a trade exits within 30 seconds of entry, something is wrong
-        # (stale prices, instant stop-loss on first tick, etc.)
-        trade_duration = (datetime.now() - trade_entry_time).total_seconds()
-        if trade_duration < 30 and stop_loss_hit not in (
-            "MANUAL_EXIT", "GRACEFUL_STOP", "TIME_EXIT", "MARKET_CLOSED",
-            "SOCKET_DEAD_EXIT", "SOCKET_DEAD_FATAL"
-        ):
-            if stop_loss_hit == "STOP_LOSS":
-                logging.critical(f"⚠️ GENUINE FLASH CRASH! Trade hit STOP LOSS in just {trade_duration:.0f}s. Squaring off and pausing for 120 seconds.")
-            else:
-                logging.critical(
-                    f"⚠️ FLASH EXIT DETECTED! Trade lasted only {trade_duration:.0f}s (Reason: {stop_loss_hit}). "
-                    f"This likely means stale/incomplete price data triggered a false exit. "
-                    f"Squaring off safely and pausing for 120 seconds."
-                )
-            square_off_all(exit_prices, exit_reason=stop_loss_hit)
-            consecutive_losses += 1
-            time.sleep(120)
-            continue
-
         if stop_loss_hit in ("MANUAL_EXIT", "GRACEFUL_STOP"):
             logging.critical(f"🛑 User stop/exit executed. Squaring off {index_symbol}...")
             square_off_all(exit_prices, exit_reason=stop_loss_hit)
@@ -521,26 +515,20 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
                 raise SystemExit(0)
             break 
 
-        elif stop_loss_hit == "TAKE_PROFIT":
-            logging.critical(f"💰 PROFIT LOCKED for {index_symbol}! Squaring off positions.")
+        elif stop_loss_hit in ("SNIPER_TARGET", "LEVEL_UP_TARGET", "LEVEL_UP_FLOOR"):
+            logging.critical("Sniper profit exit for %s: %s.", index_symbol, stop_loss_hit)
             square_off_all(exit_prices, exit_reason=stop_loss_hit)
-            consecutive_losses = 0  # Reset circuit breaker on a win
             logging.info("Cooling down for 60 seconds before looking for new setups...")
             time.sleep(60)
 
-        elif stop_loss_hit == "STOP_LOSS":
-            logging.warning(f"🚨 Stop Loss hit for {index_symbol}! Squaring off...")
+        elif stop_loss_hit == "CATASTROPHE_KILL":
+            logging.critical("Catastrophe kill for %s. Squaring off and halting this session.", index_symbol)
             square_off_all(exit_prices, exit_reason=stop_loss_hit)
-            consecutive_losses += 1
-            logging.info(f"🔌 Circuit Breaker: {consecutive_losses}/{config.MAX_CONSECUTIVE_LOSSES} consecutive losses.")
-            logging.info("Cooling down for 60 seconds...")
-            time.sleep(60)
+            break
 
         elif stop_loss_hit == "ATM_DRIFT":
             logging.critical(f"🌊 ATM Drift exit for {index_symbol}! Structure compromised — squaring off...")
             square_off_all(exit_prices, exit_reason=stop_loss_hit)
-            consecutive_losses += 1
-            logging.info(f"🔌 Circuit Breaker: {consecutive_losses}/{config.MAX_CONSECUTIVE_LOSSES} consecutive losses.")
             logging.info("Cooling down for 60 seconds...")
             time.sleep(60)
         
@@ -564,14 +552,21 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             break 
 
         elif stop_loss_hit == "BTST_RECENTER":
-            logging.critical("BTST unhealthy at cutoff. Squaring off and going flat.")
+            logging.critical("BTST unhealthy at cutoff. Squaring off and deploying one fresh centered carry trade.")
             square_off_all(exit_prices, exit_reason=stop_loss_hit)
+            if deploy_single_sniper_trade(index_symbol, expiry_date, reason="BTST_RECENTER"):
+                logging.critical("BTST recenter trade deployed successfully. Ending session until next day.")
+            else:
+                logging.critical("BTST recenter entry failed. Going flat and ending session.")
+                import notifier
+                notifier.send_telegram_alert(
+                    f"<b>BTST RECENTER FAILED</b>\n{index_symbol}: sick trade was closed, but fresh carry entry failed."
+                )
             break
 
         elif stop_loss_hit:
             logging.warning(f"Stop Loss hit for {index_symbol}! Squaring off...")
             square_off_all(exit_prices, exit_reason=stop_loss_hit)
-            consecutive_losses += 1
             logging.info("Cooling down for 60 seconds...")
             time.sleep(60)
         else:
@@ -613,7 +608,15 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
                     'buy_ce': live_prices.get(legs['buy_ce'], {}).get('ltp', 0),
                     'buy_pe': live_prices.get(legs['buy_pe'], {}).get('ltp', 0)
                 }
-                square_off_all(exit_prices, exit_reason="BTST_UNHEALTHY")
+                square_off_all(exit_prices, exit_reason="BTST_RECENTER")
+                if deploy_single_sniper_trade(index_symbol, expiry_date, reason="BTST_RECENTER"):
+                    logging.critical("BTST recenter trade deployed successfully. Ending session until next day.")
+                else:
+                    logging.critical("BTST recenter entry failed after unhealthy cutoff check. Going flat.")
+                    import notifier
+                    notifier.send_telegram_alert(
+                        f"<b>BTST RECENTER FAILED</b>\n{index_symbol}: sick trade was closed, but fresh carry entry failed."
+                    )
                 return
 
     final_state = state_manager.load_state()
@@ -719,12 +722,11 @@ if __name__ == "__main__":
     clear_startup_flags()
     # Handler setup already done at module level — no need to duplicate here
         
-    logging.info("System Architect Bot V5 Initialized — Master Architecture Active 🏛️")
-    logging.info(f"  VIX Adaptive Profiles: ON (Low<{config.VIX_LOW_THRESHOLD}, High>{config.VIX_HIGH_THRESHOLD})")
-    logging.info(f"  Delta-Based Wings: ON")
-    logging.info(f"  Ratchet Trailing Stop: ON (Floor={config.TRAIL_LOCK_FLOOR_PCT*100:.0f}%, Ratchet={config.TRAIL_RATCHET_FACTOR*100:.0f}%)")
-    logging.info(f"  ATM Drift Guard: ON ({config.ATM_DRIFT_MULTIPLIER}x wing width)")
-    logging.info(f"  Circuit Breaker: ON ({config.MAX_CONSECUTIVE_LOSSES} consecutive losses)")
+    logging.info("Sniper & Shield Bot Initialized — State Architecture Active 🏛️")
+    logging.info(f"  Wide-Wing Delta: {config.SNIPER_WING_DELTA}")
+    logging.info(f"  Sniper Target: {config.SNIPER_TARGET_PCT:.1f}% | Level Up: {config.SNIPER_LEVEL_UP_TARGET_PCT:.1f}% / Floor {config.SNIPER_LEVEL_UP_FLOOR_PCT:.1f}%")
+    logging.info(f"  ATM Drift Ejector: {config.SNIPER_DRIFT_EJECT_RATIO:.2f}x | Pinned Extension: <= {config.SNIPER_PINNED_DRIFT_RATIO:.2f}x")
+    logging.info(f"  Catastrophe Kill: {config.SNIPER_CATASTROPHE_MULTIPLIER:.2f}x entry net premium")
     logging.info(f"  Opening Range Gap Filter: ON ({config.GAP_THRESHOLD_PCT*100:.1f}% threshold, {config.GAP_SETTLE_MINUTES}min settle)")
     logging.info(f"  Expiry Day Strategy: Expiring index trades MORNING, other AFTERNOON")
     logging.info(f"  Weekend Guard: ON")
