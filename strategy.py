@@ -52,72 +52,21 @@ def _fresh_ltp(live_data, token, leg_name):
 def get_vix_session_profile(live_vix):
     profile = {
         "name": "SNIPER_SHIELD",
-        "wing_delta": config.SNIPER_WING_DELTA,
+        "buy_leg_percent": config.BUY_LEG_PERCENT,
         "target_pct": config.SNIPER_TARGET_PCT,
     }
     logging.info(
-        "Sniper & Shield profile selected: VIX=%.2f, wing delta=%s, target=%s%%",
+        "Sniper & Shield profile selected: VIX=%.2f, buy leg premium percent=%s, target=%s%%",
         live_vix,
-        profile["wing_delta"],
+        profile["buy_leg_percent"],
         profile["target_pct"],
     )
     return profile
 
 
-def _find_wing_by_delta(option_chain_data, atm_strike, atm_premium, side, target_delta):
-    target_delta_decimal = target_delta / 100.0
-
-    best_delta = None
-    farthest_usable = None
-
-    for strike_data in option_chain_data:
-        strike = strike_data.get("strike_price", 0)
-
-        if side == "CE":
-            if strike <= atm_strike:
-                continue
-            option_info = strike_data.get("call_options", {})
-        else:
-            if strike >= atm_strike:
-                continue
-            option_info = strike_data.get("put_options", {})
-
-        if not option_info:
-            continue
-
-        ltp = option_info.get("market_data", {}).get("ltp", 0)
-        if ltp <= 0:
-            continue
-
-        instrument_key = option_info.get("instrument_key", "")
-        option_delta = option_info.get("greeks", {}).get("delta")
-
-        if option_delta not in (None, 0):
-            delta_distance = abs(abs(option_delta) - target_delta_decimal)
-            if best_delta is None or delta_distance < best_delta[0]:
-                best_delta = (delta_distance, instrument_key, ltp, strike)
-        else:
-            strike_distance = abs(float(strike) - float(atm_strike))
-            candidate = (strike_distance, -float(ltp), instrument_key, ltp, strike)
-            if farthest_usable is None or candidate > farthest_usable:
-                farthest_usable = candidate
-
-    selected = best_delta
-    if not selected:
-        if not farthest_usable:
-            return None, 0, 0
-        _, _, best_key, best_ltp, best_strike = farthest_usable
-        logging.info("Wing %s: Strike %s, LTP %.2f (via farthest usable fallback)", side, best_strike, best_ltp)
-        return best_key, best_ltp, best_strike
-
-    _, best_key, best_ltp, best_strike = selected
-    logging.info("Wing %s: Strike %s, LTP %.2f (via Greeks delta, target delta=%s)", side, best_strike, best_ltp, target_delta)
-    return best_key, best_ltp, best_strike
-
-
-def calculate_iron_butterfly_legs(index_symbol, spot_price, option_chain_data, wing_delta=None):
-    wing_delta = config.SNIPER_WING_DELTA if wing_delta is None else wing_delta
-    logging.info("Calculating Iron Butterfly strikes & prices (Wing delta=%s)...", wing_delta)
+def calculate_iron_butterfly_legs(index_symbol, spot_price, option_chain_data, buy_leg_percent=None):
+    buy_leg_percent = config.BUY_LEG_PERCENT if buy_leg_percent is None else buy_leg_percent
+    logging.info("Calculating Iron Butterfly strikes & prices (Buy Leg Premium Percent=%s%%)...", buy_leg_percent)
     atm_strike = _nearest_chain_strike(option_chain_data, spot_price)
     if atm_strike is None:
         logging.warning("Option chain has no strikes. Cannot calculate Iron Butterfly.")
@@ -140,40 +89,36 @@ def calculate_iron_butterfly_legs(index_symbol, spot_price, option_chain_data, w
     if not sell_ce_key or not sell_pe_key:
         return None, None, None
 
-    buy_ce_key, buy_ce_ltp, buy_ce_strike = _find_wing_by_delta(option_chain_data, atm_strike, atm_ce_ltp, "CE", wing_delta)
-    buy_pe_key, buy_pe_ltp, buy_pe_strike = _find_wing_by_delta(option_chain_data, atm_strike, atm_pe_ltp, "PE", wing_delta)
+    target_ce_buy = atm_ce_ltp * (buy_leg_percent / 100.0)
+    target_pe_buy = atm_pe_ltp * (buy_leg_percent / 100.0)
+    
+    best_ce_diff, best_pe_diff = float("inf"), float("inf")
+    buy_ce_key, buy_pe_key = "", ""
+    buy_ce_ltp, buy_pe_ltp = 0, 0
+    buy_ce_strike, buy_pe_strike = 0, 0
 
-    if not buy_ce_key or not buy_pe_key:
-        logging.warning("Delta-based wing selection failed. Falling back to premium percentage method.")
-        target_ce_buy = atm_ce_ltp * config.WING_PERCENT
-        target_pe_buy = atm_pe_ltp * config.WING_PERCENT
-        best_ce_diff, best_pe_diff = float("inf"), float("inf")
-        buy_ce_key, buy_pe_key = "", ""
-        buy_ce_ltp, buy_pe_ltp = 0, 0
-        buy_ce_strike, buy_pe_strike = 0, 0
+    for strike_data in option_chain_data:
+        strike = strike_data.get("strike_price")
+        call_info = strike_data.get("call_options", {})
+        put_info = strike_data.get("put_options", {})
 
-        for strike_data in option_chain_data:
-            strike = strike_data.get("strike_price")
-            call_info = strike_data.get("call_options", {})
-            put_info = strike_data.get("put_options", {})
+        if strike > atm_strike and call_info:
+            ce_ltp = call_info.get("market_data", {}).get("ltp", 0)
+            diff = abs(ce_ltp - target_ce_buy)
+            if ce_ltp > 0 and diff < best_ce_diff:
+                best_ce_diff = diff
+                buy_ce_key = call_info.get("instrument_key")
+                buy_ce_ltp = ce_ltp
+                buy_ce_strike = strike
 
-            if strike > atm_strike and call_info:
-                ce_ltp = call_info.get("market_data", {}).get("ltp", 0)
-                diff = abs(ce_ltp - target_ce_buy)
-                if ce_ltp > 0 and diff < best_ce_diff:
-                    best_ce_diff = diff
-                    buy_ce_key = call_info.get("instrument_key")
-                    buy_ce_ltp = ce_ltp
-                    buy_ce_strike = strike
-
-            if strike < atm_strike and put_info:
-                pe_ltp = put_info.get("market_data", {}).get("ltp", 0)
-                diff = abs(pe_ltp - target_pe_buy)
-                if pe_ltp > 0 and diff < best_pe_diff:
-                    best_pe_diff = diff
-                    buy_pe_key = put_info.get("instrument_key")
-                    buy_pe_ltp = pe_ltp
-                    buy_pe_strike = strike
+        if strike < atm_strike and put_info:
+            pe_ltp = put_info.get("market_data", {}).get("ltp", 0)
+            diff = abs(pe_ltp - target_pe_buy)
+            if pe_ltp > 0 and diff < best_pe_diff:
+                best_pe_diff = diff
+                buy_pe_key = put_info.get("instrument_key")
+                buy_pe_ltp = pe_ltp
+                buy_pe_strike = strike
 
     if not buy_ce_key or not buy_pe_key:
         logging.warning("Option chain is missing protective wings. Aborting calculation.")
@@ -321,7 +266,7 @@ def risk_management_evaluator(live_data, legs):
         return "CATASTROPHE_KILL", current_prices
 
     now = datetime.datetime.now()
-    if now.hour > 15 or (now.hour == 15 and now.minute >= 15):
+    if now.hour > 15 or (now.hour == 15 and now.minute >= 25):
         btst_file = os.path.join(BASE_DIR, "btst_flag.txt")
         btst_enabled = False
         if os.path.exists(btst_file):
@@ -334,7 +279,7 @@ def risk_management_evaluator(live_data, legs):
             else:
                 logging.critical("BTST position unhealthy: %s. Forcing BTST recenter.", diagnosis)
                 return "BTST_RECENTER", current_prices
-        logging.critical("END OF DAY (15:15) REACHED. Forcing Square Off.")
+        logging.critical("END OF DAY (15:25) REACHED. Forcing Square Off.")
         return "TIME_EXIT", current_prices
 
     if drift_ratio >= config.SNIPER_DRIFT_EJECT_RATIO:

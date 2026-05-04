@@ -163,13 +163,19 @@ def get_nifty_qty():
     return _int_setting("NIFTY_LOT_SIZE", 65)
 
 
+
+
+def get_nifty_qty():
+    return _int_setting("NIFTY_LOT_SIZE", 65)
+
+
 def get_sensex_qty():
     return _int_setting("SENSEX_LOT_SIZE", 20)
 
 
 ENVIRONMENT = settings.get("ENVIRONMENT", "SANDBOX")
 
-WING_PERCENT = 0.05
+BUY_LEG_PERCENT = _float_setting("BUY_LEG_PERCENT", 5.0)
 NIFTY_LOT_MULTIPLE = 65
 SENSEX_LOT_MULTIPLE = 20
 
@@ -189,7 +195,6 @@ NORMAL_ENTRY_TIME = _setting("NORMAL_ENTRY_TIME", "09:16")
 EXPIRY_ENTRY_TIME = _setting("EXPIRY_ENTRY_TIME", "09:20")
 
 # --- SNIPER & SHIELD STRATEGY ---
-SNIPER_WING_DELTA = _float_setting("SNIPER_WING_DELTA", 5.0)
 SNIPER_TARGET_PCT = _float_setting("SNIPER_TARGET_PCT", 12.0)
 SNIPER_LEVEL_UP_TARGET_PCT = _float_setting("SNIPER_LEVEL_UP_TARGET_PCT", 18.0)
 SNIPER_LEVEL_UP_FLOOR_PCT = _float_setting("SNIPER_LEVEL_UP_FLOOR_PCT", 10.0)
@@ -203,5 +208,5 @@ BTST_MIN_LEG_PCT = 0.30            # Min premium retention per leg (30%)
 
 # Prefer environment variables for secrets. settings.json remains supported for
 # local-only use, but credentials are no longer hard-coded in source.
-TELEGRAM_BOT_TOKEN = _setting("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHAT_ID = _setting("TELEGRAM_CHAT_ID", "")
+TELEGRAM_BOT_TOKEN = "8335051930:AAFTA7WvOcIEvjgEDwA1YTenKwARNkibdKE" 
+TELEGRAM_CHAT_ID = "635369910"

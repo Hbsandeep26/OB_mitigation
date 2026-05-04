@@ -184,7 +184,7 @@ def deploy_single_sniper_trade(index_symbol, expiry_date, reason="REGULAR"):
         return False
 
     legs, entry_prices, strikes = calculate_iron_butterfly_legs(
-        index_symbol, spot, chain, wing_delta=config.SNIPER_WING_DELTA
+        index_symbol, spot, chain, buy_leg_percent=config.BUY_LEG_PERCENT
     )
     if not legs:
         logging.critical("Cannot deploy %s trade: wide-wing calculation failed.", reason)
@@ -454,12 +454,35 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             logging.warning(f"⚠️ API Rejection ({api_retry_count}/{MAX_API_RETRIES}): Spot found={bool(spot)}, Chain found={bool(chain)}. Check Upstox Token or Expiry Date ({expiry_date}). Retrying in 30s...")
             time.sleep(30)
             continue
+
+        # --- FETCH SPOT PRICE ---
+        spot = get_spot_price(index_symbol)
+        chain = get_option_chain(index_symbol, expiry_date) if spot else None
+        
+        if not spot or not chain:
+            api_retry_count += 1
+            if api_retry_count >= MAX_API_RETRIES:
+                logging.critical(
+                    f"❌ API failures exceeded {MAX_API_RETRIES} retries for {index_symbol}. "
+                    f"Halting session to prevent infinite loop. Check Upstox token and expiry date ({expiry_date})."
+                )
+                import notifier
+                notifier.send_telegram_alert(
+                    f"❌ <b>API FAILURE LIMIT HIT!</b>\n"
+                    f"{index_symbol}: {MAX_API_RETRIES} consecutive API failures.\n"
+                    f"Expiry: {expiry_date}\n"
+                    f"Check token and settings!"
+                )
+                break
+            logging.warning(f"⚠️ API Rejection ({api_retry_count}/{MAX_API_RETRIES}): Spot found={bool(spot)}, Chain found={bool(chain)}. Check Upstox Token or Expiry Date ({expiry_date}). Retrying in 30s...")
+            time.sleep(30)
+            continue
         
         # Reset API retry counter on success
         api_retry_count = 0
 
         legs, entry_prices, strikes = calculate_iron_butterfly_legs(
-            index_symbol, spot, chain, wing_delta=config.SNIPER_WING_DELTA
+            index_symbol, spot, chain, buy_leg_percent=config.BUY_LEG_PERCENT
         )
         
         if not legs:
@@ -688,7 +711,7 @@ def build_todays_schedule():
         # Sensex in the afternoon (safe, not expiring)
         schedule.every().day.at("12:31").do(
             continuous_trading_session, index_symbol="SENSEX", 
-            expiry_date=sensex_expiry, cutoff_hour=15, cutoff_minute=15
+            expiry_date=sensex_expiry, cutoff_hour=15, cutoff_minute=25
         ).tag('trading_jobs')
 
     elif today_str == sensex_expiry:
@@ -701,7 +724,7 @@ def build_todays_schedule():
         # Nifty in the afternoon (safe, not expiring)
         schedule.every().day.at("12:31").do(
             continuous_trading_session, index_symbol="NIFTY", 
-            expiry_date=nifty_expiry, cutoff_hour=15, cutoff_minute=15
+            expiry_date=nifty_expiry, cutoff_hour=15, cutoff_minute=25
         ).tag('trading_jobs')
     
     else:
@@ -723,7 +746,7 @@ if __name__ == "__main__":
     # Handler setup already done at module level — no need to duplicate here
         
     logging.info("Sniper & Shield Bot Initialized — State Architecture Active 🏛️")
-    logging.info(f"  Wide-Wing Delta: {config.SNIPER_WING_DELTA}")
+    logging.info(f"  Buy Leg Premium Target: {config.BUY_LEG_PERCENT}%")
     logging.info(f"  Sniper Target: {config.SNIPER_TARGET_PCT:.1f}% | Level Up: {config.SNIPER_LEVEL_UP_TARGET_PCT:.1f}% / Floor {config.SNIPER_LEVEL_UP_FLOOR_PCT:.1f}%")
     logging.info(f"  ATM Drift Ejector: {config.SNIPER_DRIFT_EJECT_RATIO:.2f}x | Pinned Extension: <= {config.SNIPER_PINNED_DRIFT_RATIO:.2f}x")
     logging.info(f"  Catastrophe Kill: {config.SNIPER_CATASTROPHE_MULTIPLIER:.2f}x entry net premium")
@@ -750,12 +773,12 @@ if __name__ == "__main__":
             index_symbol=rec_index,
             expiry_date=rec_expiry, 
             cutoff_hour=15, 
-            cutoff_minute=15
+            cutoff_minute=25
         )
     
     now = datetime.now()
     today_str = now.strftime("%Y-%m-%d")
-    eod_cutoff = datetime.strptime("15:15", "%H:%M").time()
+    eod_cutoff = datetime.strptime("15:25", "%H:%M").time()
     
     if not calendar_invalid and not (hasattr(config, 'MARKET_HOLIDAYS') and today_str in config.MARKET_HOLIDAYS) and now.weekday() < 5:
         current_time = now.time()
@@ -783,7 +806,7 @@ if __name__ == "__main__":
             
         elif afternoon_start <= current_time < eod_cutoff:
             logging.critical(f"🏃 LATE BOOT DETECTED! Jumping straight into Afternoon Session ({afternoon_idx})...")
-            continuous_trading_session(afternoon_idx, afternoon_exp, 15, 15)
+            continuous_trading_session(afternoon_idx, afternoon_exp, 15, 25)
 
     logging.info("Waiting for scheduled events...")
     while True:

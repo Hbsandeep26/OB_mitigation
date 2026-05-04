@@ -216,13 +216,13 @@ with st.sidebar.form("config_form"):
     env_mode = st.selectbox("Environment", ["SANDBOX", "LIVE"], index=0 if settings.get("ENVIRONMENT") == "SANDBOX" else 1)
     nifty_qty = st.number_input("Nifty Qty (Multiples of 65)", value=settings.get("NIFTY_LOT_SIZE", 65), step=65)
     sensex_qty = st.number_input("Sensex Qty (Multiples of 20)", value=settings.get("SENSEX_LOT_SIZE", 20), step=20)
-    sniper_wing_delta = st.number_input("Sniper Wing Delta", value=float(settings.get("SNIPER_WING_DELTA", config.SNIPER_WING_DELTA)), step=1.0, min_value=1.0, max_value=20.0)
+    buy_leg_percent = st.number_input("Buy Leg Premium %", value=float(settings.get("BUY_LEG_PERCENT", config.BUY_LEG_PERCENT)), step=0.5, min_value=1.0, max_value=20.0)
     
     if st.form_submit_button("💾 Save Settings"):
         settings["ENVIRONMENT"] = env_mode
         settings["NIFTY_LOT_SIZE"] = nifty_qty
         settings["SENSEX_LOT_SIZE"] = sensex_qty
-        settings["SNIPER_WING_DELTA"] = sniper_wing_delta
+        settings["BUY_LEG_PERCENT"] = buy_leg_percent
         
         # --- THE UNIFIED BRAIN FIX: Save Expiries to settings.json ---
         settings["NIFTY_EXPIRY"] = str(nifty_exp)
@@ -318,7 +318,7 @@ if os.path.exists(STATE_FILE):
 # Time Logic for Lockout
 now = datetime.datetime.now()
 market_open = now.replace(hour=9, minute=15, second=0, microsecond=0)
-market_close = now.replace(hour=15, minute=30, second=0, microsecond=0)
+market_close = now.replace(hour=15, minute=25, second=0, microsecond=0)
 is_trading_hours = (market_open <= now <= market_close) and (now.weekday() < 5)
 
 with col2:
@@ -359,7 +359,7 @@ with col_status:
 
             badge_col1, badge_col2, badge_col3 = st.columns(3)
             with badge_col1:
-                st.metric("Sniper State", state.get("sniper_state", "INITIAL"), delta=f"Wing Δ: {config.SNIPER_WING_DELTA}", delta_color="off")
+                st.metric("Sniper State", state.get("sniper_state", "INITIAL"), delta=f"Buy Leg: {config.BUY_LEG_PERCENT}%", delta_color="off")
             with badge_col2:
                 live_net_state = state.get("live_net_premium", 0.0)
                 st.metric("Live Net Premium", f"{live_net_state:.2f}", delta=f"Kill: {state.get('catastrophe_threshold', 0):.2f}", delta_color="off")
