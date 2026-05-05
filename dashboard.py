@@ -217,12 +217,14 @@ with st.sidebar.form("config_form"):
     nifty_qty = st.number_input("Nifty Qty (Multiples of 65)", value=settings.get("NIFTY_LOT_SIZE", 65), step=65)
     sensex_qty = st.number_input("Sensex Qty (Multiples of 20)", value=settings.get("SENSEX_LOT_SIZE", 20), step=20)
     buy_leg_percent = st.number_input("Buy Leg Premium %", value=float(settings.get("BUY_LEG_PERCENT", config.BUY_LEG_PERCENT)), step=0.5, min_value=1.0, max_value=20.0)
+    catastrophe_kill = st.number_input("Catastrophe Kill Multiplier", value=float(settings.get("SNIPER_CATASTROPHE_MULTIPLIER", config.SNIPER_CATASTROPHE_MULTIPLIER)), step=0.01, min_value=1.01, max_value=2.00)
     
     if st.form_submit_button("💾 Save Settings"):
         settings["ENVIRONMENT"] = env_mode
         settings["NIFTY_LOT_SIZE"] = nifty_qty
         settings["SENSEX_LOT_SIZE"] = sensex_qty
         settings["BUY_LEG_PERCENT"] = buy_leg_percent
+        settings["SNIPER_CATASTROPHE_MULTIPLIER"] = catastrophe_kill
         
         # --- THE UNIFIED BRAIN FIX: Save Expiries to settings.json ---
         settings["NIFTY_EXPIRY"] = str(nifty_exp)

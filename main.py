@@ -421,7 +421,9 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         write_heartbeat("RUNNING")
         now = datetime.now()
         
-        if now.hour > cutoff_hour or (now.hour == cutoff_hour and now.minute >= cutoff_minute):
+        state = state_manager.load_state()
+        is_active = state and state.get("active", False)
+        if not is_active and (now.hour > cutoff_hour or (now.hour == cutoff_hour and now.minute >= cutoff_minute)):
             logging.info(f"⏰ Soft Cutoff ({cutoff_hour}:{cutoff_minute:02d}) reached. No NEW {index_symbol} trades will be taken.")
             break 
 
@@ -430,97 +432,83 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             mark_engine_stopped()
             raise SystemExit(0)
 
-        logging.info(f"Deploying fresh Iron Butterfly for {index_symbol}...")
+        state = state_manager.load_state()
+        is_active = state and state.get("active", False)
 
-        # --- FETCH SPOT PRICE ---
-        spot = get_spot_price(index_symbol)
-        chain = get_option_chain(index_symbol, expiry_date) if spot else None
-        
-        if not spot or not chain:
-            api_retry_count += 1
-            if api_retry_count >= MAX_API_RETRIES:
-                logging.critical(
-                    f"❌ API failures exceeded {MAX_API_RETRIES} retries for {index_symbol}. "
-                    f"Halting session to prevent infinite loop. Check Upstox token and expiry date ({expiry_date})."
-                )
-                import notifier
-                notifier.send_telegram_alert(
-                    f"❌ <b>API FAILURE LIMIT HIT!</b>\n"
-                    f"{index_symbol}: {MAX_API_RETRIES} consecutive API failures.\n"
-                    f"Expiry: {expiry_date}\n"
-                    f"Check token and settings!"
-                )
-                break
-            logging.warning(f"⚠️ API Rejection ({api_retry_count}/{MAX_API_RETRIES}): Spot found={bool(spot)}, Chain found={bool(chain)}. Check Upstox Token or Expiry Date ({expiry_date}). Retrying in 30s...")
-            time.sleep(30)
-            continue
-
-        # --- FETCH SPOT PRICE ---
-        spot = get_spot_price(index_symbol)
-        chain = get_option_chain(index_symbol, expiry_date) if spot else None
-        
-        if not spot or not chain:
-            api_retry_count += 1
-            if api_retry_count >= MAX_API_RETRIES:
-                logging.critical(
-                    f"❌ API failures exceeded {MAX_API_RETRIES} retries for {index_symbol}. "
-                    f"Halting session to prevent infinite loop. Check Upstox token and expiry date ({expiry_date})."
-                )
-                import notifier
-                notifier.send_telegram_alert(
-                    f"❌ <b>API FAILURE LIMIT HIT!</b>\n"
-                    f"{index_symbol}: {MAX_API_RETRIES} consecutive API failures.\n"
-                    f"Expiry: {expiry_date}\n"
-                    f"Check token and settings!"
-                )
-                break
-            logging.warning(f"⚠️ API Rejection ({api_retry_count}/{MAX_API_RETRIES}): Spot found={bool(spot)}, Chain found={bool(chain)}. Check Upstox Token or Expiry Date ({expiry_date}). Retrying in 30s...")
-            time.sleep(30)
-            continue
-        
-        # Reset API retry counter on success
-        api_retry_count = 0
-
-        legs, entry_prices, strikes = calculate_iron_butterfly_legs(
-            index_symbol, spot, chain, buy_leg_percent=config.BUY_LEG_PERCENT
-        )
-        
-        if not legs:
-            api_retry_count += 1
-            if api_retry_count >= MAX_API_RETRIES:
-                logging.critical(f"❌ Wing calculation failed {MAX_API_RETRIES} times. Halting session.")
-                break
-            logging.warning(f"⚠️ Math Rejection ({api_retry_count}/{MAX_API_RETRIES}): Could not find valid protective wings for {index_symbol} in the current option chain. Retrying in 30s...")
-            time.sleep(30)
-            continue
-        
-        # Reset API retry counter on success
-        api_retry_count = 0
-        
-        # --- THE PRICE SYNCHRONIZATION FIX ---
-        logging.info("Synchronizing with Live Exchange Quotes to bypass cached API data...")
-        fresh_quotes = get_fresh_option_quotes(list(legs.values()))
-        if fresh_quotes:
-            for leg_name, token in legs.items():
-                if token in fresh_quotes and fresh_quotes[token] > 0:
-                    entry_prices[leg_name] = fresh_quotes[token]
-            logging.info(f"Absolute Real-Time Entry Prices: {entry_prices}")
+        if is_active:
+            logging.info(f"Resuming live risk monitoring for active {index_symbol} trade...")
+            legs = state['legs']
+            entry_prices = state['entry_prices']
         else:
-            logging.warning("Sync failed. Falling back to option chain prices.")
-            
-        execution_success = place_iron_butterfly_basket(legs, index_symbol, entry_prices, strikes, spot_price=spot)
-        
-        if not execution_success:
-            logging.critical("🛑 CRITICAL: Basket execution failed mid-flight! Halting session to prevent orphan legs.")
-            import notifier
-            notifier.send_telegram_alert(f"🚨 <b>URGENT ACTION REQUIRED!</b> 🚨\n{index_symbol} basket order failed mid-execution. Check Upstox App immediately.")
-            break 
+            logging.info(f"Deploying fresh Iron Butterfly for {index_symbol}...")
 
-        initialize_sniper_state(entry_prices)
+            # --- FETCH SPOT PRICE ---
+            spot = get_spot_price(index_symbol)
+            chain = get_option_chain(index_symbol, expiry_date) if spot else None
+        
+            if not spot or not chain:
+                api_retry_count += 1
+                if api_retry_count >= MAX_API_RETRIES:
+                    logging.critical(
+                        f"❌ API failures exceeded {MAX_API_RETRIES} retries for {index_symbol}. "
+                        f"Halting session to prevent infinite loop. Check Upstox token and expiry date ({expiry_date})."
+                    )
+                    import notifier
+                    notifier.send_telegram_alert(
+                        f"❌ <b>API FAILURE LIMIT HIT!</b>\n"
+                        f"{index_symbol}: {MAX_API_RETRIES} consecutive API failures.\n"
+                        f"Expiry: {expiry_date}\n"
+                        f"Check token and settings!"
+                    )
+                    break
+                logging.warning(f"⚠️ API Rejection ({api_retry_count}/{MAX_API_RETRIES}): Spot found={bool(spot)}, Chain found={bool(chain)}. Check Upstox Token or Expiry Date ({expiry_date}). Retrying in 30s...")
+                time.sleep(30)
+                continue
+        
+            # Reset API retry counter on success
+            api_retry_count = 0
+
+            legs, entry_prices, strikes = calculate_iron_butterfly_legs(
+                index_symbol, spot, chain, buy_leg_percent=config.BUY_LEG_PERCENT
+            )
+        
+            if not legs:
+                api_retry_count += 1
+                if api_retry_count >= MAX_API_RETRIES:
+                    logging.critical(f"❌ Wing calculation failed {MAX_API_RETRIES} times. Halting session.")
+                    break
+                logging.warning(f"⚠️ Math Rejection ({api_retry_count}/{MAX_API_RETRIES}): Could not find valid protective wings for {index_symbol} in the current option chain. Retrying in 30s...")
+                time.sleep(30)
+                continue
+        
+            # Reset API retry counter on success
+            api_retry_count = 0
+        
+            # --- THE PRICE SYNCHRONIZATION FIX ---
+            logging.info("Synchronizing with Live Exchange Quotes to bypass cached API data...")
+            fresh_quotes = get_fresh_option_quotes(list(legs.values()))
+            if fresh_quotes:
+                for leg_name, token in legs.items():
+                    if token in fresh_quotes and fresh_quotes[token] > 0:
+                        entry_prices[leg_name] = fresh_quotes[token]
+                logging.info(f"Absolute Real-Time Entry Prices: {entry_prices}")
+            else:
+                logging.warning("Sync failed. Falling back to option chain prices.")
             
-        state_manager.update_state("cutoff_hour", cutoff_hour)
-        state_manager.update_state("cutoff_minute", cutoff_minute)
+            execution_success = place_iron_butterfly_basket(legs, index_symbol, entry_prices, strikes, spot_price=spot)
+        
+            if not execution_success:
+                logging.critical("🛑 CRITICAL: Basket execution failed mid-flight! Halting session to prevent orphan legs.")
+                import notifier
+                notifier.send_telegram_alert(f"🚨 <b>URGENT ACTION REQUIRED!</b> 🚨\n{index_symbol} basket order failed mid-execution. Check Upstox App immediately.")
+                break 
+
+            initialize_sniper_state(entry_prices)
             
+            state_manager.update_state("cutoff_hour", cutoff_hour)
+            state_manager.update_state("cutoff_minute", cutoff_minute)
+            
+
         logging.info("Entering live risk monitoring phase...")
 
         stop_loss_hit, exit_prices = monitor_with_reconnects(legs, index_symbol)
@@ -578,7 +566,8 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             logging.critical("BTST unhealthy at cutoff. Squaring off and deploying one fresh centered carry trade.")
             square_off_all(exit_prices, exit_reason=stop_loss_hit)
             if deploy_single_sniper_trade(index_symbol, expiry_date, reason="BTST_RECENTER"):
-                logging.critical("BTST recenter trade deployed successfully. Ending session until next day.")
+                logging.critical("BTST recenter trade deployed successfully. Resuming monitoring.")
+                continue
             else:
                 logging.critical("BTST recenter entry failed. Going flat and ending session.")
                 import notifier
@@ -607,40 +596,8 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
     if os.path.exists(btst_file) and open(btst_file, "r").read().strip() == "TRUE":
         state = state_manager.load_state()
         if state and state.get("active"):
-            from strategy import evaluate_btst_health
-            live_file = os.path.join(BASE_DIR, "live_prices.json")
-            live_prices = {}
-            if os.path.exists(live_file):
-                try:
-                    with open(live_file, "r") as f:
-                        live_prices = json.load(f)
-                except Exception:
-                    pass
-            
-            is_healthy, diagnosis = evaluate_btst_health(live_prices, state['legs'], state['entry_prices'])
-            
-            if is_healthy:
-                logging.critical(f"🌙 BTST ENABLED: Structure healthy. Carrying forward {index_symbol}.")
-                return
-            else:
-                logging.critical(f"⚠️ BTST SKEW DETECTED: {diagnosis}. Squaring off broken butterfly.")
-                legs = state['legs']
-                exit_prices = {
-                    'sell_ce': live_prices.get(legs['sell_ce'], {}).get('ltp', 0),
-                    'sell_pe': live_prices.get(legs['sell_pe'], {}).get('ltp', 0),
-                    'buy_ce': live_prices.get(legs['buy_ce'], {}).get('ltp', 0),
-                    'buy_pe': live_prices.get(legs['buy_pe'], {}).get('ltp', 0)
-                }
-                square_off_all(exit_prices, exit_reason="BTST_RECENTER")
-                if deploy_single_sniper_trade(index_symbol, expiry_date, reason="BTST_RECENTER"):
-                    logging.critical("BTST recenter trade deployed successfully. Ending session until next day.")
-                else:
-                    logging.critical("BTST recenter entry failed after unhealthy cutoff check. Going flat.")
-                    import notifier
-                    notifier.send_telegram_alert(
-                        f"<b>BTST RECENTER FAILED</b>\n{index_symbol}: sick trade was closed, but fresh carry entry failed."
-                    )
-                return
+            logging.critical(f"🌙 BTST ENABLED: Leaving position open for overnight carry-forward.")
+            return
 
     final_state = state_manager.load_state()
     if final_state and final_state.get("active"):
