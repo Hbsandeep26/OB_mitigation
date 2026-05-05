@@ -1,0 +1,73 @@
+{
+    "active": true,
+    "index_symbol": "SENSEX",
+    "legs": {
+        "sell_ce": "BSE_FO|889177",
+        "sell_pe": "BSE_FO|888376",
+        "buy_ce": "BSE_FO|888781",
+        "buy_pe": "BSE_FO|888507"
+    },
+    "entry_prices": {
+        "sell_ce": 502.3,
+        "sell_pe": 333.3,
+        "buy_ce": 23.25,
+        "buy_pe": 17.1
+    },
+    "quantity": 20,
+    "strikes": {
+        "sell_ce": 77000.0,
+        "sell_pe": 77000.0,
+        "buy_ce": 78900.0,
+        "buy_pe": 75100.0
+    },
+    "execution_info": {
+        "mode": "SANDBOX",
+        "defined_loss_rupees": 22095.0,
+        "fills": [
+            {
+                "leg_name": "sell_ce",
+                "token": "BSE_FO|889177",
+                "transaction_type": "SELL",
+                "filled_quantity": 20,
+                "average_price": 502.3,
+                "status": "SIMULATED"
+            },
+            {
+                "leg_name": "sell_pe",
+                "token": "BSE_FO|888376",
+                "transaction_type": "SELL",
+                "filled_quantity": 20,
+                "average_price": 333.3,
+                "status": "SIMULATED"
+            },
+            {
+                "leg_name": "buy_ce",
+                "token": "BSE_FO|888781",
+                "transaction_type": "BUY",
+                "filled_quantity": 20,
+                "average_price": 23.25,
+                "status": "SIMULATED"
+            },
+            {
+                "leg_name": "buy_pe",
+                "token": "BSE_FO|888507",
+                "transaction_type": "BUY",
+                "filled_quantity": 20,
+                "average_price": 17.1,
+                "status": "SIMULATED"
+            }
+        ]
+    },
+    "created_at": "2026-05-05 15:25:05",
+    "entry_spot": 77037.15,
+    "sniper_state": "INITIAL",
+    "entry_net_premium": 795.25,
+    "sniper_target_pct": 12.0,
+    "level_up_target_pct": 18.0,
+    "level_up_floor_pct": 10.0,
+    "atm_drift_ratio": 0.0,
+    "live_net_premium": 795.25,
+    "current_profit_pct": 0.0,
+    "catastrophe_threshold": 954.3,
+    "recenter_reason": "BTST_RECENTER"
+}
