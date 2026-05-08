@@ -336,6 +336,16 @@ def _pnl(entry, exits, qty):
     return pnl
 
 
+def _actual_exit_prices(exit_fills, fallback_prices):
+    prices = dict(fallback_prices)
+    for fill in exit_fills:
+        leg_name = fill.get("leg_name")
+        avg_price = float(fill.get("average_price", 0.0) or 0.0)
+        if leg_name in prices and avg_price > 0:
+            prices[leg_name] = avg_price
+    return prices
+
+
 def square_off_all(exit_prices=None, exit_reason=""):
     logging.critical("TRIGGERING SQUARE OFF SEQUENCE!")
     success = True
@@ -350,10 +360,8 @@ def square_off_all(exit_prices=None, exit_reason=""):
     qty = int(state.get("quantity", 0))
     legs = state["legs"]
     index_symbol = state["index_symbol"]
-    prefer_fresh = exit_reason in ("MANUAL_EXIT", "GRACEFUL_STOP")
+    prefer_fresh = exit_reason in ("MANUAL_EXIT", "GRACEFUL_STOP", "SOCKET_DEAD_EXIT")
     safe_exits, price_note = _safe_exit_prices(exit_prices, entry, legs, prefer_fresh=prefer_fresh)
-    exit_premium = (safe_exits["sell_ce"] + safe_exits["sell_pe"]) - (safe_exits["buy_ce"] + safe_exits["buy_pe"])
-    pnl = _pnl(entry, safe_exits, qty)
     strikes = state.get("strikes", {})
     spot_price = state.get("last_spot") or state.get("entry_spot") or strikes.get("sell_ce", 0)
     notes = "Local Paper Trade Closed" if config.ENVIRONMENT == "SANDBOX" else "Live Exchange Exit"
@@ -361,6 +369,8 @@ def square_off_all(exit_prices=None, exit_reason=""):
         notes = f"{notes} ({price_note})"
 
     if config.ENVIRONMENT == "SANDBOX":
+        exit_premium = (safe_exits["sell_ce"] + safe_exits["sell_pe"]) - (safe_exits["buy_ce"] + safe_exits["buy_pe"])
+        pnl = _pnl(entry, safe_exits, qty)
         log_trade(
             "EXIT", index_symbol, safe_exits, exit_premium, pnl, notes,
             spot_price=spot_price, strikes=strikes, exit_reason=exit_reason
@@ -403,6 +413,12 @@ def square_off_all(exit_prices=None, exit_reason=""):
         except Exception as err:
             success = False
             logging.critical("Short %s closed, but hedge %s close failed: %s", short_leg, hedge_leg, err)
+
+    safe_exits = _actual_exit_prices(exit_fills, safe_exits)
+    exit_premium = (safe_exits["sell_ce"] + safe_exits["sell_pe"]) - (safe_exits["buy_ce"] + safe_exits["buy_pe"])
+    pnl = _pnl(entry, safe_exits, qty)
+    if exit_fills:
+        notes = f"{notes} (Broker fill averages applied)"
 
     log_trade(
         "EXIT", index_symbol, safe_exits, exit_premium, pnl, notes,

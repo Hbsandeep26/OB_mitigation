@@ -46,6 +46,15 @@ def _int_setting(key, default):
         return int(default)
 
 
+def _bool_setting(key, default):
+    value = _setting(key, default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on")
+    return bool(value)
+
+
 def get_live_token():
     """Dynamically reads the freshest token from environment/settings."""
     return _setting("LIVE_ACCESS_TOKEN", "")
@@ -176,6 +185,7 @@ def get_sensex_qty():
 ENVIRONMENT = settings.get("ENVIRONMENT", "SANDBOX")
 
 BUY_LEG_PERCENT = _float_setting("BUY_LEG_PERCENT", 5.0)
+SNIPER_WING_DELTA = _float_setting("SNIPER_WING_DELTA", 0.0)
 NIFTY_LOT_MULTIPLE = 65
 SENSEX_LOT_MULTIPLE = 20
 
@@ -195,16 +205,27 @@ NORMAL_ENTRY_TIME = _setting("NORMAL_ENTRY_TIME", "09:16")
 EXPIRY_ENTRY_TIME = _setting("EXPIRY_ENTRY_TIME", "09:20")
 
 # --- SNIPER & SHIELD STRATEGY ---
+SNIPER_TARGETS_ENABLED = _bool_setting("SNIPER_TARGETS_ENABLED", True)
 SNIPER_TARGET_PCT = _float_setting("SNIPER_TARGET_PCT", 12.0)
-SNIPER_LEVEL_UP_TARGET_PCT = _float_setting("SNIPER_LEVEL_UP_TARGET_PCT", 15.0)
-SNIPER_LEVEL_UP_FLOOR_PCT = _float_setting("SNIPER_LEVEL_UP_FLOOR_PCT", 10.0)
-SNIPER_DRIFT_EJECT_RATIO = _float_setting("SNIPER_DRIFT_EJECT_RATIO", 0.20)
-SNIPER_PINNED_DRIFT_RATIO = _float_setting("SNIPER_PINNED_DRIFT_RATIO", 0.10)
+ATM_DRIFT_EJECT_THRESHOLD = _float_setting(
+    "ATM_DRIFT_EJECT_THRESHOLD",
+    _float_setting("SNIPER_DRIFT_EJECT_RATIO", 0.20),
+)
+# Backward-compatible alias for existing dashboard/state code.
+SNIPER_DRIFT_EJECT_RATIO = ATM_DRIFT_EJECT_THRESHOLD
 SNIPER_CATASTROPHE_MULTIPLIER = _float_setting("SNIPER_CATASTROPHE_MULTIPLIER", 1.05)
 
 # --- BTST HEALTH CHECK ---
 BTST_MAX_SKEW_RATIO = 2.0          # Max CE/PE ratio for healthy BTST
 BTST_MIN_LEG_PCT = 0.30            # Min premium retention per leg (30%)
+BTST_RECENTER_MIN_DRIFT_RATIO = _float_setting("BTST_RECENTER_MIN_DRIFT_RATIO", 0.06)
+
+# --- POST-EMERGENCY RE-ENTRY GUARD ---
+POST_EMERGENCY_REENTRY_ENABLED = _bool_setting("POST_EMERGENCY_REENTRY_ENABLED", True)
+POST_EMERGENCY_REENTRY_COOLDOWN_SECONDS = _float_setting("POST_EMERGENCY_REENTRY_COOLDOWN_SECONDS", 60.0)
+POST_EMERGENCY_REENTRY_MIN_MINUTES_TO_CUTOFF = _float_setting("POST_EMERGENCY_REENTRY_MIN_MINUTES_TO_CUTOFF", 10.0)
+POST_EMERGENCY_MAX_PREMIUM_CHANGE_PCT = _float_setting("POST_EMERGENCY_MAX_PREMIUM_CHANGE_PCT", 0.12)
+POST_EMERGENCY_MAX_SPOT_CHANGE_PCT = _float_setting("POST_EMERGENCY_MAX_SPOT_CHANGE_PCT", 0.0025)
 
 # Prefer environment variables for secrets. settings.json remains supported for
 # local-only use, but credentials are no longer hard-coded in source.

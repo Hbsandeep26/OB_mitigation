@@ -165,9 +165,8 @@ def initialize_sniper_state(entry_prices):
     state_manager.update_many({
         "sniper_state": "INITIAL",
         "entry_net_premium": round(entry_net, 4),
+        "sniper_targets_enabled": config.SNIPER_TARGETS_ENABLED,
         "sniper_target_pct": config.SNIPER_TARGET_PCT,
-        "level_up_target_pct": config.SNIPER_LEVEL_UP_TARGET_PCT,
-        "level_up_floor_pct": config.SNIPER_LEVEL_UP_FLOOR_PCT,
         "atm_drift_ratio": 0.0,
         "live_net_premium": round(entry_net, 4),
         "current_profit_pct": 0.0,
@@ -238,6 +237,105 @@ def monitor_with_reconnects(legs, index_symbol):
             f"{index_symbol}: monitor could not reconnect and REST quotes were unavailable."
         )
         return "SOCKET_DEAD_FATAL", {}
+
+
+def _minutes_to_cutoff(cutoff_hour, cutoff_minute, now=None):
+    now = now or datetime.now()
+    cutoff = now.replace(hour=cutoff_hour, minute=cutoff_minute, second=0, microsecond=0)
+    return (cutoff - now).total_seconds() / 60.0
+
+
+def _combined_premium(prices):
+    if not prices:
+        return 0.0
+    return sum(float(prices.get(key, 0.0) or 0.0) for key in ("sell_ce", "sell_pe", "buy_ce", "buy_pe"))
+
+
+def _mapped_leg_prices(legs, quotes):
+    prices = {
+        leg_name: float(quotes.get(token, 0.0) or 0.0)
+        for leg_name, token in legs.items()
+    }
+    return prices if all(value > 0 for value in prices.values()) else None
+
+
+def post_emergency_reentry_allowed(
+    index_symbol,
+    legs,
+    exit_prices,
+    exit_reason,
+    cutoff_hour,
+    cutoff_minute,
+    reference_spot=0.0,
+):
+    if not config.POST_EMERGENCY_REENTRY_ENABLED:
+        return True
+
+    minutes_left = _minutes_to_cutoff(cutoff_hour, cutoff_minute)
+    if minutes_left < config.POST_EMERGENCY_REENTRY_MIN_MINUTES_TO_CUTOFF:
+        logging.critical(
+            "%s re-entry blocked: %.1f minutes left before %02d:%02d cutoff.",
+            exit_reason,
+            minutes_left,
+            cutoff_hour,
+            cutoff_minute,
+        )
+        return False
+
+    cooldown = float(config.POST_EMERGENCY_REENTRY_COOLDOWN_SECONDS)
+    if cooldown > 0:
+        logging.info("Cooling down %.0f seconds before post-%s re-entry check.", cooldown, exit_reason)
+        time.sleep(cooldown)
+
+    minutes_left = _minutes_to_cutoff(cutoff_hour, cutoff_minute)
+    if minutes_left < config.POST_EMERGENCY_REENTRY_MIN_MINUTES_TO_CUTOFF:
+        logging.critical(
+            "%s re-entry blocked after cooldown: %.1f minutes left before cutoff.",
+            exit_reason,
+            minutes_left,
+        )
+        return False
+
+    quotes = get_fresh_option_quotes(list(legs.values()))
+    current_prices = _mapped_leg_prices(legs, quotes)
+    if not current_prices:
+        logging.critical("%s re-entry blocked: fresh option quotes unavailable.", exit_reason)
+        return False
+
+    exit_combined = _combined_premium(exit_prices)
+    current_combined = _combined_premium(current_prices)
+    premium_change = abs(current_combined - exit_combined) / exit_combined if exit_combined > 0 else 1.0
+
+    state = state_manager.load_state() or {}
+    reference_spot = float(reference_spot or state.get("last_spot") or state.get("entry_spot") or 0.0)
+    current_spot = get_spot_price(index_symbol) or 0.0
+    spot_change = abs(float(current_spot) - reference_spot) / reference_spot if reference_spot > 0 and current_spot else 0.0
+
+    if premium_change > config.POST_EMERGENCY_MAX_PREMIUM_CHANGE_PCT:
+        logging.critical(
+            "%s re-entry blocked: combined premium still unstable (%.2f%% > %.2f%%).",
+            exit_reason,
+            premium_change * 100,
+            config.POST_EMERGENCY_MAX_PREMIUM_CHANGE_PCT * 100,
+        )
+        return False
+
+    if spot_change > config.POST_EMERGENCY_MAX_SPOT_CHANGE_PCT:
+        logging.critical(
+            "%s re-entry blocked: spot still moving fast (%.2f%% > %.2f%%).",
+            exit_reason,
+            spot_change * 100,
+            config.POST_EMERGENCY_MAX_SPOT_CHANGE_PCT * 100,
+        )
+        return False
+
+    logging.info(
+        "%s re-entry allowed: premium change %.2f%%, spot change %.2f%%.",
+        exit_reason,
+        premium_change * 100,
+        spot_change * 100,
+    )
+    return True
 
 
 # ============================================================================
@@ -326,7 +424,7 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
                 return
             elif stop_loss_hit == "SOCKET_DEAD_EXIT":
                 logging.critical("Socket recovery failed on carry-forward. Squaring off with REST quotes...")
-            elif stop_loss_hit in ("SNIPER_TARGET", "LEVEL_UP_TARGET", "LEVEL_UP_FLOOR"):
+            elif stop_loss_hit == "SNIPER_TARGET":
                 logging.critical(f"💰 Sniper profit exit on {index_symbol} Carry Forward trade! Squaring off...")
             elif stop_loss_hit == "CATASTROPHE_KILL":
                 logging.warning(f"🚨 Catastrophe kill on {index_symbol} Carry Forward trade! Squaring off...")
@@ -353,6 +451,19 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         if btst_exit_reason == "MANUAL_EXIT":
             logging.critical("⏸️ MANUAL EXIT on carry-forward — halting session. No new trades will be deployed.")
             return
+
+        if btst_exit_reason in ("CATASTROPHE_KILL", "ATM_DRIFT"):
+            if not post_emergency_reentry_allowed(
+                index_symbol,
+                state["legs"],
+                exit_prices,
+                btst_exit_reason,
+                cutoff_hour,
+                cutoff_minute,
+                reference_spot=state.get("last_spot") or state.get("entry_spot") or 0.0,
+            ):
+                logging.critical("Post-emergency guard blocked fresh carry-forward re-entry. Session halted.")
+                return
 
     # ================================================================
     # PHASE 1: OPENING RANGE GAP FILTER
@@ -526,22 +637,43 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
                 raise SystemExit(0)
             break 
 
-        elif stop_loss_hit in ("SNIPER_TARGET", "LEVEL_UP_TARGET", "LEVEL_UP_FLOOR"):
+        elif stop_loss_hit == "SNIPER_TARGET":
             logging.critical("Sniper profit exit for %s: %s.", index_symbol, stop_loss_hit)
             square_off_all(exit_prices, exit_reason=stop_loss_hit)
             logging.info("Cooling down for 60 seconds before looking for new setups...")
             time.sleep(60)
 
         elif stop_loss_hit == "CATASTROPHE_KILL":
-            logging.critical("Catastrophe kill for %s. Squaring off and halting this session.", index_symbol)
+            logging.critical("Catastrophe kill for %s. Squaring off before re-entry safety check.", index_symbol)
+            pre_exit_state = state_manager.load_state() or {}
             square_off_all(exit_prices, exit_reason=stop_loss_hit)
+            if post_emergency_reentry_allowed(
+                index_symbol,
+                legs,
+                exit_prices,
+                stop_loss_hit,
+                cutoff_hour,
+                cutoff_minute,
+                reference_spot=pre_exit_state.get("last_spot") or pre_exit_state.get("entry_spot") or 0.0,
+            ):
+                continue
             break
 
         elif stop_loss_hit == "ATM_DRIFT":
+            pre_exit_state = state_manager.load_state() or {}
             logging.critical(f"🌊 ATM Drift exit for {index_symbol}! Structure compromised — squaring off...")
             square_off_all(exit_prices, exit_reason=stop_loss_hit)
-            logging.info("Cooling down for 60 seconds...")
-            time.sleep(60)
+            if post_emergency_reentry_allowed(
+                index_symbol,
+                legs,
+                exit_prices,
+                stop_loss_hit,
+                cutoff_hour,
+                cutoff_minute,
+                reference_spot=pre_exit_state.get("last_spot") or pre_exit_state.get("entry_spot") or 0.0,
+            ):
+                continue
+            break
         
         elif stop_loss_hit == "MARKET_CLOSED":
             logging.info(f"🛑 Live market feed ended for {index_symbol}. Proceeding to EOD evaluation.")
@@ -704,8 +836,11 @@ if __name__ == "__main__":
         
     logging.info("Sniper & Shield Bot Initialized — State Architecture Active 🏛️")
     logging.info(f"  Buy Leg Premium Target: {config.BUY_LEG_PERCENT}%")
-    logging.info(f"  Sniper Target: {config.SNIPER_TARGET_PCT:.1f}% | Level Up: {config.SNIPER_LEVEL_UP_TARGET_PCT:.1f}% / Floor {config.SNIPER_LEVEL_UP_FLOOR_PCT:.1f}%")
-    logging.info(f"  ATM Drift Ejector: {config.SNIPER_DRIFT_EJECT_RATIO:.2f}x | Pinned Extension: <= {config.SNIPER_PINNED_DRIFT_RATIO:.2f}x")
+    logging.info(
+        f"  Sniper Target: {'ON' if config.SNIPER_TARGETS_ENABLED else 'OFF'} "
+        f"({config.SNIPER_TARGET_PCT:.1f}%)"
+    )
+    logging.info(f"  ATM Drift Ejector: {config.ATM_DRIFT_EJECT_THRESHOLD:.2f}x")
     logging.info(f"  Catastrophe Kill: {config.SNIPER_CATASTROPHE_MULTIPLIER:.2f}x entry net premium")
     logging.info(f"  Opening Range Gap Filter: ON ({config.GAP_THRESHOLD_PCT*100:.1f}% threshold, {config.GAP_SETTLE_MINUTES}min settle)")
     logging.info(f"  Expiry Day Strategy: Expiring index trades MORNING, other AFTERNOON")

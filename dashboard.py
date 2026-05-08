@@ -217,6 +217,9 @@ with st.sidebar.form("config_form"):
     nifty_qty = st.number_input("Nifty Qty (Multiples of 65)", value=settings.get("NIFTY_LOT_SIZE", 65), step=65)
     sensex_qty = st.number_input("Sensex Qty (Multiples of 20)", value=settings.get("SENSEX_LOT_SIZE", 20), step=20)
     buy_leg_percent = st.number_input("Buy Leg Premium %", value=float(settings.get("BUY_LEG_PERCENT", config.BUY_LEG_PERCENT)), step=0.5, min_value=1.0, max_value=20.0)
+    targets_enabled = st.toggle("Enable Profit Target Exits", value=bool(settings.get("SNIPER_TARGETS_ENABLED", config.SNIPER_TARGETS_ENABLED)))
+    sniper_target_pct = st.number_input("Sniper Target %", value=float(settings.get("SNIPER_TARGET_PCT", config.SNIPER_TARGET_PCT)), step=0.5, min_value=0.5, max_value=50.0)
+    atm_drift_eject = st.number_input("ATM Drift Eject Threshold", value=float(settings.get("ATM_DRIFT_EJECT_THRESHOLD", config.ATM_DRIFT_EJECT_THRESHOLD)), step=0.01, min_value=0.01, max_value=1.00)
     catastrophe_kill = st.number_input("Catastrophe Kill Multiplier", value=float(settings.get("SNIPER_CATASTROPHE_MULTIPLIER", config.SNIPER_CATASTROPHE_MULTIPLIER)), step=0.01, min_value=1.01, max_value=2.00)
     
     if st.form_submit_button("💾 Save Settings"):
@@ -224,6 +227,9 @@ with st.sidebar.form("config_form"):
         settings["NIFTY_LOT_SIZE"] = nifty_qty
         settings["SENSEX_LOT_SIZE"] = sensex_qty
         settings["BUY_LEG_PERCENT"] = buy_leg_percent
+        settings["SNIPER_TARGETS_ENABLED"] = targets_enabled
+        settings["SNIPER_TARGET_PCT"] = sniper_target_pct
+        settings["ATM_DRIFT_EJECT_THRESHOLD"] = atm_drift_eject
         settings["SNIPER_CATASTROPHE_MULTIPLIER"] = catastrophe_kill
         
         # --- THE UNIFIED BRAIN FIX: Save Expiries to settings.json ---
@@ -367,8 +373,8 @@ with col_status:
                 st.metric("Live Net Premium", f"{live_net_state:.2f}", delta=f"Kill: {state.get('catastrophe_threshold', 0):.2f}", delta_color="off")
             with badge_col3:
                 drift_ratio = state.get("atm_drift_ratio", 0.0)
-                drift_color = "normal" if drift_ratio < config.SNIPER_DRIFT_EJECT_RATIO else "inverse"
-                st.metric("ATM Drift", f"{drift_ratio:.2f}x", delta=f"Eject: {config.SNIPER_DRIFT_EJECT_RATIO:.2f}x", delta_color=drift_color)
+                drift_color = "normal" if drift_ratio < config.ATM_DRIFT_EJECT_THRESHOLD else "inverse"
+                st.metric("ATM Drift", f"{drift_ratio:.2f}x", delta=f"Eject: {config.ATM_DRIFT_EJECT_THRESHOLD:.2f}x", delta_color=drift_color)
 
             st.markdown("")
 
@@ -436,17 +442,13 @@ with col_status:
             gross_pnl = (entry_net - live_net) * qty
             
             sniper_target_pct = state.get("sniper_target_pct", config.SNIPER_TARGET_PCT)
-            level_up_target_pct = state.get("level_up_target_pct", config.SNIPER_LEVEL_UP_TARGET_PCT)
-            level_up_floor_pct = state.get("level_up_floor_pct", config.SNIPER_LEVEL_UP_FLOOR_PCT)
             sniper_target_pnl = (entry_net * (sniper_target_pct / 100.0)) * qty
-            level_up_target_pnl = (entry_net * (level_up_target_pct / 100.0)) * qty
-            level_up_floor_pnl = (entry_net * (level_up_floor_pct / 100.0)) * qty
             
             st.markdown("---")
             
             # --- PLOTLY GAUGE CHART ---
             if go:
-                max_gauge = level_up_target_pnl * 1.4 if level_up_target_pnl > 0 else 5000
+                max_gauge = sniper_target_pnl * 1.4 if sniper_target_pnl > 0 else 5000
                 min_gauge = -sniper_target_pnl if sniper_target_pnl > 0 else -5000
                 
                 fig = go.Figure(go.Indicator(
@@ -454,7 +456,7 @@ with col_status:
                     value = gross_pnl,
                     domain = {'x': [0, 1], 'y': [0, 1]},
                     title = {'text': "Real-time PnL", 'font': {'size': 20, 'color': 'white'}},
-                    delta = {'reference': level_up_floor_pnl, 'increasing': {'color': "#10b981"}, 'decreasing': {'color': "#ef4444"}},
+                    delta = {'reference': sniper_target_pnl, 'increasing': {'color': "#10b981"}, 'decreasing': {'color': "#ef4444"}},
                     gauge = {
                         'axis': {'range': [min_gauge, max_gauge], 'tickwidth': 1, 'tickcolor': "white"},
                         'bar': {'color': "#3b82f6"},
@@ -463,8 +465,7 @@ with col_status:
                         'bordercolor': "gray",
                         'steps': [
                             {'range': [min_gauge, 0], 'color': "rgba(239, 68, 68, 0.2)"},
-                            {'range': [0, level_up_floor_pnl], 'color': "rgba(234, 179, 8, 0.2)"},
-                            {'range': [level_up_floor_pnl, level_up_target_pnl], 'color': "rgba(16, 185, 129, 0.2)"}
+                            {'range': [0, sniper_target_pnl], 'color': "rgba(16, 185, 129, 0.2)"}
                         ],
                         'threshold': {
                             'line': {'color': "#10b981", 'width': 4},
@@ -478,7 +479,7 @@ with col_status:
                 st.markdown("---")
             
             # --- 4-COLUMN LAYOUT FOR SNIPER METRICS ---
-            metric_col1, metric_col2, metric_col3, metric_col4 = st.columns([1.3, 1.3, 1.2, 1.2])
+            metric_col1, metric_col2, metric_col3 = st.columns([1.3, 1.3, 1.2])
             
             with metric_col1:
                 if gross_pnl >= 0:
@@ -487,12 +488,10 @@ with col_status:
                     st.metric("Live Gross PnL", f"-₹{abs(gross_pnl):.2f}", delta="In Loss", delta_color="inverse")
             
             with metric_col2:
-                st.metric(f"Sniper Target ({sniper_target_pct:.1f}%)", f"₹{sniper_target_pnl:.2f}", delta=f"Pin <= {config.SNIPER_PINNED_DRIFT_RATIO:.2f}x", delta_color="off")
+                target_status = "ON" if state.get("sniper_targets_enabled", config.SNIPER_TARGETS_ENABLED) else "OFF"
+                st.metric(f"Sniper Target ({target_status})", f"₹{sniper_target_pnl:.2f}", delta=f"{sniper_target_pct:.1f}%", delta_color="off")
             
             with metric_col3:
-                st.metric(f"Level Up Target ({level_up_target_pct:.1f}%)", f"₹{level_up_target_pnl:.2f}", delta=f"Floor ₹{level_up_floor_pnl:.2f}", delta_color="off")
-                
-            with metric_col4:
                 st.metric("Catastrophe Kill", f"{config.SNIPER_CATASTROPHE_MULTIPLIER:.2f}x", delta=f"Net {state.get('catastrophe_threshold', 0):.2f}", delta_color="off")
 
         else:

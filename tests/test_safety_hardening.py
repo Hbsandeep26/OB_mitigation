@@ -96,6 +96,12 @@ class SafetyHardeningTests(unittest.TestCase):
         self.old_env = config.ENVIRONMENT
         self.old_qty = config.get_nifty_qty
         self.old_expiries_file = config.EXPIRIES_FILE
+        self.old_targets_enabled = config.SNIPER_TARGETS_ENABLED
+        self.old_drift_threshold = config.ATM_DRIFT_EJECT_THRESHOLD
+        self.old_btst_recenter_min_drift = config.BTST_RECENTER_MIN_DRIFT_RATIO
+        self.old_post_emergency_enabled = config.POST_EMERGENCY_REENTRY_ENABLED
+        self.old_post_emergency_cooldown = config.POST_EMERGENCY_REENTRY_COOLDOWN_SECONDS
+        self.old_catastrophe_multiplier = config.SNIPER_CATASTROPHE_MULTIPLIER
         self.old_strategy_base = strategy.BASE_DIR
         self.current_state_file = os.path.join(self.tmp_name, "trade_state.json")
         if os.path.exists(self.current_state_file):
@@ -106,6 +112,13 @@ class SafetyHardeningTests(unittest.TestCase):
         config.ENVIRONMENT = "LIVE"
         config.get_nifty_qty = lambda: 65
         config.EXPIRIES_FILE = os.path.join(self.tmp_name, "expiries.json")
+        config.SNIPER_TARGETS_ENABLED = True
+        config.ATM_DRIFT_EJECT_THRESHOLD = 0.20
+        config.SNIPER_DRIFT_EJECT_RATIO = config.ATM_DRIFT_EJECT_THRESHOLD
+        config.BTST_RECENTER_MIN_DRIFT_RATIO = 0.06
+        config.POST_EMERGENCY_REENTRY_ENABLED = True
+        config.POST_EMERGENCY_REENTRY_COOLDOWN_SECONDS = 0.0
+        config.SNIPER_CATASTROPHE_MULTIPLIER = 1.05
         strategy.BASE_DIR = self.tmp_name
         broker.set_broker_for_tests(None)
 
@@ -126,6 +139,13 @@ class SafetyHardeningTests(unittest.TestCase):
         config.ENVIRONMENT = self.old_env
         config.get_nifty_qty = self.old_qty
         config.EXPIRIES_FILE = self.old_expiries_file
+        config.SNIPER_TARGETS_ENABLED = self.old_targets_enabled
+        config.ATM_DRIFT_EJECT_THRESHOLD = self.old_drift_threshold
+        config.SNIPER_DRIFT_EJECT_RATIO = self.old_drift_threshold
+        config.BTST_RECENTER_MIN_DRIFT_RATIO = self.old_btst_recenter_min_drift
+        config.POST_EMERGENCY_REENTRY_ENABLED = self.old_post_emergency_enabled
+        config.POST_EMERGENCY_REENTRY_COOLDOWN_SECONDS = self.old_post_emergency_cooldown
+        config.SNIPER_CATASTROPHE_MULTIPLIER = self.old_catastrophe_multiplier
         strategy.BASE_DIR = self.old_strategy_base
         broker.set_broker_for_tests(None)
 
@@ -288,6 +308,49 @@ class SafetyHardeningTests(unittest.TestCase):
         self.assertEqual(args[4], 195.0)
         self.assertEqual(kwargs["exit_reason"], "MANUAL_EXIT")
 
+    def test_manual_exit_falls_back_to_live_ledger_snapshot_for_pnl(self):
+        config.ENVIRONMENT = "SANDBOX"
+        self._save_sniper_state()
+        manual_exit_file = os.path.join(strategy.BASE_DIR, "manual_exit_flag.txt")
+        with open(manual_exit_file, "w") as f:
+            f.write("TRUE")
+
+        live_data = self._sniper_live_data(18.0, 17.0, 4.0, 4.0, spot=100.0)
+
+        result, exit_prices = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
+        self.assertEqual(result, "MANUAL_EXIT")
+
+        with patch.object(execution, "send_telegram_alert"), patch.object(execution, "log_trade") as log_trade:
+            execution.square_off_all(exit_prices, exit_reason=result)
+
+        args, kwargs = log_trade.call_args
+        self.assertEqual(args[0], "EXIT")
+        self.assertEqual(args[3], 27.0)
+        self.assertEqual(args[4], 195.0)
+        self.assertEqual(kwargs["exit_reason"], "MANUAL_EXIT")
+
+    def test_atm_drift_exit_logs_trigger_tick_prices_without_rest_override(self):
+        class BadFreshQuoteBroker:
+            def get_fresh_option_quotes(self, instrument_keys):
+                return {"SCE": 99.0, "SPE": 99.0, "BCE": 1.0, "BPE": 1.0}
+
+        broker.set_broker_for_tests(BadFreshQuoteBroker())
+        config.ENVIRONMENT = "SANDBOX"
+        self._save_sniper_state()
+        live_data = self._sniper_live_data(17.0, 17.0, 3.8, 3.8, spot=121.0)
+
+        with self._market_time_patch():
+            result, exit_prices = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
+        self.assertEqual(result, "ATM_DRIFT")
+
+        with patch.object(execution, "send_telegram_alert"), patch.object(execution, "log_trade") as log_trade:
+            execution.square_off_all(exit_prices, exit_reason=result)
+
+        args, kwargs = log_trade.call_args
+        self.assertEqual(args[2], {"sell_ce": 17.0, "sell_pe": 17.0, "buy_ce": 3.8, "buy_pe": 3.8})
+        self.assertEqual(args[3], 26.4)
+        self.assertEqual(kwargs["exit_reason"], "ATM_DRIFT")
+
     def _save_sniper_state(self, sniper_state="INITIAL"):
         state_manager.save_state(
             "NIFTY",
@@ -387,40 +450,32 @@ class SafetyHardeningTests(unittest.TestCase):
 
     def test_sniper_target_exits_when_market_is_not_pinned(self):
         self._save_sniper_state()
-        live_data = self._sniper_live_data(17.0, 17.0, 3.8, 3.8, spot=111.0)
+        live_data = self._sniper_live_data(17.0, 17.0, 3.8, 3.8, spot=109.0)
 
         with self._market_time_patch():
             result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
 
         self.assertEqual(result, "SNIPER_TARGET")
 
-    def test_sniper_target_enters_level_up_when_market_is_pinned(self):
+    def test_sniper_target_exits_even_when_market_is_pinned(self):
         self._save_sniper_state()
         live_data = self._sniper_live_data(17.0, 17.0, 3.8, 3.8, spot=105.0)
 
         with self._market_time_patch():
             result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
 
+        self.assertEqual(result, "SNIPER_TARGET")
+        self.assertEqual(state_manager.load_state()["sniper_state"], "INITIAL")
+
+    def test_standard_profit_target_can_be_disabled(self):
+        config.SNIPER_TARGETS_ENABLED = False
+        self._save_sniper_state()
+        live_data = self._sniper_live_data(17.0, 17.0, 3.8, 3.8, spot=100.0)
+
+        with self._market_time_patch():
+            result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
+
         self.assertFalse(result)
-        self.assertEqual(state_manager.load_state()["sniper_state"], "LEVEL_UP")
-
-    def test_level_up_exits_at_extended_target(self):
-        self._save_sniper_state(sniper_state="LEVEL_UP")
-        live_data = self._sniper_live_data(16.4, 16.4, 4.2, 4.2, spot=100.0)
-
-        with self._market_time_patch():
-            result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
-
-        self.assertEqual(result, "LEVEL_UP_TARGET")
-
-    def test_level_up_exits_at_profit_floor(self):
-        self._save_sniper_state(sniper_state="LEVEL_UP")
-        live_data = self._sniper_live_data(17.5, 17.5, 4.0, 4.0, spot=100.0)
-
-        with self._market_time_patch():
-            result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
-
-        self.assertEqual(result, "LEVEL_UP_FLOOR")
 
     def test_old_leg_stop_loss_no_longer_triggers_strategy_exit(self):
         self._save_sniper_state()
@@ -431,29 +486,72 @@ class SafetyHardeningTests(unittest.TestCase):
 
         self.assertFalse(result)
 
-    def test_btst_healthy_trade_carries_at_cutoff(self):
+    def test_btst_recenter_skips_when_drift_is_below_gate(self):
         self._save_sniper_state()
         btst_file = os.path.join(strategy.BASE_DIR, "btst_flag.txt")
         with open(btst_file, "w") as f:
             f.write("TRUE")
-        live_data = self._sniper_live_data(18.0, 18.0, 4.5, 4.5, spot=100.0)
+        live_data = self._sniper_live_data(20.0, 20.0, 5.0, 5.0, spot=102.0)
 
-        with self._market_time_patch(15, 15):
+        with self._market_time_patch(15, 25):
             result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
 
         self.assertFalse(result)
 
-    def test_btst_unhealthy_trade_requests_single_recenter(self):
+    def test_btst_recenter_requires_minimum_atm_drift(self):
         self._save_sniper_state()
         btst_file = os.path.join(strategy.BASE_DIR, "btst_flag.txt")
         with open(btst_file, "w") as f:
             f.write("TRUE")
-        live_data = self._sniper_live_data(21.0, 21.0, 5.0, 5.0, spot=100.0)
+        live_data = self._sniper_live_data(18.0, 18.0, 4.5, 4.5, spot=106.0)
 
-        with self._market_time_patch(15, 15):
+        with self._market_time_patch(15, 25):
             result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
 
         self.assertEqual(result, "BTST_RECENTER")
+
+    def test_post_emergency_reentry_blocks_near_sensex_cutoff(self):
+        class NearCutoffDatetime(datetime.datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return cls(2026, 4, 29, 15, 10)
+
+        with patch.object(main, "datetime", NearCutoffDatetime):
+            allowed = main.post_emergency_reentry_allowed(
+                "SENSEX",
+                {"buy_ce": "BCE", "buy_pe": "BPE", "sell_ce": "SCE", "sell_pe": "SPE"},
+                {"sell_ce": 17.0, "sell_pe": 17.0, "buy_ce": 3.8, "buy_pe": 3.8},
+                "CATASTROPHE_KILL",
+                15,
+                15,
+                reference_spot=77000.0,
+            )
+
+        self.assertFalse(allowed)
+
+    def test_post_emergency_reentry_allows_stable_premium_and_spot(self):
+        class MidSessionDatetime(datetime.datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return cls(2026, 4, 29, 12, 0)
+
+        legs = {"buy_ce": "BCE", "buy_pe": "BPE", "sell_ce": "SCE", "sell_pe": "SPE"}
+        with patch.object(main, "datetime", MidSessionDatetime), \
+             patch.object(main, "get_fresh_option_quotes", return_value={
+                 "SCE": 17.1, "SPE": 16.9, "BCE": 3.8, "BPE": 3.8,
+             }), \
+             patch.object(main, "get_spot_price", return_value=100.05):
+            allowed = main.post_emergency_reentry_allowed(
+                "NIFTY",
+                legs,
+                {"sell_ce": 17.0, "sell_pe": 17.0, "buy_ce": 3.8, "buy_pe": 3.8},
+                "ATM_DRIFT",
+                15,
+                25,
+                reference_spot=100.0,
+            )
+
+        self.assertTrue(allowed)
 
     def test_btst_recenter_helper_attempts_exactly_one_fresh_entry(self):
         calls = []

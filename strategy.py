@@ -64,9 +64,22 @@ def get_vix_session_profile(live_vix):
     return profile
 
 
-def calculate_iron_butterfly_legs(index_symbol, spot_price, option_chain_data, buy_leg_percent=None):
+def _normalized_delta(option_info):
+    delta = option_info.get("greeks", {}).get("delta")
+    if delta in (None, ""):
+        return None
+    delta = abs(float(delta))
+    return delta * 100.0 if delta <= 1.0 else delta
+
+
+def calculate_iron_butterfly_legs(index_symbol, spot_price, option_chain_data, buy_leg_percent=None, wing_delta=None):
+    target_wing_delta = wing_delta if wing_delta is not None else config.SNIPER_WING_DELTA
+    use_delta_wings = buy_leg_percent is None and target_wing_delta > 0
     buy_leg_percent = config.BUY_LEG_PERCENT if buy_leg_percent is None else buy_leg_percent
-    logging.info("Calculating Iron Butterfly strikes & prices (Buy Leg Premium Percent=%s%%)...", buy_leg_percent)
+    if use_delta_wings:
+        logging.info("Calculating Iron Butterfly strikes & prices (Wing Delta=%s)...", target_wing_delta)
+    else:
+        logging.info("Calculating Iron Butterfly strikes & prices (Buy Leg Premium Percent=%s%%)...", buy_leg_percent)
     atm_strike = _nearest_chain_strike(option_chain_data, spot_price)
     if atm_strike is None:
         logging.warning("Option chain has no strikes. Cannot calculate Iron Butterfly.")
@@ -96,6 +109,7 @@ def calculate_iron_butterfly_legs(index_symbol, spot_price, option_chain_data, b
     buy_ce_key, buy_pe_key = "", ""
     buy_ce_ltp, buy_pe_ltp = 0, 0
     buy_ce_strike, buy_pe_strike = 0, 0
+    fallback_ce, fallback_pe = None, None
 
     for strike_data in option_chain_data:
         strike = strike_data.get("strike_price")
@@ -104,8 +118,11 @@ def calculate_iron_butterfly_legs(index_symbol, spot_price, option_chain_data, b
 
         if strike > atm_strike and call_info:
             ce_ltp = call_info.get("market_data", {}).get("ltp", 0)
-            diff = abs(ce_ltp - target_ce_buy)
-            if ce_ltp > 0 and diff < best_ce_diff:
+            if ce_ltp > 0:
+                fallback_ce = (call_info.get("instrument_key"), ce_ltp, strike)
+            ce_delta = _normalized_delta(call_info) if use_delta_wings else None
+            diff = abs(ce_delta - target_wing_delta) if ce_delta is not None else abs(ce_ltp - target_ce_buy)
+            if ce_ltp > 0 and diff < best_ce_diff and (not use_delta_wings or ce_delta is not None):
                 best_ce_diff = diff
                 buy_ce_key = call_info.get("instrument_key")
                 buy_ce_ltp = ce_ltp
@@ -113,12 +130,21 @@ def calculate_iron_butterfly_legs(index_symbol, spot_price, option_chain_data, b
 
         if strike < atm_strike and put_info:
             pe_ltp = put_info.get("market_data", {}).get("ltp", 0)
-            diff = abs(pe_ltp - target_pe_buy)
-            if pe_ltp > 0 and diff < best_pe_diff:
+            if pe_ltp > 0 and fallback_pe is None:
+                fallback_pe = (put_info.get("instrument_key"), pe_ltp, strike)
+            pe_delta = _normalized_delta(put_info) if use_delta_wings else None
+            diff = abs(pe_delta - target_wing_delta) if pe_delta is not None else abs(pe_ltp - target_pe_buy)
+            if pe_ltp > 0 and diff < best_pe_diff and (not use_delta_wings or pe_delta is not None):
                 best_pe_diff = diff
                 buy_pe_key = put_info.get("instrument_key")
                 buy_pe_ltp = pe_ltp
                 buy_pe_strike = strike
+
+    if use_delta_wings:
+        if not buy_ce_key and fallback_ce:
+            buy_ce_key, buy_ce_ltp, buy_ce_strike = fallback_ce
+        if not buy_pe_key and fallback_pe:
+            buy_pe_key, buy_pe_ltp, buy_pe_strike = fallback_pe
 
     if not buy_ce_key or not buy_pe_key:
         logging.warning("Option chain is missing protective wings. Aborting calculation.")
@@ -200,23 +226,20 @@ def risk_management_evaluator(live_data, legs):
         return False, {}
 
     entries = state["entry_prices"]
-    current_prices = {
-        "sell_ce": entries["sell_ce"],
-        "sell_pe": entries["sell_pe"],
-        "buy_ce": entries["buy_ce"],
-        "buy_pe": entries["buy_pe"]
-    }
+    last_live_prices = state.get("last_live_prices") or entries
+    current_prices = _best_effort_prices(live_data, legs, last_live_prices)
 
     manual_exit_file = os.path.join(BASE_DIR, "manual_exit_flag.txt")
     if os.path.exists(manual_exit_file):
         with open(manual_exit_file, "r") as f:
-            if f.read().strip() == "TRUE":
-                logging.critical("MANUAL EXIT TRIGGERED FROM UI. Forcing Square Off.")
-                os.remove(manual_exit_file)
-                send_telegram_alert(
-                    f"<b>MANUAL EXIT REQUESTED</b>\n{state.get('index_symbol', 'UNKNOWN')}: square off started."
-                )
-                return "MANUAL_EXIT", current_prices
+            manual_exit_requested = f.read().strip() == "TRUE"
+        if manual_exit_requested:
+            logging.critical("MANUAL EXIT TRIGGERED FROM UI. Forcing Square Off.")
+            os.remove(manual_exit_file)
+            send_telegram_alert(
+                f"<b>MANUAL EXIT REQUESTED</b>\n{state.get('index_symbol', 'UNKNOWN')}: square off started."
+            )
+            return "MANUAL_EXIT", current_prices
 
     graceful_stop_file = os.path.join(BASE_DIR, "graceful_stop_flag.txt")
     if os.path.exists(graceful_stop_file):
@@ -242,16 +265,14 @@ def risk_management_evaluator(live_data, legs):
     live_net = _live_net(current_prices)
     current_profit_pct = (entry_net - live_net) / entry_net if entry_net > 0 else 0.0
     drift_ratio = _atm_drift_ratio(live_spot, strikes)
-    sniper_state = state.get("sniper_state", "INITIAL")
-
     state_manager.update_many({
-        "sniper_state": sniper_state,
+        "sniper_state": "INITIAL",
         "entry_net_premium": round(entry_net, 4),
+        "sniper_targets_enabled": config.SNIPER_TARGETS_ENABLED,
         "sniper_target_pct": config.SNIPER_TARGET_PCT,
-        "level_up_target_pct": config.SNIPER_LEVEL_UP_TARGET_PCT,
-        "level_up_floor_pct": config.SNIPER_LEVEL_UP_FLOOR_PCT,
         "atm_drift_ratio": round(drift_ratio, 3),
         "live_net_premium": round(live_net, 4),
+        "last_live_prices": current_prices,
         "current_profit_pct": round(current_profit_pct, 6),
         "catastrophe_threshold": round(entry_net * config.SNIPER_CATASTROPHE_MULTIPLIER, 4),
         "last_spot": round(live_spot, 2) if live_spot else state.get("last_spot", 0),
@@ -273,35 +294,28 @@ def risk_management_evaluator(live_data, legs):
             with open(btst_file, "r") as f:
                 btst_enabled = f.read().strip() == "TRUE"
         if btst_enabled:
-            is_healthy, diagnosis = evaluate_btst_health(live_data, legs, entries)
-            if is_healthy:
+            if drift_ratio < config.BTST_RECENTER_MIN_DRIFT_RATIO:
+                logging.info(
+                    "BTST recenter skipped: ATM drift %.2fx < %.2fx.",
+                    drift_ratio,
+                    config.BTST_RECENTER_MIN_DRIFT_RATIO,
+                )
                 return False, {}
-            else:
-                logging.critical("BTST position unhealthy: %s. Forcing BTST recenter.", diagnosis)
-                return "BTST_RECENTER", current_prices
+            logging.critical(
+                "BTST recenter triggered: ATM drift %.2fx >= %.2fx.",
+                drift_ratio,
+                config.BTST_RECENTER_MIN_DRIFT_RATIO,
+            )
+            return "BTST_RECENTER", current_prices
         logging.critical("END OF DAY (15:25) REACHED. Forcing Square Off.")
         return "TIME_EXIT", current_prices
 
-    if drift_ratio >= config.SNIPER_DRIFT_EJECT_RATIO:
-        logging.critical("ATM DRIFT EJECTOR: %.2fx >= %.2fx.", drift_ratio, config.SNIPER_DRIFT_EJECT_RATIO)
+    if drift_ratio >= config.ATM_DRIFT_EJECT_THRESHOLD:
+        logging.critical("ATM DRIFT EJECTOR: %.2fx >= %.2fx.", drift_ratio, config.ATM_DRIFT_EJECT_THRESHOLD)
         return "ATM_DRIFT", current_prices
 
-    if sniper_state == "LEVEL_UP":
-        if current_profit_pct >= config.SNIPER_LEVEL_UP_TARGET_PCT / 100.0:
-            logging.critical("LEVEL UP TARGET HIT at %.2f%%.", current_profit_pct * 100)
-            return "LEVEL_UP_TARGET", current_prices
-        if current_profit_pct <= config.SNIPER_LEVEL_UP_FLOOR_PCT / 100.0:
-            logging.critical("LEVEL UP FLOOR HIT at %.2f%%.", current_profit_pct * 100)
-            return "LEVEL_UP_FLOOR", current_prices
-        return False, {}
-
-    if current_profit_pct >= config.SNIPER_TARGET_PCT / 100.0:
-        if drift_ratio > config.SNIPER_PINNED_DRIFT_RATIO:
-            logging.critical("SNIPER TARGET HIT with drift %.2fx. Exiting.", drift_ratio)
-            return "SNIPER_TARGET", current_prices
-
-        state_manager.update_state("sniper_state", "LEVEL_UP")
-        logging.critical("SNIPER TARGET HIT while pinned. Level Up state activated.")
-        return False, {}
+    if config.SNIPER_TARGETS_ENABLED and current_profit_pct >= config.SNIPER_TARGET_PCT / 100.0:
+        logging.critical("SNIPER TARGET HIT at %.2f%%. Exiting.", current_profit_pct * 100)
+        return "SNIPER_TARGET", current_prices
 
     return False, {}
