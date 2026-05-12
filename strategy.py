@@ -5,6 +5,7 @@ import time
 
 import config
 import state_manager
+from broker import get_broker
 from notifier import send_telegram_alert
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -47,6 +48,31 @@ def _fresh_ltp(live_data, token, leg_name):
         raise ValueError(f"Stale live price for {leg_name}: {age:.1f}s")
 
     return float(tick["ltp"])
+
+
+def _fresh_option_snapshot(legs):
+    try:
+        quotes = get_broker().get_fresh_option_quotes(list(legs.values()))
+    except Exception as err:
+        logging.warning("Emergency option confirmation failed: %s", err)
+        return None
+
+    prices = {
+        "sell_ce": float(quotes.get(legs["sell_ce"], 0.0) or 0.0),
+        "sell_pe": float(quotes.get(legs["sell_pe"], 0.0) or 0.0),
+        "buy_ce": float(quotes.get(legs["buy_ce"], 0.0) or 0.0),
+        "buy_pe": float(quotes.get(legs["buy_pe"], 0.0) or 0.0),
+    }
+    return prices if all(value > 0 for value in prices.values()) else None
+
+
+def _fresh_spot_snapshot(index_symbol):
+    try:
+        spot = get_broker().get_spot_price(index_symbol)
+    except Exception as err:
+        logging.warning("Emergency spot confirmation failed: %s", err)
+        return None
+    return float(spot or 0.0) or None
 
 
 def get_vix_session_profile(live_vix):
@@ -259,7 +285,7 @@ def risk_management_evaluator(live_data, legs):
 
     index_symbol = state.get("index_symbol", "NIFTY")
     spot_key = "NSE_INDEX|Nifty 50" if index_symbol == "NIFTY" else "BSE_INDEX|SENSEX"
-    live_spot = live_data.get(spot_key, {}).get("ltp", 0.0)
+    live_spot = _fresh_ltp(live_data, spot_key, f"{index_symbol}_spot")
     strikes = state.get("strikes", {})
     entry_net = float(state.get("entry_net_premium") or _entry_net(entries))
     live_net = _live_net(current_prices)
@@ -279,10 +305,39 @@ def risk_management_evaluator(live_data, legs):
     })
 
     if entry_net > 0 and live_net >= entry_net * config.SNIPER_CATASTROPHE_MULTIPLIER:
+        threshold = entry_net * config.SNIPER_CATASTROPHE_MULTIPLIER
+        if config.EMERGENCY_EXIT_CONFIRMATION_ENABLED:
+            confirmed_prices = _fresh_option_snapshot(legs)
+            if not confirmed_prices:
+                state_manager.update_state("feed_status", "UNCONFIRMED_CATASTROPHE:NO_REST_QUOTES")
+                raise ValueError("Catastrophe kill could not be confirmed with fresh broker quotes")
+            confirmed_net = _live_net(confirmed_prices)
+            if confirmed_net < threshold:
+                logging.critical(
+                    "Ignoring unconfirmed catastrophe: stream net %.2f >= %.2f, broker net %.2f.",
+                    live_net,
+                    threshold,
+                    confirmed_net,
+                )
+                state_manager.update_many({
+                    "feed_status": "UNCONFIRMED_CATASTROPHE:REST_DISAGREE",
+                    "last_live_prices": confirmed_prices,
+                    "live_net_premium": round(confirmed_net, 4),
+                    "current_profit_pct": round((entry_net - confirmed_net) / entry_net, 6) if entry_net > 0 else 0.0,
+                })
+                return False, {}
+            current_prices = confirmed_prices
+            live_net = confirmed_net
+            state_manager.update_many({
+                "last_live_prices": current_prices,
+                "live_net_premium": round(live_net, 4),
+                "current_profit_pct": round((entry_net - live_net) / entry_net, 6) if entry_net > 0 else 0.0,
+            })
+
         logging.critical(
             "CATASTROPHE KILL: live net %.2f >= %.2f.",
             live_net,
-            entry_net * config.SNIPER_CATASTROPHE_MULTIPLIER,
+            threshold,
         )
         return "CATASTROPHE_KILL", current_prices
 
@@ -311,6 +366,31 @@ def risk_management_evaluator(live_data, legs):
         return "TIME_EXIT", current_prices
 
     if drift_ratio >= config.ATM_DRIFT_EJECT_THRESHOLD:
+        if config.EMERGENCY_EXIT_CONFIRMATION_ENABLED:
+            confirmed_spot = _fresh_spot_snapshot(index_symbol)
+            if not confirmed_spot:
+                state_manager.update_state("feed_status", "UNCONFIRMED_ATM_DRIFT:NO_REST_SPOT")
+                raise ValueError("ATM drift could not be confirmed with fresh broker spot")
+            confirmed_ratio = _atm_drift_ratio(confirmed_spot, strikes)
+            if confirmed_ratio < config.ATM_DRIFT_EJECT_THRESHOLD:
+                logging.critical(
+                    "Ignoring unconfirmed ATM drift: stream %.2fx >= %.2fx, broker %.2fx.",
+                    drift_ratio,
+                    config.ATM_DRIFT_EJECT_THRESHOLD,
+                    confirmed_ratio,
+                )
+                state_manager.update_many({
+                    "feed_status": "UNCONFIRMED_ATM_DRIFT:REST_DISAGREE",
+                    "atm_drift_ratio": round(confirmed_ratio, 3),
+                    "last_spot": round(confirmed_spot, 2),
+                })
+                return False, {}
+            state_manager.update_many({
+                "atm_drift_ratio": round(confirmed_ratio, 3),
+                "last_spot": round(confirmed_spot, 2),
+            })
+            drift_ratio = confirmed_ratio
+
         logging.critical("ATM DRIFT EJECTOR: %.2fx >= %.2fx.", drift_ratio, config.ATM_DRIFT_EJECT_THRESHOLD)
         return "ATM_DRIFT", current_prices
 

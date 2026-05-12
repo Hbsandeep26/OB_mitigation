@@ -147,6 +147,26 @@ def current_expiries():
     return config.get_next_expiry("NIFTY"), config.get_next_expiry("SENSEX")
 
 
+def session_for_time(now_dt, nifty_expiry, sensex_expiry):
+    today_str = now_dt.strftime("%Y-%m-%d")
+    current_time = now_dt.time()
+    afternoon_start = datetime.strptime("12:31", "%H:%M").time()
+
+    if today_str == nifty_expiry:
+        if current_time >= afternoon_start:
+            return "SENSEX", sensex_expiry, 15, 25
+        return "NIFTY", nifty_expiry, 12, 30
+
+    if today_str == sensex_expiry:
+        if current_time >= afternoon_start:
+            return "NIFTY", nifty_expiry, 15, 25
+        return "SENSEX", sensex_expiry, 12, 30
+
+    default_idx = "SENSEX" if now_dt.strftime("%A").upper() in ["WEDNESDAY", "THURSDAY"] else "NIFTY"
+    default_exp = sensex_expiry if default_idx == "SENSEX" else nifty_expiry
+    return default_idx, default_exp, 15, 15
+
+
 def exit_prices_from_rest(legs):
     quotes = get_fresh_option_quotes(list(legs.values()))
     if not quotes:
@@ -920,20 +940,24 @@ if __name__ == "__main__":
             now_dt = datetime.now()
             today_date_str = now_dt.strftime("%Y-%m-%d")
             
-            if today_date_str == nifty_expiry:
-                idx, exp = "NIFTY", nifty_expiry
-            elif today_date_str == sensex_expiry:
-                idx, exp = "SENSEX", sensex_expiry
-            else:
-                idx = "SENSEX" if now_dt.strftime("%A").upper() in ["WEDNESDAY", "THURSDAY"] else "NIFTY"
-                exp = sensex_expiry if idx == "SENSEX" else nifty_expiry
+            idx, exp, manual_cutoff_hour, manual_cutoff_minute = session_for_time(
+                now_dt,
+                nifty_expiry,
+                sensex_expiry,
+            )
             
             if calendar_invalid:
                 logging.critical("Manual entry ignored because expiry calendar is invalid.")
             elif datetime.now().time() >= eod_cutoff:
                 logging.info("Soft Cutoff (15:15) reached. No manual entry will be taken.")
             else:
-                continuous_trading_session(idx, exp, 15, 15)
+                logging.info(
+                    "Manual entry resolved to %s session with cutoff %02d:%02d.",
+                    idx,
+                    manual_cutoff_hour,
+                    manual_cutoff_minute,
+                )
+                continuous_trading_session(idx, exp, manual_cutoff_hour, manual_cutoff_minute)
                 logging.info("Returned to idle state after manual entry session.")
             
         time.sleep(1)

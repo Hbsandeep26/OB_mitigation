@@ -4,6 +4,7 @@ import logging
 import os
 import tempfile
 import time
+import datetime
 
 import config
 from broker import get_broker
@@ -81,6 +82,61 @@ def _atomic_write_json(path, payload):
             time.sleep(0.05)
 
 
+def _coerce_epoch_seconds(value):
+    if value in (None, "", 0, "0"):
+        return None
+
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return None
+        if value.isdigit():
+            value = float(value)
+        else:
+            try:
+                return datetime.datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+            except ValueError:
+                return None
+
+    try:
+        ts = float(value)
+    except (TypeError, ValueError):
+        return None
+
+    if ts > 10_000_000_000:
+        ts = ts / 1000.0
+    if ts <= 0:
+        return None
+    return ts
+
+
+def _extract_ltpc(feed_data):
+    if "fullFeed" in feed_data:
+        full_feed = feed_data["fullFeed"]
+        if "marketFF" in full_feed:
+            return full_feed["marketFF"].get("ltpc", {})
+        if "indexFF" in full_feed:
+            return full_feed["indexFF"].get("ltpc", {})
+    if "ltpc" in feed_data:
+        return feed_data.get("ltpc", {})
+    return {}
+
+
+def _extract_ltp_tick(feed_data, received_at):
+    ltpc = _extract_ltpc(feed_data)
+    ltp = float(ltpc.get("ltp", 0.0) or 0.0)
+    if ltp <= 0:
+        return None
+
+    exchange_ts = None
+    for key in ("ltt", "last_traded_time", "timestamp", "ts"):
+        exchange_ts = _coerce_epoch_seconds(ltpc.get(key))
+        if exchange_ts:
+            break
+
+    return {"ltp": ltp, "ts": exchange_ts or received_at, "received_ts": received_at}
+
+
 def monitor_live_prices(instrument_keys_dict, callback_function):
     logging.info("Initializing broker WebSocket connection for live risk management...")
 
@@ -104,6 +160,7 @@ def monitor_live_prices(instrument_keys_dict, callback_function):
         "exit_prices": {},
         "latest_prices": {},
         "last_tick_time": time.time(),
+        "incomplete_since": None,
         "last_write_time": 0,
     }
 
@@ -118,20 +175,10 @@ def monitor_live_prices(instrument_keys_dict, callback_function):
             feeds = message.get("feeds", {})
 
             for instrument_key, feed_data in feeds.items():
-                ltp = 0.0
-
-                if "fullFeed" in feed_data:
-                    ff = feed_data["fullFeed"]
-                    if "marketFF" in ff:
-                        ltp = ff["marketFF"].get("ltpc", {}).get("ltp", 0.0)
-                    elif "indexFF" in ff:
-                        ltp = ff["indexFF"].get("ltpc", {}).get("ltp", 0.0)
-                elif "ltpc" in feed_data:
-                    ltp = feed_data.get("ltpc", {}).get("ltp", 0.0)
-
-                if ltp > 0:
+                tick = _extract_ltp_tick(feed_data, tick_received_at)
+                if tick:
                     ws_state["last_tick_time"] = tick_received_at
-                    ws_state["latest_prices"][instrument_key] = {"ltp": ltp, "ts": tick_received_at}
+                    ws_state["latest_prices"][instrument_key] = tick
 
             if ws_state["latest_prices"]:
                 if time.time() - ws_state["last_write_time"] > 1.0:
@@ -141,6 +188,7 @@ def monitor_live_prices(instrument_keys_dict, callback_function):
                 stop_loss_triggered, current_prices = callback_function(
                     ws_state["latest_prices"], instrument_keys_dict
                 )
+                ws_state["incomplete_since"] = None
                 if stop_loss_triggered:
                     logging.critical("Exit Signal Received: %s. Terminating WebSocket.", stop_loss_triggered)
                     ws_state["stop_loss_hit"] = stop_loss_triggered
@@ -149,6 +197,16 @@ def monitor_live_prices(instrument_keys_dict, callback_function):
 
         except ValueError as e:
             logging.warning("Risk evaluation skipped due to stale/incomplete data: %s", e)
+            if ws_state["incomplete_since"] is None:
+                ws_state["incomplete_since"] = time.time()
+            incomplete_age = time.time() - ws_state["incomplete_since"]
+            if incomplete_age >= config.MAX_INCOMPLETE_FEED_SECONDS:
+                logging.critical(
+                    "Live feed incomplete/stale for %.1f seconds. Marking socket dead.",
+                    incomplete_age,
+                )
+                ws_state["stop_loss_hit"] = "SOCKET_DEAD"
+                streamer.disconnect()
         except Exception as e:
             logging.error("Error parsing live tick data: %s", e)
 

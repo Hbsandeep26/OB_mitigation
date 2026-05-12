@@ -50,6 +50,7 @@ sys.modules.setdefault("schedule", fake_schedule)
 
 import config
 import broker
+import data_feed
 import execution
 import main
 import state_manager
@@ -102,6 +103,7 @@ class SafetyHardeningTests(unittest.TestCase):
         self.old_post_emergency_enabled = config.POST_EMERGENCY_REENTRY_ENABLED
         self.old_post_emergency_cooldown = config.POST_EMERGENCY_REENTRY_COOLDOWN_SECONDS
         self.old_catastrophe_multiplier = config.SNIPER_CATASTROPHE_MULTIPLIER
+        self.old_exit_confirmation_enabled = config.EMERGENCY_EXIT_CONFIRMATION_ENABLED
         self.old_strategy_base = strategy.BASE_DIR
         self.current_state_file = os.path.join(self.tmp_name, "trade_state.json")
         if os.path.exists(self.current_state_file):
@@ -119,6 +121,7 @@ class SafetyHardeningTests(unittest.TestCase):
         config.POST_EMERGENCY_REENTRY_ENABLED = True
         config.POST_EMERGENCY_REENTRY_COOLDOWN_SECONDS = 0.0
         config.SNIPER_CATASTROPHE_MULTIPLIER = 1.05
+        config.EMERGENCY_EXIT_CONFIRMATION_ENABLED = False
         strategy.BASE_DIR = self.tmp_name
         broker.set_broker_for_tests(None)
 
@@ -146,6 +149,7 @@ class SafetyHardeningTests(unittest.TestCase):
         config.POST_EMERGENCY_REENTRY_ENABLED = self.old_post_emergency_enabled
         config.POST_EMERGENCY_REENTRY_COOLDOWN_SECONDS = self.old_post_emergency_cooldown
         config.SNIPER_CATASTROPHE_MULTIPLIER = self.old_catastrophe_multiplier
+        config.EMERGENCY_EXIT_CONFIRMATION_ENABLED = self.old_exit_confirmation_enabled
         strategy.BASE_DIR = self.old_strategy_base
         broker.set_broker_for_tests(None)
 
@@ -552,6 +556,73 @@ class SafetyHardeningTests(unittest.TestCase):
             )
 
         self.assertTrue(allowed)
+
+    def test_unconfirmed_catastrophe_is_ignored_when_broker_quotes_disagree(self):
+        class StableBroker:
+            def get_fresh_option_quotes(self, instrument_keys):
+                return {"SCE": 20.0, "SPE": 20.0, "BCE": 5.0, "BPE": 5.0}
+
+        config.EMERGENCY_EXIT_CONFIRMATION_ENABLED = True
+        broker.set_broker_for_tests(StableBroker())
+        self._save_sniper_state()
+        live_data = self._sniper_live_data(23.0, 23.0, 5.0, 5.0, spot=100.0)
+
+        with self._market_time_patch():
+            result, prices = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
+
+        self.assertFalse(result)
+        self.assertEqual(prices, {})
+        self.assertEqual(state_manager.load_state()["feed_status"], "UNCONFIRMED_CATASTROPHE:REST_DISAGREE")
+
+    def test_confirmed_catastrophe_uses_broker_snapshot_prices(self):
+        class PanicBroker:
+            def get_fresh_option_quotes(self, instrument_keys):
+                return {"SCE": 24.0, "SPE": 24.0, "BCE": 5.0, "BPE": 5.0}
+
+        config.EMERGENCY_EXIT_CONFIRMATION_ENABLED = True
+        broker.set_broker_for_tests(PanicBroker())
+        self._save_sniper_state()
+        live_data = self._sniper_live_data(23.0, 23.0, 5.0, 5.0, spot=100.0)
+
+        with self._market_time_patch():
+            result, prices = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
+
+        self.assertEqual(result, "CATASTROPHE_KILL")
+        self.assertEqual(prices, {"sell_ce": 24.0, "sell_pe": 24.0, "buy_ce": 5.0, "buy_pe": 5.0})
+
+    def test_unconfirmed_atm_drift_is_ignored_when_broker_spot_disagrees(self):
+        class StableSpotBroker:
+            def get_spot_price(self, index_symbol):
+                return 100.0
+
+        config.EMERGENCY_EXIT_CONFIRMATION_ENABLED = True
+        broker.set_broker_for_tests(StableSpotBroker())
+        self._save_sniper_state()
+        live_data = self._sniper_live_data(17.0, 17.0, 3.8, 3.8, spot=121.0)
+
+        with self._market_time_patch():
+            result, prices = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
+
+        self.assertFalse(result)
+        self.assertEqual(prices, {})
+        self.assertEqual(state_manager.load_state()["feed_status"], "UNCONFIRMED_ATM_DRIFT:REST_DISAGREE")
+
+    def test_manual_entry_after_nifty_expiry_afternoon_resolves_to_sensex(self):
+        now_dt = datetime.datetime(2026, 5, 12, 12, 38)
+
+        session = main.session_for_time(now_dt, "2026-05-12", "2026-05-14")
+
+        self.assertEqual(session, ("SENSEX", "2026-05-14", 15, 25))
+
+    def test_stream_tick_uses_exchange_ltt_when_available(self):
+        tick = data_feed._extract_ltp_tick(
+            {"fullFeed": {"marketFF": {"ltpc": {"ltp": 123.45, "ltt": "1778567400000"}}}},
+            received_at=1778567500.0,
+        )
+
+        self.assertEqual(tick["ltp"], 123.45)
+        self.assertEqual(tick["ts"], 1778567400.0)
+        self.assertEqual(tick["received_ts"], 1778567500.0)
 
     def test_btst_recenter_helper_attempts_exactly_one_fresh_entry(self):
         calls = []
