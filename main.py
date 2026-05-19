@@ -10,9 +10,23 @@ from datetime import datetime, timedelta
 import config
 import state_manager
 
-from data_feed import get_spot_price, get_option_chain, monitor_live_prices, get_fresh_option_quotes, get_spot_with_ohlc
+from data_feed import (
+    get_spot_price,
+    get_option_chain,
+    monitor_live_prices,
+    get_fresh_option_quotes,
+    get_spot_with_ohlc,
+    get_india_vix,
+    get_intraday_candles,
+)
 from strategy import calculate_iron_butterfly_legs, risk_management_evaluator
-from execution import place_iron_butterfly_basket, square_off_all
+from btst_vix_router import (
+    candles_market_profile,
+    is_btst_momentum_time,
+    route_btst_momentum_strategy,
+    route_intraday_neutral_strategy,
+)
+from execution import place_iron_butterfly_basket, place_option_spread_basket, square_off_all
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 HEARTBEAT_FILE = os.path.join(BASE_DIR, "engine_heartbeat.json")
@@ -172,59 +186,170 @@ def exit_prices_from_rest(legs):
     if not quotes:
         return None
     prices = {
-        "sell_ce": quotes.get(legs["sell_ce"], 0),
-        "sell_pe": quotes.get(legs["sell_pe"], 0),
-        "buy_ce": quotes.get(legs["buy_ce"], 0),
-        "buy_pe": quotes.get(legs["buy_pe"], 0),
+        leg_name: quotes.get(token, 0)
+        for leg_name, token in legs.items()
     }
     return prices if all(value > 0 for value in prices.values()) else None
 
 
-def initialize_sniper_state(entry_prices):
+def initialize_sniper_state(entry_prices, strategy_type="IRON_BUTTERFLY", drift_threshold=None, metadata=None):
     entry_net = (entry_prices["sell_ce"] + entry_prices["sell_pe"]) - (entry_prices["buy_ce"] + entry_prices["buy_pe"])
+    drift_threshold = config.ATM_DRIFT_EJECT_THRESHOLD if drift_threshold is None else drift_threshold
     state_manager.update_many({
         "sniper_state": "INITIAL",
+        "strategy_type": strategy_type,
         "entry_net_premium": round(entry_net, 4),
         "sniper_targets_enabled": config.SNIPER_TARGETS_ENABLED,
         "sniper_target_pct": config.SNIPER_TARGET_PCT,
+        "atm_drift_eject_threshold": round(drift_threshold, 4),
         "atm_drift_ratio": 0.0,
         "live_net_premium": round(entry_net, 4),
         "current_profit_pct": 0.0,
         "catastrophe_threshold": round(entry_net * config.SNIPER_CATASTROPHE_MULTIPLIER, 4),
+        "route_metadata": metadata or {},
     })
 
 
+def build_intraday_neutral_route(index_symbol, spot, chain):
+    live_vix = get_india_vix()
+    route = route_intraday_neutral_strategy(
+        index_symbol,
+        spot,
+        chain,
+        live_vix,
+        calculate_iron_butterfly_legs,
+    )
+    if not route.legs:
+        logging.critical("Neutral strategy route rejected: %s", route.no_trade_reason)
+        return None
+    logging.info(
+        "Neutral VIX route selected %s for %s: VIX=%s, drift threshold=%.2f.",
+        route.strategy_type,
+        index_symbol,
+        route.metadata.get("india_vix"),
+        route.drift_threshold,
+    )
+    return route
+
+
+def sync_entry_prices_with_quotes(legs, entry_prices):
+    logging.info("Synchronizing with Live Exchange Quotes to bypass cached API data...")
+    fresh_quotes = get_fresh_option_quotes(list(legs.values()))
+    if fresh_quotes:
+        for leg_name, token in legs.items():
+            if token in fresh_quotes and fresh_quotes[token] > 0:
+                entry_prices[leg_name] = fresh_quotes[token]
+        logging.info("Absolute Real-Time Entry Prices: %s", entry_prices)
+    else:
+        logging.warning("Sync failed. Falling back to option chain prices.")
+    return entry_prices
+
+
 def deploy_single_sniper_trade(index_symbol, expiry_date, reason="REGULAR"):
-    logging.info("Deploying %s Sniper & Shield Iron Butterfly for %s...", reason, index_symbol)
+    logging.info("Deploying %s Sniper & Shield neutral strategy for %s...", reason, index_symbol)
     spot = get_spot_price(index_symbol)
     chain = get_option_chain(index_symbol, expiry_date) if spot else None
     if not spot or not chain:
         logging.critical("Cannot deploy %s trade: spot found=%s, chain found=%s.", reason, bool(spot), bool(chain))
         return False
 
-    legs, entry_prices, strikes = calculate_iron_butterfly_legs(
-        index_symbol, spot, chain, buy_leg_percent=config.BUY_LEG_PERCENT
-    )
-    if not legs:
-        logging.critical("Cannot deploy %s trade: wide-wing calculation failed.", reason)
+    route = build_intraday_neutral_route(index_symbol, spot, chain)
+    if not route:
+        logging.critical("Cannot deploy %s trade: neutral route failed.", reason)
         return False
 
-    fresh_quotes = get_fresh_option_quotes(list(legs.values()))
-    if fresh_quotes:
-        for leg_name, token in legs.items():
-            if token in fresh_quotes and fresh_quotes[token] > 0:
-                entry_prices[leg_name] = fresh_quotes[token]
-        logging.info("Absolute real-time entry prices: %s", entry_prices)
-    else:
-        logging.warning("Fresh quote sync failed. Falling back to option chain prices.")
+    legs = route.legs
+    entry_prices = sync_entry_prices_with_quotes(legs, route.entry_prices)
+    strikes = route.strikes
 
     execution_success = place_iron_butterfly_basket(
         legs, index_symbol, entry_prices, strikes, spot_price=spot
     )
     if execution_success:
-        initialize_sniper_state(entry_prices)
+        initialize_sniper_state(
+            entry_prices,
+            strategy_type=route.strategy_type,
+            drift_threshold=route.drift_threshold,
+            metadata=route.metadata,
+        )
         state_manager.update_state("recenter_reason", reason if reason != "REGULAR" else "")
     return execution_success
+
+
+def deploy_btst_momentum_trade(index_symbol, expiry_date, reason="EOD_MOMENTUM"):
+    if not config.BTST_MOMENTUM_ENABLED:
+        logging.info("BTST momentum module disabled by config.")
+        return False
+
+    now = datetime.now()
+    if not is_btst_momentum_time(now):
+        logging.info("BTST momentum check skipped: current time is %s.", now.strftime("%H:%M:%S"))
+        return False
+
+    if state_manager.load_state() and state_manager.load_state().get("active"):
+        logging.info("BTST momentum check skipped: an active position still exists.")
+        return False
+
+    spot = get_spot_price(index_symbol)
+    chain = get_option_chain(index_symbol, expiry_date) if spot else None
+    india_vix = get_india_vix()
+    candles = get_intraday_candles(index_symbol, minutes=15) if spot else []
+    profile = candles_market_profile(spot, candles)
+
+    if not spot or not chain or india_vix is None or not profile or profile.get("ema_15m_20") is None:
+        logging.critical(
+            "BTST momentum aborted: spot=%s, chain=%s, vix=%s, profile=%s.",
+            bool(spot),
+            bool(chain),
+            india_vix,
+            bool(profile),
+        )
+        return False
+
+    route = route_btst_momentum_strategy(
+        index_symbol,
+        spot,
+        chain,
+        india_vix,
+        profile["ema_15m_20"],
+        profile["daily_low"],
+        profile["daily_high"],
+    )
+    if not route.legs:
+        logging.critical("BTST momentum no-trade: %s (%s).", route.no_trade_reason, route.metadata)
+        return False
+
+    entry_prices = sync_entry_prices_with_quotes(route.legs, route.entry_prices)
+    execution_success = place_option_spread_basket(
+        route.legs,
+        index_symbol,
+        entry_prices,
+        route.strikes,
+        route.order_sequence,
+        route.strategy_type,
+        spot_price=spot,
+        carry_overnight=True,
+        metadata={**route.metadata, **profile, "reason": reason},
+    )
+    if execution_success:
+        state_manager.update_many({
+            "btst_reason": reason,
+            "carry_overnight": True,
+            "cutoff_hour": 15,
+            "cutoff_minute": 25,
+        })
+        logging.critical("BTST momentum trade deployed: %s.", route.strategy_type)
+    return execution_success
+
+
+def scheduled_btst_momentum_check():
+    if state_manager.load_state() and state_manager.load_state().get("active"):
+        logging.info("Scheduled BTST momentum check skipped because an active position exists.")
+        return False
+
+    nifty_expiry, sensex_expiry = current_expiries()
+    index_symbol, expiry_date, _, _ = session_for_time(datetime.now(), nifty_expiry, sensex_expiry)
+    return deploy_btst_momentum_trade(index_symbol, expiry_date, reason="SCHEDULED_1525")
 
 
 def monitor_with_reconnects(legs, index_symbol):
@@ -555,6 +680,7 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         state = state_manager.load_state()
         is_active = state and state.get("active", False)
         if not is_active and (now.hour > cutoff_hour or (now.hour == cutoff_hour and now.minute >= cutoff_minute)):
+            deploy_btst_momentum_trade(index_symbol, expiry_date, reason="SOFT_CUTOFF")
             logging.info(f"⏰ Soft Cutoff ({cutoff_hour}:{cutoff_minute:02d}) reached. No NEW {index_symbol} trades will be taken.")
             break 
 
@@ -571,7 +697,7 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             legs = state['legs']
             entry_prices = state['entry_prices']
         else:
-            logging.info(f"Deploying fresh Iron Butterfly for {index_symbol}...")
+            logging.info(f"Deploying fresh neutral strategy for {index_symbol}...")
 
             # --- FETCH SPOT PRICE ---
             spot = get_spot_price(index_symbol)
@@ -599,11 +725,9 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             # Reset API retry counter on success
             api_retry_count = 0
 
-            legs, entry_prices, strikes = calculate_iron_butterfly_legs(
-                index_symbol, spot, chain, buy_leg_percent=config.BUY_LEG_PERCENT
-            )
+            route = build_intraday_neutral_route(index_symbol, spot, chain)
         
-            if not legs:
+            if not route:
                 api_retry_count += 1
                 if api_retry_count >= MAX_API_RETRIES:
                     logging.critical(f"❌ Wing calculation failed {MAX_API_RETRIES} times. Halting session.")
@@ -615,16 +739,9 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             # Reset API retry counter on success
             api_retry_count = 0
         
-            # --- THE PRICE SYNCHRONIZATION FIX ---
-            logging.info("Synchronizing with Live Exchange Quotes to bypass cached API data...")
-            fresh_quotes = get_fresh_option_quotes(list(legs.values()))
-            if fresh_quotes:
-                for leg_name, token in legs.items():
-                    if token in fresh_quotes and fresh_quotes[token] > 0:
-                        entry_prices[leg_name] = fresh_quotes[token]
-                logging.info(f"Absolute Real-Time Entry Prices: {entry_prices}")
-            else:
-                logging.warning("Sync failed. Falling back to option chain prices.")
+            legs = route.legs
+            entry_prices = sync_entry_prices_with_quotes(legs, route.entry_prices)
+            strikes = route.strikes
             
             execution_success = place_iron_butterfly_basket(legs, index_symbol, entry_prices, strikes, spot_price=spot)
         
@@ -634,7 +751,12 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
                 notifier.send_telegram_alert(f"🚨 <b>URGENT ACTION REQUIRED!</b> 🚨\n{index_symbol} basket order failed mid-execution. Check Upstox App immediately.")
                 break 
 
-            initialize_sniper_state(entry_prices)
+            initialize_sniper_state(
+                entry_prices,
+                strategy_type=route.strategy_type,
+                drift_threshold=route.drift_threshold,
+                metadata=route.metadata,
+            )
             
             state_manager.update_state("cutoff_hour", cutoff_hour)
             state_manager.update_state("cutoff_minute", cutoff_minute)
@@ -702,7 +824,7 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         elif stop_loss_hit == "SOCKET_DEAD_EXIT":
             logging.critical(f"WebSocket recovery failed for {index_symbol}. Squaring off with REST quote snapshot.")
             square_off_all(exit_prices, exit_reason=stop_loss_hit)
-            break
+            break 
 
         elif stop_loss_hit == "SOCKET_DEAD_FATAL":
             logging.critical(f"WebSocket recovery failed for {index_symbol}. State retained for manual recovery.")
@@ -712,6 +834,7 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         elif stop_loss_hit == "TIME_EXIT":
             logging.critical(f"⏰ EOD Cutoff triggered for {index_symbol}. Squaring off and ending session.")
             square_off_all(exit_prices, exit_reason=stop_loss_hit)
+            deploy_btst_momentum_trade(index_symbol, expiry_date, reason="TIME_EXIT")
             break 
 
         elif stop_loss_hit == "BTST_RECENTER":
@@ -752,6 +875,10 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             return
 
     final_state = state_manager.load_state()
+    if final_state and final_state.get("active") and final_state.get("carry_overnight"):
+        logging.critical("BTST momentum carry enabled: leaving position open overnight.")
+        return
+
     if final_state and final_state.get("active"):
         logging.info(f"Initiating final safety square off for {index_symbol}...")
         exit_prices = None
@@ -844,6 +971,8 @@ def build_todays_schedule():
         else:
             logging.info(f"📅 Normal Trading Day ({today_str} - {weekday}). Defaulting to NIFTY.")
             schedule.every().day.at(config.NORMAL_ENTRY_TIME).do(continuous_trading_session, index_symbol="NIFTY", expiry_date=nifty_expiry, cutoff_hour=15, cutoff_minute=15).tag('trading_jobs')
+
+    schedule.every().day.at("15:25").do(scheduled_btst_momentum_check).tag('trading_jobs')
 
 
 # ============================================================================

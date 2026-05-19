@@ -57,6 +57,16 @@ def get_india_vix():
         return None
 
 
+def get_intraday_candles(index_symbol, minutes=15):
+    try:
+        candles = get_broker().get_intraday_candles(index_symbol, minutes=minutes)
+        logging.info("Fetched %s intraday %s-minute candles for %s.", len(candles), minutes, index_symbol)
+        return candles
+    except Exception as e:
+        logging.error("Failed to fetch %s-minute candles for %s: %s", minutes, index_symbol, e)
+        return []
+
+
 def get_spot_with_ohlc(index_symbol):
     try:
         ltp, prev_close = get_broker().get_spot_with_ohlc(index_symbol)

@@ -54,6 +54,14 @@ class UpstoxBroker:
         quote = data.get(self.response_key(instrument_key), {})
         return quote.get("last_price")
 
+    def get_intraday_candles(self, index_symbol, minutes=15):
+        instrument_key = self.index_key(index_symbol)
+        safe_key = urllib.parse.quote(instrument_key)
+        url = f"https://api.upstox.com/v3/historical-candle/intraday/{safe_key}/minutes/{int(minutes)}"
+        response = requests.get(url, headers=self._headers(), timeout=5)
+        response.raise_for_status()
+        return response.json().get("data", {}).get("candles", [])
+
     def get_option_chain(self, index_symbol, expiry_date):
         instrument_key = self.index_key(index_symbol)
         url = "https://api.upstox.com/v2/option/chain"

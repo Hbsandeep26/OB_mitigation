@@ -217,9 +217,12 @@ with st.sidebar.form("config_form"):
     nifty_qty = st.number_input("Nifty Qty (Multiples of 65)", value=settings.get("NIFTY_LOT_SIZE", 65), step=65)
     sensex_qty = st.number_input("Sensex Qty (Multiples of 20)", value=settings.get("SENSEX_LOT_SIZE", 20), step=20)
     buy_leg_percent = st.number_input("Buy Leg Premium %", value=float(settings.get("BUY_LEG_PERCENT", config.BUY_LEG_PERCENT)), step=0.5, min_value=1.0, max_value=20.0)
+    vix_toggle_level = st.number_input("India VIX Toggle", value=float(settings.get("INDIA_VIX_TOGGLE_LEVEL", config.INDIA_VIX_TOGGLE_LEVEL)), step=0.5, min_value=5.0, max_value=40.0)
     targets_enabled = st.toggle("Enable Profit Target Exits", value=bool(settings.get("SNIPER_TARGETS_ENABLED", config.SNIPER_TARGETS_ENABLED)))
     sniper_target_pct = st.number_input("Sniper Target %", value=float(settings.get("SNIPER_TARGET_PCT", config.SNIPER_TARGET_PCT)), step=0.5, min_value=0.5, max_value=50.0)
     atm_drift_eject = st.number_input("ATM Drift Eject Threshold", value=float(settings.get("ATM_DRIFT_EJECT_THRESHOLD", config.ATM_DRIFT_EJECT_THRESHOLD)), step=0.01, min_value=0.01, max_value=1.00)
+    condor_atm_drift = st.number_input("Condor ATM Drift Threshold", value=float(settings.get("CONDOR_ATM_DRIFT_THRESHOLD", config.CONDOR_ATM_DRIFT_THRESHOLD)), step=0.01, min_value=0.01, max_value=1.00)
+    btst_momentum_enabled = st.toggle("Enable BTST Momentum", value=bool(settings.get("BTST_MOMENTUM_ENABLED", config.BTST_MOMENTUM_ENABLED)))
     catastrophe_kill = st.number_input("Catastrophe Kill Multiplier", value=float(settings.get("SNIPER_CATASTROPHE_MULTIPLIER", config.SNIPER_CATASTROPHE_MULTIPLIER)), step=0.01, min_value=1.01, max_value=2.00)
     
     if st.form_submit_button("💾 Save Settings"):
@@ -227,9 +230,12 @@ with st.sidebar.form("config_form"):
         settings["NIFTY_LOT_SIZE"] = nifty_qty
         settings["SENSEX_LOT_SIZE"] = sensex_qty
         settings["BUY_LEG_PERCENT"] = buy_leg_percent
+        settings["INDIA_VIX_TOGGLE_LEVEL"] = vix_toggle_level
         settings["SNIPER_TARGETS_ENABLED"] = targets_enabled
         settings["SNIPER_TARGET_PCT"] = sniper_target_pct
         settings["ATM_DRIFT_EJECT_THRESHOLD"] = atm_drift_eject
+        settings["CONDOR_ATM_DRIFT_THRESHOLD"] = condor_atm_drift
+        settings["BTST_MOMENTUM_ENABLED"] = btst_momentum_enabled
         settings["SNIPER_CATASTROPHE_MULTIPLIER"] = catastrophe_kill
         
         # --- THE UNIFIED BRAIN FIX: Save Expiries to settings.json ---

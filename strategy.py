@@ -5,6 +5,7 @@ import time
 
 import config
 import state_manager
+from btst_vix_router import drift_threshold_for_strategy, is_btst_strategy
 from broker import get_broker
 from notifier import send_telegram_alert
 
@@ -28,6 +29,13 @@ def _best_effort_prices(live_data, legs, entries):
         "sell_pe": live_data.get(legs["sell_pe"], {}).get("ltp", entries["sell_pe"]),
         "buy_ce": live_data.get(legs["buy_ce"], {}).get("ltp", entries["buy_ce"]),
         "buy_pe": live_data.get(legs["buy_pe"], {}).get("ltp", entries["buy_pe"]),
+    }
+
+
+def _best_effort_leg_prices(live_data, legs, entries):
+    return {
+        leg_name: live_data.get(token, {}).get("ltp", entries.get(leg_name, 0.0))
+        for leg_name, token in legs.items()
     }
 
 
@@ -233,8 +241,82 @@ def _live_net(prices):
     return (prices["sell_ce"] + prices["sell_pe"]) - (prices["buy_ce"] + prices["buy_pe"])
 
 
+def _order_sequence_from_state(state):
+    execution_info = state.get("execution_info", {}) if state else {}
+    sequence = []
+    for item in execution_info.get("order_sequence", []):
+        if len(item) == 2:
+            sequence.append((str(item[0]), str(item[1]).upper()))
+    return sequence
+
+
+def _net_from_order_sequence(prices, order_sequence):
+    net = 0.0
+    for leg_name, transaction_type in order_sequence:
+        price = float(prices.get(leg_name, 0.0) or 0.0)
+        if transaction_type == "SELL":
+            net += price
+        elif transaction_type == "BUY":
+            net -= price
+    return net
+
+
+def _btst_next_day_exit_due(state, now=None):
+    now = now or datetime.datetime.now()
+    created_at = state.get("created_at")
+    try:
+        created_date = datetime.datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S").date()
+    except (TypeError, ValueError):
+        return False
+
+    try:
+        exit_time = datetime.datetime.strptime(str(config.BTST_EXIT_TIME), "%H:%M").time()
+    except ValueError:
+        exit_time = datetime.time(9, 20)
+
+    return created_date < now.date() and now.time() >= exit_time
+
+
+def _btst_spread_risk_evaluator(live_data, legs, state):
+    entries = state["entry_prices"]
+    order_sequence = _order_sequence_from_state(state)
+    if not order_sequence:
+        return False, {}
+
+    current_prices = {}
+    for leg_name, token in legs.items():
+        current_prices[leg_name] = _fresh_ltp(live_data, token, leg_name)
+
+    entry_net = float(state.get("entry_net_premium") or _net_from_order_sequence(entries, order_sequence))
+    live_net = _net_from_order_sequence(current_prices, order_sequence)
+    denominator = abs(entry_net) if entry_net else 0.0
+    current_profit_pct = (entry_net - live_net) / denominator if denominator > 0 else 0.0
+
+    index_symbol = state.get("index_symbol", "NIFTY")
+    spot_key = "NSE_INDEX|Nifty 50" if index_symbol == "NIFTY" else "BSE_INDEX|SENSEX"
+    spot_tick = live_data.get(spot_key, {})
+    last_spot = state.get("last_spot", state.get("entry_spot", 0))
+    if spot_tick and spot_tick.get("ltp", 0) > 0:
+        last_spot = float(spot_tick["ltp"])
+
+    state_manager.update_many({
+        "feed_status": "LIVE",
+        "last_live_prices": current_prices,
+        "live_net_premium": round(live_net, 4),
+        "entry_net_premium": round(entry_net, 4),
+        "current_profit_pct": round(current_profit_pct, 6),
+        "last_spot": round(last_spot, 2) if last_spot else 0,
+    })
+
+    if _btst_next_day_exit_due(state):
+        logging.critical("BTST next-day exit time reached. Squaring off overnight momentum spread.")
+        return "BTST_NEXT_DAY_EXIT", current_prices
+
+    return False, {}
+
+
 def _atm_drift_ratio(live_spot, strikes):
-    atm_strike = strikes.get("sell_ce", 0.0)
+    atm_strike = strikes.get("atm", strikes.get("sell_ce", 0.0))
     if live_spot <= 0 or atm_strike <= 0:
         return 0.0
 
@@ -253,7 +335,11 @@ def risk_management_evaluator(live_data, legs):
 
     entries = state["entry_prices"]
     last_live_prices = state.get("last_live_prices") or entries
-    current_prices = _best_effort_prices(live_data, legs, last_live_prices)
+    strategy_type = state.get("strategy_type", "")
+    if is_btst_strategy(strategy_type):
+        current_prices = _best_effort_leg_prices(live_data, legs, last_live_prices)
+    else:
+        current_prices = _best_effort_prices(live_data, legs, last_live_prices)
 
     manual_exit_file = os.path.join(BASE_DIR, "manual_exit_flag.txt")
     if os.path.exists(manual_exit_file):
@@ -273,8 +359,11 @@ def risk_management_evaluator(live_data, legs):
         os.remove(graceful_stop_file)
         send_telegram_alert(
             f"<b>GRACEFUL STOP REQUESTED</b>\n{state.get('index_symbol', 'UNKNOWN')}: square off started."
-        )
+            )
         return "GRACEFUL_STOP", current_prices
+
+    if is_btst_strategy(strategy_type):
+        return _btst_spread_risk_evaluator(live_data, legs, state)
 
     live_sell_ce = _fresh_ltp(live_data, legs["sell_ce"], "sell_ce")
     live_sell_pe = _fresh_ltp(live_data, legs["sell_pe"], "sell_pe")
@@ -291,11 +380,14 @@ def risk_management_evaluator(live_data, legs):
     live_net = _live_net(current_prices)
     current_profit_pct = (entry_net - live_net) / entry_net if entry_net > 0 else 0.0
     drift_ratio = _atm_drift_ratio(live_spot, strikes)
+    drift_threshold = drift_threshold_for_strategy(strategy_type)
     state_manager.update_many({
         "sniper_state": "INITIAL",
         "entry_net_premium": round(entry_net, 4),
         "sniper_targets_enabled": config.SNIPER_TARGETS_ENABLED,
         "sniper_target_pct": config.SNIPER_TARGET_PCT,
+        "strategy_type": strategy_type or "IRON_BUTTERFLY",
+        "atm_drift_eject_threshold": round(drift_threshold, 4),
         "atm_drift_ratio": round(drift_ratio, 3),
         "live_net_premium": round(live_net, 4),
         "last_live_prices": current_prices,
@@ -365,18 +457,18 @@ def risk_management_evaluator(live_data, legs):
         logging.critical("END OF DAY (15:25) REACHED. Forcing Square Off.")
         return "TIME_EXIT", current_prices
 
-    if drift_ratio >= config.ATM_DRIFT_EJECT_THRESHOLD:
+    if drift_ratio >= drift_threshold:
         if config.EMERGENCY_EXIT_CONFIRMATION_ENABLED:
             confirmed_spot = _fresh_spot_snapshot(index_symbol)
             if not confirmed_spot:
                 state_manager.update_state("feed_status", "UNCONFIRMED_ATM_DRIFT:NO_REST_SPOT")
                 raise ValueError("ATM drift could not be confirmed with fresh broker spot")
             confirmed_ratio = _atm_drift_ratio(confirmed_spot, strikes)
-            if confirmed_ratio < config.ATM_DRIFT_EJECT_THRESHOLD:
+            if confirmed_ratio < drift_threshold:
                 logging.critical(
                     "Ignoring unconfirmed ATM drift: stream %.2fx >= %.2fx, broker %.2fx.",
                     drift_ratio,
-                    config.ATM_DRIFT_EJECT_THRESHOLD,
+                    drift_threshold,
                     confirmed_ratio,
                 )
                 state_manager.update_many({
@@ -391,7 +483,7 @@ def risk_management_evaluator(live_data, legs):
             })
             drift_ratio = confirmed_ratio
 
-        logging.critical("ATM DRIFT EJECTOR: %.2fx >= %.2fx.", drift_ratio, config.ATM_DRIFT_EJECT_THRESHOLD)
+        logging.critical("ATM DRIFT EJECTOR: %.2fx >= %.2fx.", drift_ratio, drift_threshold)
         return "ATM_DRIFT", current_prices
 
     if config.SNIPER_TARGETS_ENABLED and current_profit_pct >= config.SNIPER_TARGET_PCT / 100.0:

@@ -192,6 +192,193 @@ def _preflight_risk_check(index_symbol, entry_prices, quantity, strikes):
     return defined_loss
 
 
+def _normalize_order_sequence(order_sequence):
+    normalized = []
+    for item in order_sequence or []:
+        if len(item) != 2:
+            continue
+        leg_name, transaction_type = item
+        normalized.append((str(leg_name), str(transaction_type).upper()))
+    return normalized
+
+
+def _net_premium_from_order_sequence(prices, order_sequence):
+    net = 0.0
+    for leg_name, transaction_type in _normalize_order_sequence(order_sequence):
+        leg_price = float(prices.get(leg_name, 0.0) or 0.0)
+        if transaction_type == "SELL":
+            net += leg_price
+        elif transaction_type == "BUY":
+            net -= leg_price
+    return net
+
+
+def _pnl_from_order_sequence(entry, exits, qty, order_sequence):
+    pnl = 0.0
+    for leg_name, transaction_type in _normalize_order_sequence(order_sequence):
+        entry_price = float(entry.get(leg_name, 0.0) or 0.0)
+        exit_price = float(exits.get(leg_name, 0.0) or 0.0)
+        if transaction_type == "SELL":
+            pnl += (entry_price - exit_price) * qty
+        elif transaction_type == "BUY":
+            pnl += (exit_price - entry_price) * qty
+    return pnl
+
+
+def _spread_width(strikes):
+    values = [float(value) for value in (strikes or {}).values() if value not in (None, "")]
+    return max(values) - min(values) if len(values) >= 2 else 0.0
+
+
+def _preflight_option_spread_check(index_symbol, entry_prices, quantity, strikes, order_sequence):
+    validate_trade_quantity(index_symbol, quantity)
+    order_sequence = _normalize_order_sequence(order_sequence)
+    if not order_sequence:
+        raise ValueError("Option spread order sequence is empty.")
+
+    missing = [
+        leg_name for leg_name, _ in order_sequence
+        if leg_name not in entry_prices or float(entry_prices.get(leg_name, 0.0) or 0.0) <= 0
+    ]
+    if missing:
+        raise ValueError(f"Option spread has missing/zero entry prices: {missing}")
+
+    net_premium = _net_premium_from_order_sequence(entry_prices, order_sequence)
+    width = _spread_width(strikes)
+    if net_premium >= 0:
+        defined_loss = max(0.0, (width - net_premium) * int(quantity))
+    else:
+        defined_loss = abs(net_premium) * int(quantity)
+
+    if config.MAX_DEFINED_LOSS_RUPEES > 0 and defined_loss > config.MAX_DEFINED_LOSS_RUPEES:
+        raise ValueError(
+            f"Defined loss {defined_loss:.2f} exceeds MAX_DEFINED_LOSS_RUPEES={config.MAX_DEFINED_LOSS_RUPEES:.2f}"
+        )
+    return defined_loss, net_premium
+
+
+def place_option_spread_basket(
+    legs,
+    index_symbol,
+    entry_prices,
+    strikes,
+    order_sequence,
+    strategy_type,
+    spot_price=0.0,
+    carry_overnight=False,
+    metadata=None,
+):
+    trade_quantity = config.get_nifty_qty() if index_symbol == "NIFTY" else config.get_sensex_qty()
+    order_sequence = _normalize_order_sequence(order_sequence)
+    try:
+        defined_loss, net_premium = _preflight_option_spread_check(
+            index_symbol, entry_prices, trade_quantity, strikes, order_sequence
+        )
+    except ValueError as err:
+        logging.critical("Spread preflight risk check failed: %s", err)
+        send_telegram_alert(f"<b>BTST ENTRY BLOCKED</b>\n{index_symbol}: {err}")
+        return False
+
+    execution_info = {
+        "strategy_type": strategy_type,
+        "order_sequence": order_sequence,
+        "defined_loss_rupees": round(defined_loss, 2),
+        "metadata": metadata or {},
+    }
+
+    if config.ENVIRONMENT == "SANDBOX":
+        logging.info("SANDBOX MODE: simulating %s spread execution.", strategy_type)
+        execution_info.update({
+            "mode": "SANDBOX",
+            "fills": [
+                {
+                    "leg_name": leg_name,
+                    "token": legs[leg_name],
+                    "transaction_type": transaction_type,
+                    "filled_quantity": int(trade_quantity),
+                    "average_price": entry_prices[leg_name],
+                    "status": "SIMULATED",
+                }
+                for leg_name, transaction_type in order_sequence
+            ],
+        })
+        log_trade(
+            "ENTRY", index_symbol, entry_prices, net_premium, 0.0,
+            f"{strategy_type} Paper Trade (Simulated)", spot_price=spot_price, strikes=strikes
+        )
+        state_manager.save_state(index_symbol, legs, entry_prices, trade_quantity, strikes, execution_info=execution_info)
+        state_manager.update_many({
+            "strategy_type": strategy_type,
+            "entry_spot": spot_price,
+            "carry_overnight": bool(carry_overnight),
+            "entry_net_premium": round(net_premium, 4),
+        })
+        return True
+
+    if config.ENVIRONMENT != "LIVE":
+        logging.critical("Unknown ENVIRONMENT=%s. Refusing to trade.", config.ENVIRONMENT)
+        return False
+
+    logging.critical("LIVE MODE: routing %s spread orders to Upstox with fill confirmation.", strategy_type)
+    order_api_v3, order_api = _make_order_apis()
+    confirmed_fills = []
+    try:
+        for leg_name, transaction_type in order_sequence:
+            body = _build_market_order(legs[leg_name], transaction_type, trade_quantity, "btst_entry")
+            confirmed_fills.append(
+                place_and_confirm(order_api_v3, order_api, body, leg_name, legs[leg_name], transaction_type)
+            )
+            time.sleep(0.15)
+    except ApiException as err:
+        logging.error("Live spread order API rejection: %s", getattr(err, "body", err))
+    except PartialFillError as err:
+        logging.critical("Partial fill during spread entry: %s", err)
+        confirmed_fills.append(err.fill_info)
+    except Exception as err:
+        logging.critical("Spread execution failed before full confirmation: %s", err)
+
+    if len(confirmed_fills) != len(order_sequence):
+        logging.critical("Spread entry failed mid-flight. Rolling back only confirmed fills.")
+        rollback_failures = _rollback_confirmed_fills(order_api_v3, order_api, confirmed_fills, trade_quantity)
+        if rollback_failures:
+            actual_prices = _actual_entry_prices(rollback_failures, entry_prices)
+            execution_info.update({
+                "mode": "LIVE",
+                "recovery_required": True,
+                "open_after_failed_entry": rollback_failures,
+                "confirmed_entry_fills": confirmed_fills,
+            })
+            state_manager.save_state(index_symbol, legs, actual_prices, trade_quantity, strikes, execution_info=execution_info)
+            state_manager.update_many({"strategy_type": strategy_type, "carry_overnight": bool(carry_overnight)})
+            send_telegram_alert(
+                f"<b>URGENT: BTST ENTRY ROLLBACK FAILED</b>\n{index_symbol}: manual broker reconciliation required."
+            )
+        return False
+
+    actual_prices = _actual_entry_prices(confirmed_fills, entry_prices)
+    actual_net_premium = _net_premium_from_order_sequence(actual_prices, order_sequence)
+    execution_info.update({"mode": "LIVE", "fills": confirmed_fills})
+    log_trade(
+        "ENTRY", index_symbol, actual_prices, actual_net_premium, 0.0,
+        f"{strategy_type} Live Basket Confirmed", spot_price=spot_price, strikes=strikes
+    )
+    state_manager.save_state(index_symbol, legs, actual_prices, trade_quantity, strikes, execution_info=execution_info)
+    state_manager.update_many({
+        "strategy_type": strategy_type,
+        "entry_spot": spot_price,
+        "carry_overnight": bool(carry_overnight),
+        "entry_net_premium": round(actual_net_premium, 4),
+    })
+    send_telegram_alert(
+        f"<b>BTST TRADE DEPLOYED: {index_symbol}</b>\n"
+        f"Strategy: {strategy_type}\n"
+        f"Net Premium: {actual_net_premium:.2f}\n"
+        f"Quantity: {trade_quantity}\n"
+        f"Max Defined Loss: {defined_loss:.2f}"
+    )
+    return True
+
+
 def place_iron_butterfly_basket(legs, index_symbol, entry_prices, strikes, spot_price=0.0):
     trade_quantity = config.get_nifty_qty() if index_symbol == "NIFTY" else config.get_sensex_qty()
     try:
@@ -297,23 +484,22 @@ def _fresh_exit_prices_from_broker(legs):
         return None
 
     prices = {
-        "sell_ce": quotes.get(legs["sell_ce"], 0),
-        "sell_pe": quotes.get(legs["sell_pe"], 0),
-        "buy_ce": quotes.get(legs["buy_ce"], 0),
-        "buy_pe": quotes.get(legs["buy_pe"], 0),
+        leg_name: quotes.get(token, 0)
+        for leg_name, token in legs.items()
     }
     return prices if all(value > 0 for value in prices.values()) else None
 
 
 def _safe_exit_prices(exit_prices, entry, legs=None, prefer_fresh=False):
     exit_prices = exit_prices or {}
+    leg_names = tuple(entry.keys())
     if prefer_fresh and legs:
         fresh_prices = _fresh_exit_prices_from_broker(legs)
         if fresh_prices:
             return fresh_prices, "Fresh broker quote snapshot"
 
-    all_zeros = exit_prices and all(exit_prices.get(k, 0) == 0 for k in ("sell_ce", "sell_pe", "buy_ce", "buy_pe"))
-    has_missing = any(exit_prices.get(k, 0) <= 0 for k in ("sell_ce", "sell_pe", "buy_ce", "buy_pe"))
+    all_zeros = exit_prices and all(exit_prices.get(k, 0) == 0 for k in leg_names)
+    has_missing = any(exit_prices.get(k, 0) <= 0 for k in leg_names)
     if (all_zeros or has_missing) and legs:
         fresh_prices = _fresh_exit_prices_from_broker(legs)
         if fresh_prices:
@@ -326,7 +512,7 @@ def _safe_exit_prices(exit_prices, entry, legs=None, prefer_fresh=False):
         note = ""
     return ({
         key: exit_prices.get(key, 0) if exit_prices.get(key, 0) > 0 else entry[key]
-        for key in ("sell_ce", "sell_pe", "buy_ce", "buy_pe")
+        for key in leg_names
     }, note)
 
 
@@ -346,6 +532,109 @@ def _actual_exit_prices(exit_fills, fallback_prices):
     return prices
 
 
+def _state_order_sequence(state):
+    execution_info = state.get("execution_info", {}) if state else {}
+    return _normalize_order_sequence(execution_info.get("order_sequence", []))
+
+
+def _square_off_option_spread(state, exit_prices=None, exit_reason=""):
+    success = True
+    entry = state["entry_prices"]
+    qty = int(state.get("quantity", 0))
+    legs = state["legs"]
+    index_symbol = state["index_symbol"]
+    order_sequence = _state_order_sequence(state)
+    strategy_type = state.get("strategy_type") or state.get("execution_info", {}).get("strategy_type", "OPTION_SPREAD")
+    prefer_fresh = exit_reason in ("MANUAL_EXIT", "GRACEFUL_STOP", "SOCKET_DEAD_EXIT")
+    safe_exits, price_note = _safe_exit_prices(exit_prices, entry, legs, prefer_fresh=prefer_fresh)
+    strikes = state.get("strikes", {})
+    spot_price = state.get("last_spot") or state.get("entry_spot") or 0
+    notes = f"{strategy_type} Paper Trade Closed" if config.ENVIRONMENT == "SANDBOX" else f"{strategy_type} Live Exit"
+    if price_note:
+        notes = f"{notes} ({price_note})"
+
+    if config.ENVIRONMENT == "SANDBOX":
+        exit_premium = _net_premium_from_order_sequence(safe_exits, order_sequence)
+        pnl = _pnl_from_order_sequence(entry, safe_exits, qty, order_sequence)
+        log_trade(
+            "EXIT", index_symbol, safe_exits, exit_premium, pnl, notes,
+            spot_price=spot_price, strikes=strikes, exit_reason=exit_reason
+        )
+        logging.info("Simulated PnL for %s: %.2f", strategy_type, pnl)
+        send_telegram_alert(
+            f"<b>BTST TRADE CLOSED (PAPER): {index_symbol}</b>\n"
+            f"Strategy: {strategy_type}\n"
+            f"Reason: <b>{exit_reason or 'EXIT'}</b>\n"
+            f"Realized PnL: <b>{pnl:.2f}</b>\n"
+            f"Net Premium Exited: {exit_premium:.2f}"
+        )
+        state_manager.clear_state()
+        return
+
+    if config.ENVIRONMENT != "LIVE":
+        logging.critical("Unknown ENVIRONMENT=%s. State retained.", config.ENVIRONMENT)
+        return
+
+    logging.critical("Routing %s spread exit orders to LIVE Upstox with fill confirmation.", strategy_type)
+    order_api_v3, order_api = _make_order_apis()
+    exit_fills = []
+
+    def close_leg(leg_name, tx_type):
+        body = _build_market_order(legs[leg_name], tx_type, qty, "btst_exit")
+        fill = place_and_confirm(order_api_v3, order_api, body, leg_name, legs[leg_name], tx_type)
+        exit_fills.append(fill)
+        time.sleep(0.15)
+        return fill
+
+    short_legs = [(leg_name, tx_type) for leg_name, tx_type in order_sequence if tx_type == "SELL"]
+    long_legs = [(leg_name, tx_type) for leg_name, tx_type in order_sequence if tx_type == "BUY"]
+    shorts_closed = True
+
+    for leg_name, _ in short_legs:
+        try:
+            close_leg(leg_name, "BUY")
+        except Exception as err:
+            success = False
+            shorts_closed = False
+            logging.critical("Failed to close short spread leg %s. Error: %s", leg_name, err)
+
+    if shorts_closed:
+        for leg_name, _ in long_legs:
+            try:
+                close_leg(leg_name, "SELL")
+            except Exception as err:
+                success = False
+                logging.critical("Failed to close long spread leg %s. Error: %s", leg_name, err)
+    else:
+        logging.critical("Keeping long spread hedges intact because one or more short legs failed to close.")
+
+    safe_exits = _actual_exit_prices(exit_fills, safe_exits)
+    exit_premium = _net_premium_from_order_sequence(safe_exits, order_sequence)
+    pnl = _pnl_from_order_sequence(entry, safe_exits, qty, order_sequence)
+    if exit_fills:
+        notes = f"{notes} (Broker fill averages applied)"
+
+    log_trade(
+        "EXIT", index_symbol, safe_exits, exit_premium, pnl, notes,
+        spot_price=spot_price, strikes=strikes, exit_reason=exit_reason
+    )
+    state_manager.update_many({"last_exit_fills": exit_fills, "last_exit_success": success})
+
+    send_telegram_alert(
+        f"<b>BTST TRADE CLOSED (LIVE): {index_symbol}</b>\n"
+        f"Strategy: {strategy_type}\n"
+        f"Reason: <b>{exit_reason or 'EXIT'}</b>\n"
+        f"Realized PnL: <b>{pnl:.2f}</b>\n"
+        f"Net Premium Exited: {exit_premium:.2f}\n"
+        f"Status: {'Execution Safe' if success else 'WARNING: Leg Failure'}"
+    )
+
+    if success:
+        state_manager.clear_state()
+    else:
+        logging.critical("STATE RETAINED: spread exit execution failed. Manual recovery required.")
+
+
 def square_off_all(exit_prices=None, exit_reason=""):
     logging.critical("TRIGGERING SQUARE OFF SEQUENCE!")
     success = True
@@ -354,6 +643,10 @@ def square_off_all(exit_prices=None, exit_reason=""):
     if not state:
         log_trade("EXIT", "UNKNOWN", {}, 0.0, 0.0, "Emergency Square Off", exit_reason=exit_reason)
         send_telegram_alert("<b>EMERGENCY SQUARE OFF TRIGGERED!</b> Check terminal immediately.")
+        return
+
+    if _state_order_sequence(state):
+        _square_off_option_spread(state, exit_prices=exit_prices, exit_reason=exit_reason)
         return
 
     entry = state["entry_prices"]

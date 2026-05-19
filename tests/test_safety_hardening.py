@@ -55,6 +55,7 @@ import execution
 import main
 import state_manager
 import strategy
+import btst_vix_router
 
 
 class FakeOrderApiV3:
@@ -99,6 +100,11 @@ class SafetyHardeningTests(unittest.TestCase):
         self.old_expiries_file = config.EXPIRIES_FILE
         self.old_targets_enabled = config.SNIPER_TARGETS_ENABLED
         self.old_drift_threshold = config.ATM_DRIFT_EJECT_THRESHOLD
+        self.old_condor_drift_threshold = config.CONDOR_ATM_DRIFT_THRESHOLD
+        self.old_vix_toggle_level = config.INDIA_VIX_TOGGLE_LEVEL
+        self.old_condor_short_offset = config.CONDOR_SHORT_STRIKE_OFFSET
+        self.old_btst_spread_width = config.BTST_SPREAD_WIDTH_POINTS
+        self.old_btst_momentum_enabled = config.BTST_MOMENTUM_ENABLED
         self.old_btst_recenter_min_drift = config.BTST_RECENTER_MIN_DRIFT_RATIO
         self.old_post_emergency_enabled = config.POST_EMERGENCY_REENTRY_ENABLED
         self.old_post_emergency_cooldown = config.POST_EMERGENCY_REENTRY_COOLDOWN_SECONDS
@@ -117,6 +123,12 @@ class SafetyHardeningTests(unittest.TestCase):
         config.SNIPER_TARGETS_ENABLED = True
         config.ATM_DRIFT_EJECT_THRESHOLD = 0.20
         config.SNIPER_DRIFT_EJECT_RATIO = config.ATM_DRIFT_EJECT_THRESHOLD
+        config.CONDOR_ATM_DRIFT_THRESHOLD = 0.40
+        config.Condor_ATM_Drift_Threshold = config.CONDOR_ATM_DRIFT_THRESHOLD
+        config.INDIA_VIX_TOGGLE_LEVEL = 15.0
+        config.CONDOR_SHORT_STRIKE_OFFSET = 300.0
+        config.BTST_SPREAD_WIDTH_POINTS = 400.0
+        config.BTST_MOMENTUM_ENABLED = True
         config.BTST_RECENTER_MIN_DRIFT_RATIO = 0.06
         config.POST_EMERGENCY_REENTRY_ENABLED = True
         config.POST_EMERGENCY_REENTRY_COOLDOWN_SECONDS = 0.0
@@ -145,6 +157,12 @@ class SafetyHardeningTests(unittest.TestCase):
         config.SNIPER_TARGETS_ENABLED = self.old_targets_enabled
         config.ATM_DRIFT_EJECT_THRESHOLD = self.old_drift_threshold
         config.SNIPER_DRIFT_EJECT_RATIO = self.old_drift_threshold
+        config.CONDOR_ATM_DRIFT_THRESHOLD = self.old_condor_drift_threshold
+        config.Condor_ATM_Drift_Threshold = self.old_condor_drift_threshold
+        config.INDIA_VIX_TOGGLE_LEVEL = self.old_vix_toggle_level
+        config.CONDOR_SHORT_STRIKE_OFFSET = self.old_condor_short_offset
+        config.BTST_SPREAD_WIDTH_POINTS = self.old_btst_spread_width
+        config.BTST_MOMENTUM_ENABLED = self.old_btst_momentum_enabled
         config.BTST_RECENTER_MIN_DRIFT_RATIO = self.old_btst_recenter_min_drift
         config.POST_EMERGENCY_REENTRY_ENABLED = self.old_post_emergency_enabled
         config.POST_EMERGENCY_REENTRY_COOLDOWN_SECONDS = self.old_post_emergency_cooldown
@@ -378,6 +396,25 @@ class SafetyHardeningTests(unittest.TestCase):
             "NSE_INDEX|Nifty 50": {"ltp": spot, "ts": now},
         }
 
+    def _option_chain_for_strikes(self, strike_prices):
+        chain = []
+        for strike, prices in strike_prices.items():
+            call_ltp, put_ltp = prices
+            chain.append({
+                "strike_price": strike,
+                "call_options": {
+                    "instrument_key": f"C{strike}",
+                    "market_data": {"ltp": call_ltp},
+                    "greeks": {"delta": 0.5},
+                },
+                "put_options": {
+                    "instrument_key": f"P{strike}",
+                    "market_data": {"ltp": put_ltp},
+                    "greeks": {"delta": -0.5},
+                },
+            })
+        return chain
+
     def _market_time_patch(self, hour=10, minute=30):
         class MarketHoursDatetime(datetime.datetime):
             @classmethod
@@ -433,6 +470,141 @@ class SafetyHardeningTests(unittest.TestCase):
 
         self.assertEqual(legs["buy_ce"], "C150")
         self.assertEqual(legs["buy_pe"], "P50")
+
+    def test_vix_router_keeps_butterfly_when_vix_is_at_or_below_threshold(self):
+        calls = []
+
+        def fake_butterfly(index_symbol, spot, chain, buy_leg_percent=None):
+            calls.append((index_symbol, spot, buy_leg_percent))
+            return (
+                {"sell_ce": "SCE", "sell_pe": "SPE", "buy_ce": "BCE", "buy_pe": "BPE"},
+                {"sell_ce": 20.0, "sell_pe": 20.0, "buy_ce": 5.0, "buy_pe": 5.0},
+                {"sell_ce": 100, "sell_pe": 100, "buy_ce": 150, "buy_pe": 50},
+            )
+
+        route = btst_vix_router.route_intraday_neutral_strategy("NIFTY", 100.0, [], 15.0, fake_butterfly)
+
+        self.assertEqual(route.strategy_type, btst_vix_router.STRATEGY_IRON_BUTTERFLY)
+        self.assertEqual(route.drift_threshold, config.ATM_DRIFT_EJECT_THRESHOLD)
+        self.assertEqual(calls, [("NIFTY", 100.0, config.BUY_LEG_PERCENT)])
+
+    def test_vix_router_builds_condor_above_threshold_with_premium_wings(self):
+        chain = self._option_chain_for_strikes({
+            19500: (600.0, 5.0),
+            19600: (500.0, 10.0),
+            19700: (400.0, 100.0),
+            20000: (250.0, 250.0),
+            20300: (100.0, 400.0),
+            20400: (10.0, 500.0),
+            20500: (5.0, 600.0),
+        })
+
+        route = btst_vix_router.route_intraday_neutral_strategy(
+            "NIFTY",
+            20000.0,
+            chain,
+            16.0,
+            lambda *args, **kwargs: self.fail("Butterfly calculator should not be used in high VIX"),
+        )
+
+        self.assertEqual(route.strategy_type, btst_vix_router.STRATEGY_IRON_CONDOR)
+        self.assertEqual(route.strikes["sell_ce"], 20300.0)
+        self.assertEqual(route.strikes["sell_pe"], 19700.0)
+        self.assertEqual(route.strikes["buy_ce"], 20500.0)
+        self.assertEqual(route.strikes["buy_pe"], 19500.0)
+        self.assertEqual(route.drift_threshold, config.CONDOR_ATM_DRIFT_THRESHOLD)
+
+    def test_condor_rejects_when_long_wings_cannot_clear_short_strikes(self):
+        chain = self._option_chain_for_strikes({
+            19700: (400.0, 100.0),
+            20000: (250.0, 250.0),
+            20300: (100.0, 400.0),
+        })
+
+        legs, prices, strikes = btst_vix_router.calculate_iron_condor_legs("NIFTY", 20000.0, chain)
+
+        self.assertIsNone(legs)
+        self.assertIsNone(prices)
+        self.assertIsNone(strikes)
+
+    def test_condor_uses_distinct_wider_atm_drift_threshold(self):
+        state_manager.save_state(
+            "NIFTY",
+            {"buy_ce": "BCE", "buy_pe": "BPE", "sell_ce": "SCE", "sell_pe": "SPE"},
+            {"buy_ce": 5.0, "buy_pe": 5.0, "sell_ce": 20.0, "sell_pe": 20.0},
+            65,
+            {"buy_ce": 200, "buy_pe": 0, "sell_ce": 130, "sell_pe": 70, "atm": 100},
+        )
+        state_manager.update_many({
+            "strategy_type": btst_vix_router.STRATEGY_IRON_CONDOR,
+            "entry_net_premium": 30.0,
+        })
+
+        with self._market_time_patch():
+            result, _ = strategy.risk_management_evaluator(
+                self._sniper_live_data(20.0, 20.0, 5.0, 5.0, spot=130.0),
+                state_manager.load_state()["legs"],
+            )
+        self.assertFalse(result)
+
+        with self._market_time_patch():
+            result, _ = strategy.risk_management_evaluator(
+                self._sniper_live_data(20.0, 20.0, 5.0, 5.0, spot=145.0),
+                state_manager.load_state()["legs"],
+            )
+        self.assertEqual(result, "ATM_DRIFT")
+
+    def test_btst_momentum_neutral_zone_aborts_trade(self):
+        signal = btst_vix_router.evaluate_btst_momentum_signal(
+            current_price=50.0,
+            ema_15m_20=49.0,
+            daily_low=0.0,
+            daily_high=100.0,
+        )
+
+        self.assertEqual(signal.signal, btst_vix_router.SIGNAL_NEUTRAL)
+
+    def test_btst_bullish_high_vix_routes_to_bull_put_credit_buy_first(self):
+        chain = self._option_chain_for_strikes({
+            19600: (400.0, 25.0),
+            20000: (150.0, 150.0),
+            20400: (25.0, 400.0),
+        })
+
+        route = btst_vix_router.route_btst_momentum_strategy(
+            "NIFTY",
+            20000.0,
+            chain,
+            16.0,
+            ema_15m_20=19900.0,
+            daily_low=19000.0,
+            daily_high=20000.0,
+        )
+
+        self.assertEqual(route.strategy_type, btst_vix_router.STRATEGY_BTST_BULL_PUT_CREDIT)
+        self.assertEqual(route.legs, {"buy_pe": "P19600", "sell_pe": "P20000"})
+        self.assertEqual(route.order_sequence, [("buy_pe", "BUY"), ("sell_pe", "SELL")])
+
+    def test_btst_bearish_low_vix_routes_to_bear_put_debit_buy_first(self):
+        chain = self._option_chain_for_strikes({
+            19600: (400.0, 25.0),
+            20000: (150.0, 150.0),
+            20400: (25.0, 400.0),
+        })
+
+        route = btst_vix_router.route_btst_momentum_strategy(
+            "NIFTY",
+            20000.0,
+            chain,
+            14.0,
+            ema_15m_20=20100.0,
+            daily_low=20000.0,
+            daily_high=21000.0,
+        )
+
+        self.assertEqual(route.strategy_type, btst_vix_router.STRATEGY_BTST_BEAR_PUT_DEBIT)
+        self.assertEqual(route.legs, {"buy_pe": "P20000", "sell_pe": "P19600"})
+        self.assertEqual(route.order_sequence, [("buy_pe", "BUY"), ("sell_pe", "SELL")])
 
     def test_catastrophe_kill_overrides_drift_and_profit_logic(self):
         self._save_sniper_state()
@@ -633,6 +805,7 @@ class SafetyHardeningTests(unittest.TestCase):
             return True
 
         with patch.object(main, "get_spot_price", return_value=100.0), \
+             patch.object(main, "get_india_vix", return_value=10.0), \
              patch.object(main, "get_option_chain", return_value=[
                  {
                      "strike_price": 50,
