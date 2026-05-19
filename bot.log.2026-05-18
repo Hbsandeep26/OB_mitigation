@@ -1,0 +1,974 @@
+2026-05-18 08:00:00,844 - INFO - 📅 Normal Trading Day (2026-05-18 - MONDAY). Defaulting to NIFTY.
+2026-05-18 09:16:00,175 - INFO - --- STARTING CONTINUOUS SESSION FOR NIFTY ---
+2026-05-18 09:16:00,175 - CRITICAL - 🌙 BTST CARRY FORWARD DETECTED: Waking up existing NIFTY trade.
+2026-05-18 09:16:00,176 - INFO - Initializing broker WebSocket connection for live risk management...
+2026-05-18 09:16:00,182 - INFO - WebSocket connected. Streaming live market data...
+2026-05-18 09:16:01,423 - INFO - Websocket connected
+2026-05-18 09:16:01,856 - CRITICAL - ATM DRIFT EJECTOR: 0.30x >= 0.20x.
+2026-05-18 09:16:01,857 - CRITICAL - Exit Signal Received: ATM_DRIFT. Terminating WebSocket.
+2026-05-18 09:16:02,185 - CRITICAL - 🌊 ATM Drift detected on NIFTY Carry Forward. Structure broken — squaring off...
+2026-05-18 09:16:02,185 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-05-18 09:16:02,187 - INFO - Simulated PnL for this trade: -796.25
+2026-05-18 09:16:13,993 - INFO - 🧹 Auto-cleared BTST flag from UI so the fresh trade doesn't carry forward blindly.
+2026-05-18 09:16:13,993 - INFO - Cooling down 60 seconds before post-ATM_DRIFT re-entry check.
+2026-05-18 09:17:14,200 - CRITICAL - ATM_DRIFT re-entry blocked: fresh option quotes unavailable.
+2026-05-18 09:17:14,200 - CRITICAL - Post-emergency guard blocked fresh carry-forward re-entry. Session halted.
+2026-05-18 09:23:53,834 - CRITICAL - ▶️ MANUAL ENTRY triggered from idle state!
+2026-05-18 09:23:53,834 - INFO - Manual entry resolved to NIFTY session with cutoff 15:15.
+2026-05-18 09:23:53,834 - INFO - --- STARTING CONTINUOUS SESSION FOR NIFTY ---
+2026-05-18 09:23:54,047 - INFO - NIFTY LTP: 23409.95, Prev Close: 23409.95
+2026-05-18 09:23:54,048 - INFO - 📊 Gap Analysis: NIFTY opened at 23409.95, Prev Close: 23409.95, Gap: 0.00% DOWN
+2026-05-18 09:23:54,048 - INFO - ✅ Gap within tolerance (0.00% < 0.8%). Proceeding normally.
+2026-05-18 09:23:54,048 - INFO - Deploying fresh Iron Butterfly for NIFTY...
+2026-05-18 09:23:54,048 - INFO - Fetching live spot price for NIFTY...
+2026-05-18 09:23:54,243 - INFO - Live Spot Price for NIFTY is: 23411.6
+2026-05-18 09:23:54,244 - INFO - Fetching option chain for NIFTY expiring on 2026-05-19...
+2026-05-18 09:23:54,506 - INFO - Calculating Iron Butterfly strikes & prices (Buy Leg Premium Percent=5.0%)...
+2026-05-18 09:23:54,507 - INFO - Selected Execution Legs: {'sell_ce': 'NSE_FO|51348', 'sell_pe': 'NSE_FO|51349', 'buy_ce': 'NSE_FO|51384', 'buy_pe': 'NSE_FO|51301'}
+2026-05-18 09:23:54,507 - INFO - Target Entry Prices: {'sell_ce': 141.25, 'sell_pe': 131.75, 'buy_ce': 6.3, 'buy_pe': 7.0}
+2026-05-18 09:23:54,507 - INFO - Selected Strikes: {'sell_ce': 23400.0, 'sell_pe': 23400.0, 'buy_ce': 24050.0, 'buy_pe': 22750.0}
+2026-05-18 09:23:54,507 - INFO - Synchronizing with Live Exchange Quotes to bypass cached API data...
+2026-05-18 09:23:54,705 - INFO - Absolute Real-Time Entry Prices: {'sell_ce': 141.25, 'sell_pe': 131.75, 'buy_ce': 6.3, 'buy_pe': 7.0}
+2026-05-18 09:23:54,705 - INFO - SANDBOX MODE: simulating local paper execution.
+2026-05-18 09:23:54,705 - INFO - Simulated basket executed successfully.
+2026-05-18 09:23:54,708 - INFO - Entering live risk monitoring phase...
+2026-05-18 09:23:54,708 - INFO - Initializing broker WebSocket connection for live risk management...
+2026-05-18 09:23:54,710 - INFO - WebSocket connected. Streaming live market data...
+2026-05-18 09:23:55,680 - INFO - Websocket connected
+2026-05-18 09:52:11,007 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 09:52:11,157 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.4s
+2026-05-18 09:57:29,761 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 09:57:29,921 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.4s
+2026-05-18 10:02:29,764 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 10:04:53,760 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.0s
+2026-05-18 10:06:37,114 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.0s
+2026-05-18 10:06:37,261 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.2s
+2026-05-18 10:06:37,414 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 10:06:37,719 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.6s
+2026-05-18 10:06:37,861 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.8s
+2026-05-18 10:06:38,019 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.9s
+2026-05-18 10:06:38,159 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.1s
+2026-05-18 10:06:38,460 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.4s
+2026-05-18 10:06:38,609 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.5s
+2026-05-18 10:06:38,760 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.7s
+2026-05-18 10:06:38,910 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.8s
+2026-05-18 10:06:39,212 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.1s
+2026-05-18 10:06:39,513 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.4s
+2026-05-18 10:06:39,662 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.6s
+2026-05-18 10:07:08,019 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.0s
+2026-05-18 10:07:08,159 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 10:07:08,310 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 10:07:08,464 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.5s
+2026-05-18 10:07:08,761 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.7s
+2026-05-18 10:07:08,913 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.9s
+2026-05-18 10:10:45,810 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 10:10:45,964 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 10:10:46,115 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.4s
+2026-05-18 10:12:09,358 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.0s
+2026-05-18 10:12:09,512 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.2s
+2026-05-18 10:12:09,662 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 10:12:09,963 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.6s
+2026-05-18 10:13:55,410 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 10:13:55,558 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.2s
+2026-05-18 10:13:55,711 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.4s
+2026-05-18 10:13:56,014 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.7s
+2026-05-18 10:13:56,171 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.8s
+2026-05-18 10:14:18,062 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 10:14:18,213 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 10:14:18,516 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.6s
+2026-05-18 10:14:18,661 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.7s
+2026-05-18 10:14:18,810 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.9s
+2026-05-18 10:14:18,961 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.0s
+2026-05-18 10:14:19,261 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.3s
+2026-05-18 10:14:19,411 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 10:14:19,558 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 10:14:19,711 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 10:14:20,012 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 10:14:20,165 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 10:14:20,322 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 10:14:20,459 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 10:14:20,759 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.4s
+2026-05-18 10:14:20,912 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.5s
+2026-05-18 10:14:21,063 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.7s
+2026-05-18 10:14:21,218 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.8s
+2026-05-18 10:14:41,459 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 10:14:41,763 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.4s
+2026-05-18 10:14:41,909 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.6s
+2026-05-18 10:14:42,060 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.7s
+2026-05-18 10:14:42,214 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.9s
+2026-05-18 10:14:42,361 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.0s
+2026-05-18 10:14:42,514 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.2s
+2026-05-18 10:14:42,662 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.3s
+2026-05-18 10:14:42,964 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.6s
+2026-05-18 10:14:43,265 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.9s
+2026-05-18 10:14:51,511 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 10:14:51,661 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 10:14:51,814 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.4s
+2026-05-18 10:14:51,970 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.6s
+2026-05-18 10:20:56,462 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.0s
+2026-05-18 10:20:56,762 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 10:20:56,911 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.5s
+2026-05-18 10:24:30,059 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 10:24:30,211 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 10:29:17,024 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 10:29:17,159 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 10:29:17,459 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 10:29:17,609 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 10:29:17,760 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 10:29:17,908 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 10:29:18,061 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 10:29:18,209 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.2s
+2026-05-18 10:29:18,358 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.4s
+2026-05-18 10:29:18,515 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.5s
+2026-05-18 10:29:18,657 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.7s
+2026-05-18 10:29:18,960 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.0s
+2026-05-18 10:29:19,110 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.1s
+2026-05-18 10:29:19,261 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.3s
+2026-05-18 10:29:19,408 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.4s
+2026-05-18 10:29:19,566 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.6s
+2026-05-18 10:29:19,709 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.7s
+2026-05-18 10:29:20,010 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.0s
+2026-05-18 10:29:20,159 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.2s
+2026-05-18 10:30:05,764 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 10:30:05,915 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.2s
+2026-05-18 10:30:06,063 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.4s
+2026-05-18 10:30:06,217 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.5s
+2026-05-18 10:30:06,362 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.7s
+2026-05-18 10:30:06,515 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.8s
+2026-05-18 10:30:06,666 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.0s
+2026-05-18 10:30:06,967 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.3s
+2026-05-18 10:30:07,118 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.4s
+2026-05-18 10:30:07,262 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.6s
+2026-05-18 10:30:07,412 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.7s
+2026-05-18 10:30:07,568 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.9s
+2026-05-18 10:30:07,712 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.0s
+2026-05-18 10:30:08,033 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.3s
+2026-05-18 10:30:08,160 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.5s
+2026-05-18 10:30:35,616 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 10:30:35,760 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.2s
+2026-05-18 10:30:35,909 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 10:31:01,780 - ERROR - WebSocket Error: Connection to remote host was lost.
+2026-05-18 10:31:01,780 - ERROR - Connection to remote host was lost. - goodbye
+2026-05-18 10:31:03,116 - INFO - Websocket connected
+2026-05-18 10:31:03,277 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for sell_ce: 2819.3s
+2026-05-18 10:31:27,708 - ERROR - WebSocket Error: Connection to remote host was lost.
+2026-05-18 10:31:27,709 - ERROR - Connection to remote host was lost. - goodbye
+2026-05-18 10:31:28,739 - INFO - Websocket connected
+2026-05-18 10:31:28,741 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for sell_ce: 2844.8s
+2026-05-18 10:31:28,741 - CRITICAL - Live feed incomplete/stale for 25.5 seconds. Marking socket dead.
+2026-05-18 10:31:29,604 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/3.
+2026-05-18 10:31:39,609 - INFO - Initializing broker WebSocket connection for live risk management...
+2026-05-18 10:31:39,610 - INFO - WebSocket connected. Streaming live market data...
+2026-05-18 10:31:40,595 - INFO - Websocket connected
+2026-05-18 10:31:40,751 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for sell_ce: 12.3s
+2026-05-18 10:32:41,679 - CRITICAL - No WebSocket ticks received for 60 seconds.
+2026-05-18 10:32:41,834 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 2/3.
+2026-05-18 10:32:51,844 - INFO - Initializing broker WebSocket connection for live risk management...
+2026-05-18 10:32:51,846 - INFO - WebSocket connected. Streaming live market data...
+2026-05-18 10:32:52,835 - INFO - Websocket connected
+2026-05-18 10:33:33,638 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.0s
+2026-05-18 10:33:33,788 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.2s
+2026-05-18 10:33:33,937 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 10:35:47,003 - ERROR - WebSocket Error: Connection to remote host was lost.
+2026-05-18 10:35:47,003 - ERROR - Connection to remote host was lost. - goodbye
+2026-05-18 10:35:47,995 - INFO - Websocket connected
+2026-05-18 10:35:48,149 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for sell_ce: 259.7s
+2026-05-18 10:36:12,408 - ERROR - WebSocket Error: Connection to remote host was lost.
+2026-05-18 10:36:12,408 - ERROR - Connection to remote host was lost. - goodbye
+2026-05-18 10:36:13,388 - INFO - Websocket connected
+2026-05-18 10:36:13,390 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for sell_ce: 285.0s
+2026-05-18 10:36:13,390 - CRITICAL - Live feed incomplete/stale for 25.2 seconds. Marking socket dead.
+2026-05-18 10:36:14,109 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 3/3.
+2026-05-18 10:36:24,120 - INFO - Initializing broker WebSocket connection for live risk management...
+2026-05-18 10:36:24,121 - INFO - WebSocket connected. Streaming live market data...
+2026-05-18 10:36:25,103 - INFO - Websocket connected
+2026-05-18 10:43:52,437 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 10:43:52,587 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 10:43:52,737 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 10:46:57,387 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 10:46:57,537 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 10:46:57,687 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 10:46:57,988 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 10:46:58,137 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 10:46:58,437 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 10:46:58,587 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.3s
+2026-05-18 10:46:58,737 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.4s
+2026-05-18 10:46:58,888 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.6s
+2026-05-18 10:46:59,040 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.7s
+2026-05-18 10:46:59,187 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.9s
+2026-05-18 10:46:59,487 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.2s
+2026-05-18 10:46:59,637 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.3s
+2026-05-18 10:46:59,787 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.5s
+2026-05-18 10:46:59,937 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.6s
+2026-05-18 10:47:00,107 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.8s
+2026-05-18 10:47:00,238 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.9s
+2026-05-18 10:47:00,390 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.1s
+2026-05-18 10:47:00,538 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.2s
+2026-05-18 10:47:00,688 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.4s
+2026-05-18 10:47:11,037 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 10:47:11,188 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 10:47:11,337 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.4s
+2026-05-18 10:51:13,437 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.0s
+2026-05-18 10:51:13,587 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.2s
+2026-05-18 10:51:13,737 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 10:51:13,887 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.5s
+2026-05-18 10:51:14,037 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.6s
+2026-05-18 10:52:15,987 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 10:52:16,137 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 10:54:14,037 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.0s
+2026-05-18 10:54:14,188 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.2s
+2026-05-18 10:54:14,337 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 10:55:14,488 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.2s
+2026-05-18 10:55:14,637 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.4s
+2026-05-18 10:55:14,787 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.5s
+2026-05-18 10:55:14,937 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.7s
+2026-05-18 10:55:34,587 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 10:55:34,737 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 10:55:34,896 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 10:55:35,037 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 11:03:15,837 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 11:03:15,988 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 11:03:16,137 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 11:03:16,287 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 11:03:16,439 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 11:03:16,737 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 11:03:16,888 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 11:03:17,187 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.4s
+2026-05-18 11:05:01,155 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 11:05:17,487 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 11:05:17,637 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 11:05:17,788 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 11:05:17,937 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 11:05:18,087 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 11:05:18,237 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 11:05:18,387 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 11:05:18,688 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.2s
+2026-05-18 11:05:18,837 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.4s
+2026-05-18 11:05:18,987 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.5s
+2026-05-18 11:05:21,987 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.0s
+2026-05-18 11:05:22,137 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.2s
+2026-05-18 11:05:22,437 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.5s
+2026-05-18 11:05:22,587 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.6s
+2026-05-18 11:05:22,737 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.8s
+2026-05-18 11:05:22,887 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.9s
+2026-05-18 11:05:23,037 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.1s
+2026-05-18 11:05:23,187 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.2s
+2026-05-18 11:05:23,488 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.5s
+2026-05-18 11:05:23,637 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.7s
+2026-05-18 11:05:23,787 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.8s
+2026-05-18 11:05:23,937 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.0s
+2026-05-18 11:05:24,087 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.1s
+2026-05-18 11:05:24,237 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.3s
+2026-05-18 11:05:24,387 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.4s
+2026-05-18 11:05:24,688 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.7s
+2026-05-18 11:05:24,837 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.9s
+2026-05-18 11:05:24,988 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 8.0s
+2026-05-18 11:05:25,138 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 8.2s
+2026-05-18 11:05:25,437 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 8.5s
+2026-05-18 11:05:25,587 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 8.6s
+2026-05-18 11:05:25,737 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 8.8s
+2026-05-18 11:05:25,888 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 8.9s
+2026-05-18 11:05:28,437 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 11:05:28,587 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 11:05:28,737 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 11:05:28,888 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 11:05:29,188 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 11:05:29,337 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 11:05:29,487 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.2s
+2026-05-18 11:05:29,638 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.3s
+2026-05-18 11:05:29,787 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.5s
+2026-05-18 11:05:29,937 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.6s
+2026-05-18 11:05:30,087 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.8s
+2026-05-18 11:05:30,237 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.9s
+2026-05-18 11:05:30,388 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.1s
+2026-05-18 11:09:04,438 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 11:11:20,037 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 11:11:20,187 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 11:11:20,487 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.6s
+2026-05-18 11:11:20,637 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.7s
+2026-05-18 11:11:20,937 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.0s
+2026-05-18 11:11:21,088 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.2s
+2026-05-18 11:11:21,237 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.3s
+2026-05-18 11:11:21,387 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.5s
+2026-05-18 11:12:57,537 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 11:12:57,687 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 11:12:57,987 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.6s
+2026-05-18 11:12:58,138 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.7s
+2026-05-18 11:14:09,987 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.2s
+2026-05-18 11:14:10,138 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 11:15:12,987 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 11:15:13,138 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.4s
+2026-05-18 11:15:13,287 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.6s
+2026-05-18 11:15:13,437 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.7s
+2026-05-18 11:15:13,589 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.9s
+2026-05-18 11:15:13,737 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.0s
+2026-05-18 11:20:32,189 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 11:20:32,338 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 11:20:32,488 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 11:20:32,639 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 11:20:32,788 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 11:20:46,287 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 11:20:46,437 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 11:22:19,737 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 11:26:57,837 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 11:26:57,987 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 11:26:58,138 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 11:26:58,437 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 11:26:58,587 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 11:26:58,737 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 11:26:58,887 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 11:26:59,037 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.3s
+2026-05-18 11:26:59,187 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.4s
+2026-05-18 11:26:59,487 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.7s
+2026-05-18 11:26:59,638 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.9s
+2026-05-18 11:26:59,937 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.2s
+2026-05-18 11:27:00,107 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.3s
+2026-05-18 11:27:00,237 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.5s
+2026-05-18 11:27:00,389 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.6s
+2026-05-18 11:27:00,688 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.9s
+2026-05-18 11:29:02,940 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 11:29:03,088 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 11:29:03,237 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 11:29:03,391 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 11:29:28,738 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 11:29:28,887 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 11:29:29,037 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 11:29:29,187 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 11:29:29,338 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 11:29:29,487 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 11:29:29,637 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 11:29:29,788 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.2s
+2026-05-18 11:29:29,937 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.4s
+2026-05-18 11:32:27,553 - CRITICAL - Ignoring unconfirmed ATM drift: stream 0.20x >= 0.20x, broker 0.20x.
+2026-05-18 11:32:28,350 - CRITICAL - ATM DRIFT EJECTOR: 0.20x >= 0.20x.
+2026-05-18 11:32:28,350 - CRITICAL - Exit Signal Received: ATM_DRIFT. Terminating WebSocket.
+2026-05-18 11:32:29,113 - CRITICAL - 🌊 ATM Drift exit for NIFTY! Structure compromised — squaring off...
+2026-05-18 11:32:29,114 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-05-18 11:32:29,114 - INFO - Simulated PnL for this trade: -585.00
+2026-05-18 11:32:30,197 - INFO - Cooling down 60 seconds before post-ATM_DRIFT re-entry check.
+2026-05-18 11:33:30,402 - CRITICAL - ATM_DRIFT re-entry blocked: fresh option quotes unavailable.
+2026-05-18 11:33:30,402 - INFO - --- END OF SESSION FOR NIFTY ---
+2026-05-18 11:33:30,403 - INFO - Returned to idle state after manual entry session.
+2026-05-18 11:35:28,594 - CRITICAL - ▶️ MANUAL ENTRY triggered from idle state!
+2026-05-18 11:35:28,594 - INFO - Manual entry resolved to NIFTY session with cutoff 15:15.
+2026-05-18 11:35:28,594 - INFO - --- STARTING CONTINUOUS SESSION FOR NIFTY ---
+2026-05-18 11:35:28,793 - INFO - NIFTY LTP: 23529.6, Prev Close: 23529.6
+2026-05-18 11:35:28,794 - INFO - 📊 Gap Analysis: NIFTY opened at 23529.60, Prev Close: 23529.60, Gap: 0.00% DOWN
+2026-05-18 11:35:28,794 - INFO - ✅ Gap within tolerance (0.00% < 0.8%). Proceeding normally.
+2026-05-18 11:35:28,794 - INFO - Deploying fresh Iron Butterfly for NIFTY...
+2026-05-18 11:35:28,794 - INFO - Fetching live spot price for NIFTY...
+2026-05-18 11:35:28,994 - INFO - Live Spot Price for NIFTY is: 23529.4
+2026-05-18 11:35:28,995 - INFO - Fetching option chain for NIFTY expiring on 2026-05-19...
+2026-05-18 11:35:29,262 - INFO - Calculating Iron Butterfly strikes & prices (Buy Leg Premium Percent=5.0%)...
+2026-05-18 11:35:29,262 - INFO - Selected Execution Legs: {'sell_ce': 'NSE_FO|51356', 'sell_pe': 'NSE_FO|51357', 'buy_ce': 'NSE_FO|51388', 'buy_pe': 'NSE_FO|51305'}
+2026-05-18 11:35:29,263 - INFO - Target Entry Prices: {'sell_ce': 112.0, 'sell_pe': 145.15, 'buy_ce': 5.1, 'buy_pe': 7.0}
+2026-05-18 11:35:29,263 - INFO - Selected Strikes: {'sell_ce': 23550.0, 'sell_pe': 23550.0, 'buy_ce': 24150.0, 'buy_pe': 22850.0}
+2026-05-18 11:35:29,263 - INFO - Synchronizing with Live Exchange Quotes to bypass cached API data...
+2026-05-18 11:35:29,458 - INFO - Absolute Real-Time Entry Prices: {'sell_ce': 112.0, 'sell_pe': 145.15, 'buy_ce': 5.1, 'buy_pe': 7.0}
+2026-05-18 11:35:29,458 - INFO - SANDBOX MODE: simulating local paper execution.
+2026-05-18 11:35:29,459 - INFO - Simulated basket executed successfully.
+2026-05-18 11:35:29,462 - INFO - Entering live risk monitoring phase...
+2026-05-18 11:35:29,462 - INFO - Initializing broker WebSocket connection for live risk management...
+2026-05-18 11:35:29,464 - INFO - WebSocket connected. Streaming live market data...
+2026-05-18 11:35:30,571 - INFO - Websocket connected
+2026-05-18 11:44:46,457 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 11:44:46,604 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 11:51:41,056 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 11:51:41,206 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 11:51:41,507 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 11:53:18,260 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 11:53:18,416 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 11:53:18,705 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 11:54:25,008 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 11:54:25,156 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 11:54:25,312 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 11:54:25,464 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 11:54:25,607 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 11:54:25,756 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 11:54:25,905 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 11:54:26,208 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.2s
+2026-05-18 11:54:26,506 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.5s
+2026-05-18 11:54:26,657 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.7s
+2026-05-18 11:54:26,807 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.8s
+2026-05-18 11:55:55,463 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 11:55:55,758 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 11:55:55,913 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 11:55:56,056 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 11:55:56,207 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 11:56:44,958 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 11:56:45,259 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.4s
+2026-05-18 11:56:45,413 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.6s
+2026-05-18 11:56:45,704 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.9s
+2026-05-18 11:56:45,854 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.0s
+2026-05-18 11:56:46,006 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.2s
+2026-05-18 11:56:46,157 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.3s
+2026-05-18 11:56:46,307 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.5s
+2026-05-18 11:56:46,473 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.7s
+2026-05-18 11:56:46,757 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.9s
+2026-05-18 11:57:56,510 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 11:57:56,657 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.4s
+2026-05-18 11:57:56,808 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.6s
+2026-05-18 12:00:45,409 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.0s
+2026-05-18 12:01:53,804 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 12:01:53,959 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.2s
+2026-05-18 12:01:54,258 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.5s
+2026-05-18 12:02:53,514 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 12:02:53,658 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 12:02:53,805 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.4s
+2026-05-18 12:02:53,959 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.6s
+2026-05-18 12:02:54,256 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.8s
+2026-05-18 12:03:19,754 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 12:03:19,904 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 12:03:44,965 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 12:03:45,257 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.4s
+2026-05-18 12:04:57,257 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 12:04:57,410 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 12:04:57,565 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.4s
+2026-05-18 12:04:57,708 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.6s
+2026-05-18 12:04:57,856 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.7s
+2026-05-18 12:04:58,007 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.9s
+2026-05-18 12:04:58,154 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.0s
+2026-05-18 12:04:58,306 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.2s
+2026-05-18 12:04:58,455 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.3s
+2026-05-18 12:04:58,758 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.6s
+2026-05-18 12:04:58,908 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.8s
+2026-05-18 12:04:59,209 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.1s
+2026-05-18 12:04:59,357 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.2s
+2026-05-18 12:05:17,807 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.0s
+2026-05-18 12:05:17,957 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.2s
+2026-05-18 12:05:18,258 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.5s
+2026-05-18 12:05:18,409 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.6s
+2026-05-18 12:05:59,208 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 12:05:59,360 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 12:08:05,509 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 12:08:05,670 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 12:08:05,810 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 12:18:08,505 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 12:18:08,654 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 12:20:56,357 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 12:20:56,506 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 12:22:08,056 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 12:22:08,207 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 12:22:08,506 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 12:22:08,658 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 12:22:08,967 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 12:22:09,106 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 12:22:09,258 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.2s
+2026-05-18 12:22:09,408 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.4s
+2026-05-18 12:22:43,012 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 12:22:43,166 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 12:22:43,456 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 12:22:43,606 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 12:22:43,759 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 12:22:43,912 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 12:22:44,057 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 12:22:44,209 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.2s
+2026-05-18 12:22:52,159 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 12:22:52,459 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 12:22:52,756 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 12:22:52,914 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 12:22:53,059 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 12:22:53,210 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 12:22:53,357 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.3s
+2026-05-18 12:22:53,506 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.4s
+2026-05-18 12:23:40,455 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.3s
+2026-05-18 12:23:45,707 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.2s
+2026-05-18 12:23:46,013 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.5s
+2026-05-18 12:23:46,160 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.6s
+2026-05-18 12:23:46,457 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.9s
+2026-05-18 12:23:46,606 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.1s
+2026-05-18 12:23:46,756 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.2s
+2026-05-18 12:23:46,905 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.4s
+2026-05-18 12:23:47,212 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.7s
+2026-05-18 12:23:47,510 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.0s
+2026-05-18 12:23:47,659 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.1s
+2026-05-18 12:27:25,157 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 12:27:25,311 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 12:27:25,459 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 12:27:25,606 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 12:27:25,761 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 12:27:25,920 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 12:27:26,063 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 12:38:07,607 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 12:38:07,758 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 12:38:07,908 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 12:38:08,206 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 12:38:08,507 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 12:41:25,158 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 12:41:25,468 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 12:41:25,608 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 12:41:25,759 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 12:41:25,908 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 12:41:26,208 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.2s
+2026-05-18 12:49:05,957 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.2s
+2026-05-18 12:49:06,257 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.5s
+2026-05-18 12:49:06,405 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.7s
+2026-05-18 12:49:06,708 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.0s
+2026-05-18 12:49:07,010 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.3s
+2026-05-18 12:49:07,156 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.4s
+2026-05-18 12:49:07,306 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.6s
+2026-05-18 12:49:07,455 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.7s
+2026-05-18 12:49:07,756 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.0s
+2026-05-18 12:49:07,905 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.2s
+2026-05-18 12:49:08,056 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.3s
+2026-05-18 12:49:08,205 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.5s
+2026-05-18 12:49:08,355 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.6s
+2026-05-18 12:49:08,510 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 7.8s
+2026-05-18 12:49:37,454 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 12:50:44,506 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 12:50:44,662 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 12:50:44,807 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 12:50:44,957 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 12:51:12,707 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 12:51:30,855 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 12:51:31,008 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 12:51:31,158 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 12:52:01,463 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 12:52:01,613 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 12:52:01,762 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 12:52:01,909 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 12:52:02,076 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 12:52:02,210 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 12:52:02,505 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.2s
+2026-05-18 12:52:35,663 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 12:52:35,961 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 12:52:36,106 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 12:52:36,260 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 12:54:00,256 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:17:19,757 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:17:19,908 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 13:17:20,057 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:17:20,209 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 13:17:20,360 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 13:17:20,513 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 13:17:20,653 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 13:17:20,807 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.2s
+2026-05-18 13:17:20,961 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.3s
+2026-05-18 13:17:21,260 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.6s
+2026-05-18 13:17:21,407 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.8s
+2026-05-18 13:17:21,552 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.9s
+2026-05-18 13:17:21,706 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.1s
+2026-05-18 13:17:21,854 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.2s
+2026-05-18 13:17:22,007 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.4s
+2026-05-18 13:17:22,161 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.5s
+2026-05-18 13:17:22,455 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.8s
+2026-05-18 13:26:20,979 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 13:26:21,108 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:26:21,259 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 13:26:21,409 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 13:26:21,556 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 13:26:21,710 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 13:26:22,006 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.3s
+2026-05-18 13:26:22,155 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.4s
+2026-05-18 13:26:22,312 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.6s
+2026-05-18 13:26:22,458 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.7s
+2026-05-18 13:26:22,756 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.0s
+2026-05-18 13:26:22,905 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.2s
+2026-05-18 13:26:23,056 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.3s
+2026-05-18 13:26:23,208 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.5s
+2026-05-18 13:26:23,359 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.6s
+2026-05-18 13:26:23,507 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.8s
+2026-05-18 13:26:23,656 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.9s
+2026-05-18 13:26:23,956 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.2s
+2026-05-18 13:26:24,106 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.4s
+2026-05-18 13:26:24,259 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.5s
+2026-05-18 13:26:24,418 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.7s
+2026-05-18 13:26:24,559 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.8s
+2026-05-18 13:26:24,708 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 9.0s
+2026-05-18 13:26:24,856 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 9.1s
+2026-05-18 13:26:25,006 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 9.3s
+2026-05-18 13:26:25,156 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 9.4s
+2026-05-18 13:26:25,309 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 9.6s
+2026-05-18 13:26:25,455 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 9.7s
+2026-05-18 13:26:25,756 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 10.0s
+2026-05-18 13:26:25,907 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 10.2s
+2026-05-18 13:26:26,058 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 10.3s
+2026-05-18 13:26:26,207 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 10.5s
+2026-05-18 13:26:26,366 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 10.6s
+2026-05-18 13:26:26,508 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 10.8s
+2026-05-18 13:28:20,363 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 13:28:20,507 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:28:20,658 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 13:28:20,804 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 13:28:20,957 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 13:28:21,258 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 13:29:26,954 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:29:27,256 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:29:27,412 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 13:29:27,557 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 13:29:27,705 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 13:29:28,006 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.2s
+2026-05-18 13:29:28,157 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.3s
+2026-05-18 13:29:33,115 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:29:33,259 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:29:33,413 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:29:33,557 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 13:29:33,704 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 13:29:34,005 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 13:29:34,155 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 13:29:34,316 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.3s
+2026-05-18 13:29:34,461 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.4s
+2026-05-18 13:29:34,756 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.7s
+2026-05-18 13:29:34,905 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.9s
+2026-05-18 13:29:35,055 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.0s
+2026-05-18 13:29:35,204 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.2s
+2026-05-18 13:29:35,360 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.3s
+2026-05-18 13:29:35,511 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.5s
+2026-05-18 13:29:35,653 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.6s
+2026-05-18 13:29:35,957 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.9s
+2026-05-18 13:29:36,255 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.2s
+2026-05-18 13:29:36,410 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.4s
+2026-05-18 13:29:51,256 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:29:51,419 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:29:51,557 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:30:59,956 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:31:49,908 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:31:50,053 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:31:50,205 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:31:50,361 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 13:31:50,506 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 13:31:50,657 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 13:31:50,803 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 13:32:42,409 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 13:33:32,957 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:33:33,102 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:33:33,254 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 13:33:33,411 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 13:33:33,556 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 13:33:33,707 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 13:33:34,007 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.3s
+2026-05-18 13:33:34,155 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.4s
+2026-05-18 13:33:34,307 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.6s
+2026-05-18 13:33:34,462 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.7s
+2026-05-18 13:33:34,604 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.9s
+2026-05-18 13:33:34,754 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.0s
+2026-05-18 13:33:34,907 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.2s
+2026-05-18 13:33:35,056 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.3s
+2026-05-18 13:33:35,207 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.5s
+2026-05-18 13:33:35,356 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.6s
+2026-05-18 13:33:35,511 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.8s
+2026-05-18 13:33:35,665 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.9s
+2026-05-18 13:33:35,805 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.1s
+2026-05-18 13:33:35,957 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.2s
+2026-05-18 13:33:36,115 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.4s
+2026-05-18 13:33:36,259 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.5s
+2026-05-18 13:33:36,417 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.7s
+2026-05-18 13:33:36,560 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.8s
+2026-05-18 13:33:36,708 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 9.0s
+2026-05-18 13:33:52,006 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 13:33:52,160 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:38:17,508 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:38:25,756 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:38:25,905 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:38:26,056 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:38:26,204 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 13:38:31,008 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:38:31,155 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:38:31,457 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 13:38:31,613 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 13:38:31,755 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 13:38:31,906 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 13:38:32,055 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 13:38:32,205 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.3s
+2026-05-18 13:38:32,507 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.6s
+2026-05-18 13:38:32,663 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.7s
+2026-05-18 13:38:32,956 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.0s
+2026-05-18 13:38:33,104 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.2s
+2026-05-18 13:38:33,255 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.3s
+2026-05-18 13:38:33,406 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.5s
+2026-05-18 13:38:33,557 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.6s
+2026-05-18 13:38:33,714 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.8s
+2026-05-18 13:38:33,856 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.9s
+2026-05-18 13:38:34,008 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.1s
+2026-05-18 13:38:34,155 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.2s
+2026-05-18 13:38:34,457 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.5s
+2026-05-18 13:38:34,610 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.7s
+2026-05-18 13:38:34,755 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.8s
+2026-05-18 13:38:34,907 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 9.0s
+2026-05-18 13:38:35,056 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 9.1s
+2026-05-18 13:38:35,205 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 9.3s
+2026-05-18 13:38:35,506 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 9.6s
+2026-05-18 13:38:35,662 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 9.7s
+2026-05-18 13:38:35,807 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 9.9s
+2026-05-18 13:38:44,507 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:38:44,656 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 13:38:44,803 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:38:44,955 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 13:38:45,109 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 13:38:45,255 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 13:38:45,407 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 13:38:45,555 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.2s
+2026-05-18 13:38:51,554 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 13:38:51,710 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:38:52,005 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 13:38:52,153 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 13:38:52,304 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 13:38:52,453 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 13:38:52,610 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 13:38:52,758 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.2s
+2026-05-18 13:38:52,917 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.4s
+2026-05-18 13:38:53,057 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.5s
+2026-05-18 13:38:53,203 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.7s
+2026-05-18 13:38:53,507 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.0s
+2026-05-18 13:38:53,660 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.1s
+2026-05-18 13:38:53,808 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.3s
+2026-05-18 13:38:53,957 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.4s
+2026-05-18 13:38:54,106 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.6s
+2026-05-18 13:38:54,254 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.7s
+2026-05-18 13:38:54,404 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.9s
+2026-05-18 13:38:54,554 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.0s
+2026-05-18 13:38:54,707 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.2s
+2026-05-18 13:39:18,709 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:39:18,856 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:39:19,006 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:39:19,156 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 13:39:19,456 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 13:39:19,612 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 13:39:19,756 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 13:39:32,953 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 13:39:33,105 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:39:33,252 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 13:39:33,405 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 13:39:33,554 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 13:39:33,707 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 13:39:34,003 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 13:39:34,154 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.2s
+2026-05-18 13:39:34,456 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.5s
+2026-05-18 13:39:44,055 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:39:44,205 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 13:40:12,257 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:40:12,406 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 13:40:12,558 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:40:12,711 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 13:40:12,854 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 13:40:13,006 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 13:40:13,156 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 13:40:13,455 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.3s
+2026-05-18 13:41:16,761 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 13:41:16,907 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:41:26,206 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:41:26,354 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 13:41:26,507 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:41:26,663 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 13:41:26,803 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 13:41:26,958 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 13:41:27,104 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 13:41:27,255 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.2s
+2026-05-18 13:41:27,406 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.3s
+2026-05-18 13:41:27,557 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.5s
+2026-05-18 13:41:35,662 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:41:35,807 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:41:35,960 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:41:36,105 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 13:41:36,258 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 13:41:36,407 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 13:41:36,556 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 13:41:36,714 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 13:41:36,857 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.3s
+2026-05-18 13:44:22,007 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 13:44:22,155 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:44:22,454 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 13:44:22,605 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 13:44:22,761 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 13:44:22,905 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.2s
+2026-05-18 13:45:15,106 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:45:15,255 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 13:45:15,405 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:45:15,556 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 13:45:43,605 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:45:43,759 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:45:43,905 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:45:44,053 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 13:45:44,205 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 13:45:44,507 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 13:45:44,655 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 13:45:44,808 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.3s
+2026-05-18 13:45:44,954 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.4s
+2026-05-18 13:45:45,107 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.6s
+2026-05-18 13:45:45,255 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.7s
+2026-05-18 13:45:45,408 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.9s
+2026-05-18 13:45:45,558 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.0s
+2026-05-18 13:45:45,708 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.2s
+2026-05-18 13:45:46,006 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.5s
+2026-05-18 13:45:46,158 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.6s
+2026-05-18 13:46:53,956 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 13:46:54,107 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:46:54,255 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 13:46:54,408 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 13:47:51,405 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:47:51,554 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:47:51,705 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:48:58,156 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:48:58,302 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:48:58,455 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:48:58,608 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 13:48:58,753 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 13:48:58,914 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 13:48:59,056 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 13:48:59,208 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 13:48:59,507 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.4s
+2026-05-18 13:48:59,654 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.6s
+2026-05-18 13:48:59,957 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.9s
+2026-05-18 13:49:00,111 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.0s
+2026-05-18 13:49:00,258 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.2s
+2026-05-18 13:49:00,411 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.3s
+2026-05-18 13:49:00,557 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.5s
+2026-05-18 13:49:00,711 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.6s
+2026-05-18 13:49:00,864 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.8s
+2026-05-18 13:49:01,008 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.9s
+2026-05-18 13:49:01,157 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.1s
+2026-05-18 13:49:01,455 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.4s
+2026-05-18 13:49:01,606 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.5s
+2026-05-18 13:49:01,757 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.7s
+2026-05-18 13:49:01,913 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.8s
+2026-05-18 13:49:13,605 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 13:49:13,752 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:49:13,910 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 13:49:14,054 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 13:49:14,206 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 13:49:14,354 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 13:49:14,506 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 13:49:14,656 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 13:49:14,960 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.4s
+2026-05-18 13:49:15,107 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.5s
+2026-05-18 13:49:15,255 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.7s
+2026-05-18 13:49:15,404 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.8s
+2026-05-18 13:49:15,704 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.1s
+2026-05-18 13:49:15,860 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.3s
+2026-05-18 13:49:54,407 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:49:54,557 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:49:54,705 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:49:55,008 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 13:49:55,158 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 13:49:55,454 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 13:49:55,608 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.3s
+2026-05-18 13:49:55,757 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.4s
+2026-05-18 13:49:55,911 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.6s
+2026-05-18 13:49:56,209 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.9s
+2026-05-18 13:49:56,357 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.0s
+2026-05-18 13:50:02,806 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 13:50:02,970 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:50:03,106 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 13:50:03,259 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 13:50:03,407 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 13:50:03,713 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 13:50:04,012 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.2s
+2026-05-18 13:50:04,163 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.4s
+2026-05-18 13:50:04,457 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.7s
+2026-05-18 13:50:04,609 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.8s
+2026-05-18 13:50:04,761 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.0s
+2026-05-18 13:50:04,914 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.1s
+2026-05-18 13:50:05,061 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.3s
+2026-05-18 13:50:05,210 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.4s
+2026-05-18 13:50:05,506 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.7s
+2026-05-18 13:50:05,658 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.9s
+2026-05-18 13:50:05,959 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.2s
+2026-05-18 13:50:52,306 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:50:52,457 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 13:50:52,604 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 13:50:52,756 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 13:50:52,910 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 13:50:53,057 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 13:50:53,209 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 13:51:22,605 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 13:51:22,754 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:51:22,909 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 13:51:23,055 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 13:51:23,205 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 13:51:23,505 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 13:51:23,655 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 13:53:56,508 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:53:56,655 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 13:53:56,803 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 13:53:56,972 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 13:53:57,108 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 13:53:57,256 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 13:54:48,552 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 13:54:48,704 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 13:54:49,010 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 13:55:16,753 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 13:55:16,905 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 14:00:39,854 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 14:00:40,004 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 14:02:49,005 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 14:02:49,158 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 14:02:49,455 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 14:16:55,160 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 14:18:50,511 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 14:18:50,655 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 14:18:50,956 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 14:18:51,102 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 14:18:51,257 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 14:18:51,412 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.2s
+2026-05-18 14:18:51,555 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.3s
+2026-05-18 14:18:51,706 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.5s
+2026-05-18 14:18:51,852 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.6s
+2026-05-18 14:18:52,005 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.8s
+2026-05-18 14:18:52,156 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.9s
+2026-05-18 14:18:52,455 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.2s
+2026-05-18 14:18:52,754 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.5s
+2026-05-18 14:18:52,904 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.7s
+2026-05-18 14:18:53,054 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.8s
+2026-05-18 14:18:53,205 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.0s
+2026-05-18 14:18:53,510 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.3s
+2026-05-18 14:18:53,657 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.4s
+2026-05-18 14:18:53,956 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.7s
+2026-05-18 14:18:54,104 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 8.9s
+2026-05-18 14:18:54,257 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 9.0s
+2026-05-18 14:18:54,409 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 9.2s
+2026-05-18 14:18:54,705 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 9.5s
+2026-05-18 14:19:02,958 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 14:19:03,104 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 14:19:03,256 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 14:19:03,408 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.6s
+2026-05-18 14:19:03,706 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 14:22:45,406 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.1s
+2026-05-18 14:22:45,708 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.4s
+2026-05-18 14:22:46,007 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.7s
+2026-05-18 14:22:52,005 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.2s
+2026-05-18 14:22:52,156 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.4s
+2026-05-18 14:22:52,307 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.5s
+2026-05-18 14:22:52,459 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 5.7s
+2026-05-18 14:22:52,754 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.0s
+2026-05-18 14:22:52,905 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_ce: 6.1s
+2026-05-18 14:22:59,510 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.0s
+2026-05-18 14:22:59,656 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 14:22:59,806 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.3s
+2026-05-18 14:23:15,407 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 14:23:15,706 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 14:23:16,004 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 14:23:16,160 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.9s
+2026-05-18 14:23:16,306 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 14:23:16,459 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.2s
+2026-05-18 14:23:16,755 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.5s
+2026-05-18 14:23:16,903 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.6s
+2026-05-18 14:23:17,055 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.8s
+2026-05-18 14:23:17,204 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.9s
+2026-05-18 14:23:17,355 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 7.1s
+2026-05-18 14:29:15,258 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 14:29:15,406 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 14:29:15,556 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.5s
+2026-05-18 14:29:15,712 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.7s
+2026-05-18 14:29:15,867 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.8s
+2026-05-18 14:29:16,005 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.0s
+2026-05-18 14:29:16,155 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.1s
+2026-05-18 14:29:16,307 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.3s
+2026-05-18 14:29:16,456 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.4s
+2026-05-18 14:29:16,752 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.7s
+2026-05-18 14:29:16,906 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 6.9s
+2026-05-18 14:34:03,255 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 14:37:00,711 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.1s
+2026-05-18 14:37:00,862 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.2s
+2026-05-18 14:37:01,008 - WARNING - Risk evaluation skipped due to stale/incomplete data: Stale live price for buy_pe: 5.4s
+2026-05-18 15:01:14,525 - CRITICAL - Ignoring unconfirmed ATM drift: stream 0.20x >= 0.20x, broker 0.20x.
+2026-05-18 15:01:14,721 - CRITICAL - Ignoring unconfirmed ATM drift: stream 0.20x >= 0.20x, broker 0.20x.
+2026-05-18 15:01:16,201 - CRITICAL - Ignoring unconfirmed ATM drift: stream 0.20x >= 0.20x, broker 0.20x.
+2026-05-18 15:01:25,665 - CRITICAL - ATM DRIFT EJECTOR: 0.20x >= 0.20x.
+2026-05-18 15:01:25,665 - CRITICAL - Exit Signal Received: ATM_DRIFT. Terminating WebSocket.
+2026-05-18 15:01:26,423 - CRITICAL - 🌊 ATM Drift exit for NIFTY! Structure compromised — squaring off...
+2026-05-18 15:01:26,423 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-05-18 15:01:26,424 - INFO - Simulated PnL for this trade: 347.75
+2026-05-18 15:01:27,476 - INFO - Cooling down 60 seconds before post-ATM_DRIFT re-entry check.
+2026-05-18 15:02:27,741 - CRITICAL - ATM_DRIFT re-entry blocked: fresh option quotes unavailable.
+2026-05-18 15:02:27,741 - INFO - --- END OF SESSION FOR NIFTY ---
+2026-05-18 15:02:27,742 - INFO - Returned to idle state after manual entry session.

@@ -1,0 +1,82 @@
+{
+    "active": true,
+    "index_symbol": "SENSEX",
+    "legs": {
+        "sell_ce": "BSE_FO|1122334",
+        "sell_pe": "BSE_FO|1122476",
+        "buy_ce": "BSE_FO|1122459",
+        "buy_pe": "BSE_FO|1122475"
+    },
+    "entry_prices": {
+        "sell_ce": 446.8,
+        "sell_pe": 428.45,
+        "buy_ce": 21.3,
+        "buy_pe": 22.6
+    },
+    "quantity": 20,
+    "strikes": {
+        "sell_ce": 75500.0,
+        "sell_pe": 75500.0,
+        "buy_ce": 77500.0,
+        "buy_pe": 73200.0
+    },
+    "execution_info": {
+        "mode": "SANDBOX",
+        "defined_loss_rupees": 29373.0,
+        "fills": [
+            {
+                "leg_name": "sell_ce",
+                "token": "BSE_FO|1122334",
+                "transaction_type": "SELL",
+                "filled_quantity": 20,
+                "average_price": 446.8,
+                "status": "SIMULATED"
+            },
+            {
+                "leg_name": "sell_pe",
+                "token": "BSE_FO|1122476",
+                "transaction_type": "SELL",
+                "filled_quantity": 20,
+                "average_price": 428.45,
+                "status": "SIMULATED"
+            },
+            {
+                "leg_name": "buy_ce",
+                "token": "BSE_FO|1122459",
+                "transaction_type": "BUY",
+                "filled_quantity": 20,
+                "average_price": 21.3,
+                "status": "SIMULATED"
+            },
+            {
+                "leg_name": "buy_pe",
+                "token": "BSE_FO|1122475",
+                "transaction_type": "BUY",
+                "filled_quantity": 20,
+                "average_price": 22.6,
+                "status": "SIMULATED"
+            }
+        ]
+    },
+    "created_at": "2026-05-19 13:15:10",
+    "entry_spot": 75518.77,
+    "sniper_state": "INITIAL",
+    "entry_net_premium": 831.35,
+    "sniper_targets_enabled": false,
+    "sniper_target_pct": 12.0,
+    "atm_drift_ratio": 0.023,
+    "live_net_premium": 793.85,
+    "current_profit_pct": 0.045107,
+    "catastrophe_threshold": 1080.755,
+    "cutoff_hour": 15,
+    "cutoff_minute": 25,
+    "feed_status": "STALE:buy_pe:25.2s",
+    "last_live_prices": {
+        "sell_ce": 440.0,
+        "sell_pe": 388.4,
+        "buy_ce": 18.6,
+        "buy_pe": 15.95
+    },
+    "last_spot": 75550.38,
+    "socket_reconnects": 4
+}

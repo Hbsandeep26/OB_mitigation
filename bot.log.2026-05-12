@@ -1,0 +1,235 @@
+2026-05-12 08:00:00,404 - CRITICAL - 🎯 NIFTY EXPIRY DETECTED (2026-05-12). Expiry Strategy: Nifty MORNING (theta capture), Sensex AFTERNOON.
+2026-05-12 09:20:00,542 - INFO - --- STARTING CONTINUOUS SESSION FOR NIFTY ---
+2026-05-12 09:20:00,881 - INFO - NIFTY LTP: 23734.7, Prev Close: 23734.7
+2026-05-12 09:20:00,882 - INFO - 📊 Gap Analysis: NIFTY opened at 23734.70, Prev Close: 23734.70, Gap: 0.00% DOWN
+2026-05-12 09:20:00,882 - INFO - ✅ Gap within tolerance (0.00% < 0.8%). Proceeding normally.
+2026-05-12 09:20:00,882 - INFO - Deploying fresh Iron Butterfly for NIFTY...
+2026-05-12 09:20:00,882 - INFO - Fetching live spot price for NIFTY...
+2026-05-12 09:20:01,089 - INFO - Live Spot Price for NIFTY is: 23735.05
+2026-05-12 09:20:01,090 - INFO - Fetching option chain for NIFTY expiring on 2026-05-12...
+2026-05-12 09:20:01,416 - INFO - Calculating Iron Butterfly strikes & prices (Buy Leg Premium Percent=5.0%)...
+2026-05-12 09:20:01,418 - INFO - Selected Execution Legs: {'sell_ce': 'NSE_FO|41740', 'sell_pe': 'NSE_FO|41741', 'buy_ce': 'NSE_FO|41758', 'buy_pe': 'NSE_FO|41725'}
+2026-05-12 09:20:01,418 - INFO - Target Entry Prices: {'sell_ce': 57.2, 'sell_pe': 74.7, 'buy_ce': 2.85, 'buy_pe': 3.5}
+2026-05-12 09:20:01,419 - INFO - Selected Strikes: {'sell_ce': 23750.0, 'sell_pe': 23750.0, 'buy_ce': 24100.0, 'buy_pe': 23450.0}
+2026-05-12 09:20:01,419 - INFO - Synchronizing with Live Exchange Quotes to bypass cached API data...
+2026-05-12 09:20:01,716 - INFO - Absolute Real-Time Entry Prices: {'sell_ce': 57.2, 'sell_pe': 74.7, 'buy_ce': 2.85, 'buy_pe': 3.5}
+2026-05-12 09:20:01,717 - INFO - SANDBOX MODE: simulating local paper execution.
+2026-05-12 09:20:01,717 - INFO - Simulated basket executed successfully.
+2026-05-12 09:20:01,721 - INFO - Entering live risk monitoring phase...
+2026-05-12 09:20:01,721 - INFO - Initializing broker WebSocket connection for live risk management...
+2026-05-12 09:20:01,727 - INFO - WebSocket connected. Streaming live market data...
+2026-05-12 09:20:02,745 - INFO - Websocket connected
+2026-05-12 09:20:02,901 - CRITICAL - CATASTROPHE KILL: live net 179.90 >= 163.22.
+2026-05-12 09:20:02,901 - CRITICAL - Exit Signal Received: CATASTROPHE_KILL. Terminating WebSocket.
+2026-05-12 09:20:03,731 - CRITICAL - Catastrophe kill for NIFTY. Squaring off before re-entry safety check.
+2026-05-12 09:20:03,731 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-05-12 09:20:03,732 - INFO - Simulated PnL for this trade: -3532.75
+2026-05-12 09:20:04,779 - INFO - Cooling down 60 seconds before post-CATASTROPHE_KILL re-entry check.
+2026-05-12 09:21:05,023 - CRITICAL - CATASTROPHE_KILL re-entry blocked: fresh option quotes unavailable.
+2026-05-12 09:21:05,023 - INFO - --- END OF SESSION FOR NIFTY ---
+2026-05-12 09:52:57,841 - CRITICAL - ▶️ MANUAL ENTRY triggered from idle state!
+2026-05-12 09:52:57,842 - INFO - --- STARTING CONTINUOUS SESSION FOR NIFTY ---
+2026-05-12 09:52:58,165 - INFO - NIFTY LTP: 23634.25, Prev Close: 23634.25
+2026-05-12 09:52:58,165 - INFO - 📊 Gap Analysis: NIFTY opened at 23634.25, Prev Close: 23634.25, Gap: 0.00% DOWN
+2026-05-12 09:52:58,166 - INFO - ✅ Gap within tolerance (0.00% < 0.8%). Proceeding normally.
+2026-05-12 09:52:58,166 - INFO - Deploying fresh Iron Butterfly for NIFTY...
+2026-05-12 09:52:58,166 - INFO - Fetching live spot price for NIFTY...
+2026-05-12 09:52:58,377 - INFO - Live Spot Price for NIFTY is: 23634.75
+2026-05-12 09:52:58,377 - INFO - Fetching option chain for NIFTY expiring on 2026-05-12...
+2026-05-12 09:52:58,636 - INFO - Calculating Iron Butterfly strikes & prices (Buy Leg Premium Percent=5.0%)...
+2026-05-12 09:52:58,637 - INFO - Selected Execution Legs: {'sell_ce': 'NSE_FO|41736', 'sell_pe': 'NSE_FO|41737', 'buy_ce': 'NSE_FO|41756', 'buy_pe': 'NSE_FO|41717'}
+2026-05-12 09:52:58,637 - INFO - Target Entry Prices: {'sell_ce': 58.85, 'sell_pe': 65.9, 'buy_ce': 2.8, 'buy_pe': 2.45}
+2026-05-12 09:52:58,637 - INFO - Selected Strikes: {'sell_ce': 23650.0, 'sell_pe': 23650.0, 'buy_ce': 24050.0, 'buy_pe': 23350.0}
+2026-05-12 09:52:58,637 - INFO - Synchronizing with Live Exchange Quotes to bypass cached API data...
+2026-05-12 09:52:58,832 - INFO - Absolute Real-Time Entry Prices: {'sell_ce': 58.85, 'sell_pe': 65.9, 'buy_ce': 2.8, 'buy_pe': 2.45}
+2026-05-12 09:52:58,833 - INFO - SANDBOX MODE: simulating local paper execution.
+2026-05-12 09:52:58,833 - INFO - Simulated basket executed successfully.
+2026-05-12 09:52:58,836 - INFO - Entering live risk monitoring phase...
+2026-05-12 09:52:58,836 - INFO - Initializing broker WebSocket connection for live risk management...
+2026-05-12 09:52:58,838 - INFO - WebSocket connected. Streaming live market data...
+2026-05-12 09:52:59,864 - INFO - Websocket connected
+2026-05-12 09:53:00,021 - CRITICAL - CATASTROPHE KILL: live net 247.95 >= 155.35.
+2026-05-12 09:53:00,021 - CRITICAL - Exit Signal Received: CATASTROPHE_KILL. Terminating WebSocket.
+2026-05-12 09:53:00,841 - CRITICAL - Catastrophe kill for NIFTY. Squaring off before re-entry safety check.
+2026-05-12 09:53:00,841 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-05-12 09:53:00,842 - INFO - Simulated PnL for this trade: -8349.25
+2026-05-12 09:53:01,884 - INFO - Cooling down 60 seconds before post-CATASTROPHE_KILL re-entry check.
+2026-05-12 09:54:02,196 - CRITICAL - CATASTROPHE_KILL re-entry blocked: fresh option quotes unavailable.
+2026-05-12 09:54:02,200 - INFO - --- END OF SESSION FOR NIFTY ---
+2026-05-12 09:54:02,201 - INFO - Returned to idle state after manual entry session.
+2026-05-12 10:14:12,997 - CRITICAL - ▶️ MANUAL ENTRY triggered from idle state!
+2026-05-12 10:14:12,997 - INFO - --- STARTING CONTINUOUS SESSION FOR NIFTY ---
+2026-05-12 10:14:13,293 - INFO - NIFTY LTP: 23649.5, Prev Close: 23649.5
+2026-05-12 10:14:13,294 - INFO - 📊 Gap Analysis: NIFTY opened at 23649.50, Prev Close: 23649.50, Gap: 0.00% DOWN
+2026-05-12 10:14:13,294 - INFO - ✅ Gap within tolerance (0.00% < 0.8%). Proceeding normally.
+2026-05-12 10:14:13,294 - INFO - Deploying fresh Iron Butterfly for NIFTY...
+2026-05-12 10:14:13,294 - INFO - Fetching live spot price for NIFTY...
+2026-05-12 10:14:13,501 - INFO - Live Spot Price for NIFTY is: 23649.15
+2026-05-12 10:14:13,502 - INFO - Fetching option chain for NIFTY expiring on 2026-05-12...
+2026-05-12 10:14:13,800 - INFO - Calculating Iron Butterfly strikes & prices (Buy Leg Premium Percent=5.0%)...
+2026-05-12 10:14:13,801 - INFO - Selected Execution Legs: {'sell_ce': 'NSE_FO|41736', 'sell_pe': 'NSE_FO|41737', 'buy_ce': 'NSE_FO|41756', 'buy_pe': 'NSE_FO|41723'}
+2026-05-12 10:14:13,801 - INFO - Target Entry Prices: {'sell_ce': 61.75, 'sell_pe': 56.9, 'buy_ce': 3.05, 'buy_pe': 2.95}
+2026-05-12 10:14:13,801 - INFO - Selected Strikes: {'sell_ce': 23650.0, 'sell_pe': 23650.0, 'buy_ce': 24050.0, 'buy_pe': 23400.0}
+2026-05-12 10:14:13,801 - INFO - Synchronizing with Live Exchange Quotes to bypass cached API data...
+2026-05-12 10:14:14,000 - INFO - Absolute Real-Time Entry Prices: {'sell_ce': 61.75, 'sell_pe': 56.9, 'buy_ce': 3.05, 'buy_pe': 2.95}
+2026-05-12 10:14:14,001 - INFO - SANDBOX MODE: simulating local paper execution.
+2026-05-12 10:14:14,001 - INFO - Simulated basket executed successfully.
+2026-05-12 10:14:14,004 - INFO - Entering live risk monitoring phase...
+2026-05-12 10:14:14,005 - INFO - Initializing broker WebSocket connection for live risk management...
+2026-05-12 10:14:14,006 - INFO - WebSocket connected. Streaming live market data...
+2026-05-12 10:14:15,077 - INFO - Websocket connected
+2026-05-12 11:03:47,993 - CRITICAL - ATM DRIFT EJECTOR: 0.20x >= 0.20x.
+2026-05-12 11:03:47,994 - CRITICAL - Exit Signal Received: ATM_DRIFT. Terminating WebSocket.
+2026-05-12 11:03:48,305 - CRITICAL - 🌊 ATM Drift exit for NIFTY! Structure compromised — squaring off...
+2026-05-12 11:03:48,306 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-05-12 11:03:48,306 - INFO - Simulated PnL for this trade: 412.75
+2026-05-12 11:03:49,359 - INFO - Cooling down 60 seconds before post-ATM_DRIFT re-entry check.
+2026-05-12 11:04:49,723 - CRITICAL - ATM_DRIFT re-entry blocked: fresh option quotes unavailable.
+2026-05-12 11:04:49,724 - INFO - --- END OF SESSION FOR NIFTY ---
+2026-05-12 11:04:49,724 - INFO - Returned to idle state after manual entry session.
+2026-05-12 11:20:10,130 - CRITICAL - ▶️ MANUAL ENTRY triggered from idle state!
+2026-05-12 11:20:10,130 - INFO - --- STARTING CONTINUOUS SESSION FOR NIFTY ---
+2026-05-12 11:20:10,445 - INFO - NIFTY LTP: 23609.75, Prev Close: 23609.75
+2026-05-12 11:20:10,446 - INFO - 📊 Gap Analysis: NIFTY opened at 23609.75, Prev Close: 23609.75, Gap: 0.00% DOWN
+2026-05-12 11:20:10,446 - INFO - ✅ Gap within tolerance (0.00% < 0.8%). Proceeding normally.
+2026-05-12 11:20:10,446 - INFO - Deploying fresh Iron Butterfly for NIFTY...
+2026-05-12 11:20:10,446 - INFO - Fetching live spot price for NIFTY...
+2026-05-12 11:20:10,646 - INFO - Live Spot Price for NIFTY is: 23609.75
+2026-05-12 11:20:10,646 - INFO - Fetching option chain for NIFTY expiring on 2026-05-12...
+2026-05-12 11:20:10,901 - INFO - Calculating Iron Butterfly strikes & prices (Buy Leg Premium Percent=5.0%)...
+2026-05-12 11:20:10,902 - INFO - Selected Execution Legs: {'sell_ce': 'NSE_FO|41734', 'sell_pe': 'NSE_FO|41735', 'buy_ce': 'NSE_FO|41754', 'buy_pe': 'NSE_FO|41717'}
+2026-05-12 11:20:10,902 - INFO - Target Entry Prices: {'sell_ce': 64.0, 'sell_pe': 41.85, 'buy_ce': 2.95, 'buy_pe': 1.8}
+2026-05-12 11:20:10,902 - INFO - Selected Strikes: {'sell_ce': 23600.0, 'sell_pe': 23600.0, 'buy_ce': 24000.0, 'buy_pe': 23350.0}
+2026-05-12 11:20:10,902 - INFO - Synchronizing with Live Exchange Quotes to bypass cached API data...
+2026-05-12 11:20:11,107 - INFO - Absolute Real-Time Entry Prices: {'sell_ce': 64.0, 'sell_pe': 41.85, 'buy_ce': 2.95, 'buy_pe': 1.8}
+2026-05-12 11:20:11,108 - INFO - SANDBOX MODE: simulating local paper execution.
+2026-05-12 11:20:11,108 - INFO - Simulated basket executed successfully.
+2026-05-12 11:20:11,111 - INFO - Entering live risk monitoring phase...
+2026-05-12 11:20:11,111 - INFO - Initializing broker WebSocket connection for live risk management...
+2026-05-12 11:20:11,113 - INFO - WebSocket connected. Streaming live market data...
+2026-05-12 11:20:12,133 - INFO - Websocket connected
+2026-05-12 12:30:55,210 - CRITICAL - ATM DRIFT EJECTOR: 0.20x >= 0.20x.
+2026-05-12 12:30:55,210 - CRITICAL - Exit Signal Received: ATM_DRIFT. Terminating WebSocket.
+2026-05-12 12:30:55,782 - CRITICAL - 🌊 ATM Drift exit for NIFTY! Structure compromised — squaring off...
+2026-05-12 12:30:55,782 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-05-12 12:30:55,783 - INFO - Simulated PnL for this trade: -565.50
+2026-05-12 12:30:56,831 - INFO - Cooling down 60 seconds before post-ATM_DRIFT re-entry check.
+2026-05-12 12:31:57,141 - CRITICAL - ATM_DRIFT re-entry blocked: fresh option quotes unavailable.
+2026-05-12 12:31:57,142 - INFO - --- END OF SESSION FOR NIFTY ---
+2026-05-12 12:31:57,143 - INFO - Returned to idle state after manual entry session.
+2026-05-12 12:31:58,144 - INFO - --- STARTING CONTINUOUS SESSION FOR SENSEX ---
+2026-05-12 12:31:58,341 - INFO - SENSEX LTP: 74996.45, Prev Close: 74996.45
+2026-05-12 12:31:58,341 - INFO - 📊 Gap Analysis: SENSEX opened at 74996.45, Prev Close: 74996.45, Gap: 0.00% DOWN
+2026-05-12 12:31:58,341 - INFO - ✅ Gap within tolerance (0.00% < 0.8%). Proceeding normally.
+2026-05-12 12:31:58,341 - INFO - Deploying fresh Iron Butterfly for SENSEX...
+2026-05-12 12:31:58,342 - INFO - Fetching live spot price for SENSEX...
+2026-05-12 12:31:58,859 - INFO - Live Spot Price for SENSEX is: 74996.45
+2026-05-12 12:31:58,860 - INFO - Fetching option chain for SENSEX expiring on 2026-05-14...
+2026-05-12 12:31:59,144 - INFO - Calculating Iron Butterfly strikes & prices (Buy Leg Premium Percent=5.0%)...
+2026-05-12 12:31:59,145 - INFO - Selected Execution Legs: {'sell_ce': 'BSE_FO|1108134', 'sell_pe': 'BSE_FO|1109574', 'buy_ce': 'BSE_FO|1101837', 'buy_pe': 'BSE_FO|1107455'}
+2026-05-12 12:31:59,145 - INFO - Target Entry Prices: {'sell_ce': 513.9, 'sell_pe': 472.4, 'buy_ce': 25.05, 'buy_pe': 23.5}
+2026-05-12 12:31:59,145 - INFO - Selected Strikes: {'sell_ce': 75000.0, 'sell_pe': 75000.0, 'buy_ce': 78100.0, 'buy_pe': 72700.0}
+2026-05-12 12:31:59,145 - INFO - Synchronizing with Live Exchange Quotes to bypass cached API data...
+2026-05-12 12:31:59,337 - INFO - Absolute Real-Time Entry Prices: {'sell_ce': 513.9, 'sell_pe': 472.4, 'buy_ce': 25.05, 'buy_pe': 23.5}
+2026-05-12 12:31:59,338 - INFO - SANDBOX MODE: simulating local paper execution.
+2026-05-12 12:31:59,338 - INFO - Simulated basket executed successfully.
+2026-05-12 12:31:59,341 - INFO - Entering live risk monitoring phase...
+2026-05-12 12:31:59,342 - INFO - Initializing broker WebSocket connection for live risk management...
+2026-05-12 12:31:59,343 - INFO - WebSocket connected. Streaming live market data...
+2026-05-12 12:32:00,348 - INFO - Websocket connected
+2026-05-12 12:32:00,504 - CRITICAL - ATM DRIFT EJECTOR: 0.38x >= 0.20x.
+2026-05-12 12:32:00,504 - CRITICAL - Exit Signal Received: ATM_DRIFT. Terminating WebSocket.
+2026-05-12 12:32:01,347 - CRITICAL - 🌊 ATM Drift exit for SENSEX! Structure compromised — squaring off...
+2026-05-12 12:32:01,347 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-05-12 12:32:01,347 - INFO - Simulated PnL for this trade: 972.00
+2026-05-12 12:32:02,423 - INFO - Cooling down 60 seconds before post-ATM_DRIFT re-entry check.
+2026-05-12 12:33:02,701 - CRITICAL - ATM_DRIFT re-entry blocked: fresh option quotes unavailable.
+2026-05-12 12:33:02,702 - INFO - --- END OF SESSION FOR SENSEX ---
+2026-05-12 12:38:43,212 - CRITICAL - ▶️ MANUAL ENTRY triggered from idle state!
+2026-05-12 12:38:43,212 - INFO - --- STARTING CONTINUOUS SESSION FOR NIFTY ---
+2026-05-12 12:38:43,427 - INFO - NIFTY LTP: 23520.3, Prev Close: 23520.3
+2026-05-12 12:38:43,428 - INFO - 📊 Gap Analysis: NIFTY opened at 23520.30, Prev Close: 23520.30, Gap: 0.00% DOWN
+2026-05-12 12:38:43,428 - INFO - ✅ Gap within tolerance (0.00% < 0.8%). Proceeding normally.
+2026-05-12 12:38:43,428 - INFO - Deploying fresh Iron Butterfly for NIFTY...
+2026-05-12 12:38:43,428 - INFO - Fetching live spot price for NIFTY...
+2026-05-12 12:38:43,628 - INFO - Live Spot Price for NIFTY is: 23520.3
+2026-05-12 12:38:43,628 - INFO - Fetching option chain for NIFTY expiring on 2026-05-12...
+2026-05-12 12:38:43,854 - INFO - Calculating Iron Butterfly strikes & prices (Buy Leg Premium Percent=5.0%)...
+2026-05-12 12:38:43,855 - INFO - Selected Execution Legs: {'sell_ce': 'NSE_FO|41726', 'sell_pe': 'NSE_FO|41729', 'buy_ce': 'NSE_FO|41746', 'buy_pe': 'NSE_FO|41711'}
+2026-05-12 12:38:43,855 - INFO - Target Entry Prices: {'sell_ce': 68.7, 'sell_pe': 34.85, 'buy_ce': 3.3, 'buy_pe': 1.75}
+2026-05-12 12:38:43,855 - INFO - Selected Strikes: {'sell_ce': 23500.0, 'sell_pe': 23500.0, 'buy_ce': 23900.0, 'buy_pe': 23250.0}
+2026-05-12 12:38:43,855 - INFO - Synchronizing with Live Exchange Quotes to bypass cached API data...
+2026-05-12 12:38:44,057 - INFO - Absolute Real-Time Entry Prices: {'sell_ce': 68.7, 'sell_pe': 34.85, 'buy_ce': 3.3, 'buy_pe': 1.75}
+2026-05-12 12:38:44,058 - INFO - SANDBOX MODE: simulating local paper execution.
+2026-05-12 12:38:44,058 - INFO - Simulated basket executed successfully.
+2026-05-12 12:38:44,061 - INFO - Entering live risk monitoring phase...
+2026-05-12 12:38:44,061 - INFO - Initializing broker WebSocket connection for live risk management...
+2026-05-12 12:38:44,063 - INFO - WebSocket connected. Streaming live market data...
+2026-05-12 12:38:45,177 - INFO - Websocket connected
+2026-05-12 14:35:17,694 - CRITICAL - ATM DRIFT EJECTOR: 0.20x >= 0.20x.
+2026-05-12 14:35:17,695 - CRITICAL - Exit Signal Received: ATM_DRIFT. Terminating WebSocket.
+2026-05-12 14:35:17,827 - CRITICAL - 🌊 ATM Drift exit for NIFTY! Structure compromised — squaring off...
+2026-05-12 14:35:17,828 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-05-12 14:35:17,828 - INFO - Simulated PnL for this trade: 2392.00
+2026-05-12 14:35:18,887 - INFO - Cooling down 60 seconds before post-ATM_DRIFT re-entry check.
+2026-05-12 14:36:19,566 - CRITICAL - ATM_DRIFT re-entry blocked: fresh option quotes unavailable.
+2026-05-12 14:36:19,567 - INFO - --- END OF SESSION FOR NIFTY ---
+2026-05-12 14:36:19,568 - INFO - Returned to idle state after manual entry session.
+2026-05-12 14:46:00,439 - CRITICAL - ▶️ MANUAL ENTRY triggered from idle state!
+2026-05-12 14:46:00,439 - INFO - --- STARTING CONTINUOUS SESSION FOR NIFTY ---
+2026-05-12 14:46:00,765 - INFO - NIFTY LTP: 23467.25, Prev Close: 23467.25
+2026-05-12 14:46:00,765 - INFO - 📊 Gap Analysis: NIFTY opened at 23467.25, Prev Close: 23467.25, Gap: 0.00% DOWN
+2026-05-12 14:46:00,765 - INFO - ✅ Gap within tolerance (0.00% < 0.8%). Proceeding normally.
+2026-05-12 14:46:00,765 - INFO - Deploying fresh Iron Butterfly for NIFTY...
+2026-05-12 14:46:00,765 - INFO - Fetching live spot price for NIFTY...
+2026-05-12 14:46:00,957 - INFO - Live Spot Price for NIFTY is: 23468.85
+2026-05-12 14:46:00,957 - INFO - Fetching option chain for NIFTY expiring on 2026-05-12...
+2026-05-12 14:46:01,227 - INFO - Calculating Iron Butterfly strikes & prices (Buy Leg Premium Percent=5.0%)...
+2026-05-12 14:46:01,228 - INFO - Selected Execution Legs: {'sell_ce': 'NSE_FO|41724', 'sell_pe': 'NSE_FO|41725', 'buy_ce': 'NSE_FO|41734', 'buy_pe': 'NSE_FO|41713'}
+2026-05-12 14:46:01,228 - INFO - Target Entry Prices: {'sell_ce': 31.15, 'sell_pe': 11.4, 'buy_ce': 1.7, 'buy_pe': 0.5}
+2026-05-12 14:46:01,228 - INFO - Selected Strikes: {'sell_ce': 23450.0, 'sell_pe': 23450.0, 'buy_ce': 23600.0, 'buy_pe': 23300.0}
+2026-05-12 14:46:01,228 - INFO - Synchronizing with Live Exchange Quotes to bypass cached API data...
+2026-05-12 14:46:01,448 - INFO - Absolute Real-Time Entry Prices: {'sell_ce': 31.15, 'sell_pe': 11.4, 'buy_ce': 1.7, 'buy_pe': 0.5}
+2026-05-12 14:46:01,450 - INFO - SANDBOX MODE: simulating local paper execution.
+2026-05-12 14:46:01,450 - INFO - Simulated basket executed successfully.
+2026-05-12 14:46:01,454 - INFO - Entering live risk monitoring phase...
+2026-05-12 14:46:01,454 - INFO - Initializing broker WebSocket connection for live risk management...
+2026-05-12 14:46:01,460 - INFO - WebSocket connected. Streaming live market data...
+2026-05-12 14:46:02,508 - INFO - Websocket connected
+2026-05-12 14:46:10,927 - CRITICAL - MANUAL EXIT TRIGGERED FROM UI. Forcing Square Off.
+2026-05-12 14:46:11,983 - CRITICAL - Exit Signal Received: MANUAL_EXIT. Terminating WebSocket.
+2026-05-12 14:46:12,475 - CRITICAL - 🛑 User stop/exit executed. Squaring off NIFTY...
+2026-05-12 14:46:12,475 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-05-12 14:46:12,676 - INFO - Simulated PnL for this trade: 3.25
+2026-05-12 14:46:13,727 - CRITICAL - Trading paused for this session due to user stop/exit.
+2026-05-12 14:46:13,727 - INFO - --- END OF SESSION FOR NIFTY ---
+2026-05-12 14:46:13,728 - INFO - Returned to idle state after manual entry session.
+2026-05-12 15:05:29,461 - CRITICAL - ▶️ MANUAL ENTRY triggered from idle state!
+2026-05-12 15:05:29,461 - INFO - --- STARTING CONTINUOUS SESSION FOR NIFTY ---
+2026-05-12 15:05:29,824 - INFO - NIFTY LTP: 23385.1, Prev Close: 23385.1
+2026-05-12 15:05:29,825 - INFO - 📊 Gap Analysis: NIFTY opened at 23385.10, Prev Close: 23385.10, Gap: 0.00% DOWN
+2026-05-12 15:05:29,825 - INFO - ✅ Gap within tolerance (0.00% < 0.8%). Proceeding normally.
+2026-05-12 15:05:29,825 - INFO - Deploying fresh Iron Butterfly for NIFTY...
+2026-05-12 15:05:29,825 - INFO - Fetching live spot price for NIFTY...
+2026-05-12 15:05:30,020 - INFO - Live Spot Price for NIFTY is: 23385.3
+2026-05-12 15:05:30,021 - INFO - Fetching option chain for NIFTY expiring on 2026-05-12...
+2026-05-12 15:05:30,283 - INFO - Calculating Iron Butterfly strikes & prices (Buy Leg Premium Percent=5.0%)...
+2026-05-12 15:05:30,284 - INFO - Selected Execution Legs: {'sell_ce': 'NSE_FO|41722', 'sell_pe': 'NSE_FO|41723', 'buy_ce': 'NSE_FO|41794', 'buy_pe': 'NSE_FO|41717'}
+2026-05-12 15:05:30,284 - INFO - Target Entry Prices: {'sell_ce': 2.7, 'sell_pe': 20.6, 'buy_ce': 0.15, 'buy_pe': 0.9}
+2026-05-12 15:05:30,284 - INFO - Selected Strikes: {'sell_ce': 23400.0, 'sell_pe': 23400.0, 'buy_ce': 24500.0, 'buy_pe': 23350.0}
+2026-05-12 15:05:30,285 - INFO - Synchronizing with Live Exchange Quotes to bypass cached API data...
+2026-05-12 15:05:30,484 - INFO - Absolute Real-Time Entry Prices: {'sell_ce': 2.7, 'sell_pe': 20.6, 'buy_ce': 0.15, 'buy_pe': 0.9}
+2026-05-12 15:05:30,484 - INFO - SANDBOX MODE: simulating local paper execution.
+2026-05-12 15:05:30,484 - INFO - Simulated basket executed successfully.
+2026-05-12 15:05:30,487 - INFO - Entering live risk monitoring phase...
+2026-05-12 15:05:30,488 - INFO - Initializing broker WebSocket connection for live risk management...
+2026-05-12 15:05:30,489 - INFO - WebSocket connected. Streaming live market data...
+2026-05-12 15:05:31,516 - INFO - Websocket connected
+2026-05-12 15:05:45,283 - CRITICAL - MANUAL EXIT TRIGGERED FROM UI. Forcing Square Off.
+2026-05-12 15:05:46,323 - CRITICAL - Exit Signal Received: MANUAL_EXIT. Terminating WebSocket.
+2026-05-12 15:05:46,508 - CRITICAL - 🛑 User stop/exit executed. Squaring off NIFTY...
+2026-05-12 15:05:46,508 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-05-12 15:05:46,711 - INFO - Simulated PnL for this trade: 65.00
+2026-05-12 15:05:47,788 - CRITICAL - Trading paused for this session due to user stop/exit.
+2026-05-12 15:05:47,789 - INFO - --- END OF SESSION FOR NIFTY ---
+2026-05-12 15:05:47,790 - INFO - Returned to idle state after manual entry session.
