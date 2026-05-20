@@ -18,7 +18,7 @@ try:
 except ImportError:
     go = None
 
-st.set_page_config(page_title="Iron Butterfly V4", layout="wide")
+st.set_page_config(page_title="Algo Command Center", layout="wide")
 
 # --- PREMIUM UI/UX CSS ---
 st.markdown("""
@@ -132,6 +132,39 @@ def heartbeat_age():
     except Exception:
         return None, {}
 
+
+def order_sequence_for_state(state):
+    execution_info = state.get("execution_info", {}) if state else {}
+    sequence = []
+    for item in execution_info.get("order_sequence", []):
+        if len(item) == 2:
+            sequence.append((str(item[0]), str(item[1]).upper()))
+    if not sequence:
+        for leg_name in (state or {}).get("legs", {}):
+            sequence.append((leg_name, "SELL" if leg_name.startswith("sell") else "BUY"))
+    return sequence
+
+
+def net_from_sequence(prices, sequence):
+    net = 0.0
+    for leg_name, transaction_type in sequence:
+        price = float(prices.get(leg_name, 0.0) or 0.0)
+        net += price if transaction_type == "SELL" else -price
+    return net
+
+
+def pnl_from_sequence(entries, exits, qty, sequence):
+    pnl = 0.0
+    for leg_name, transaction_type in sequence:
+        entry_price = float(entries.get(leg_name, 0.0) or 0.0)
+        exit_price = float(exits.get(leg_name, 0.0) or 0.0)
+        if transaction_type == "SELL":
+            pnl += (entry_price - exit_price) * qty
+        else:
+            pnl += (exit_price - entry_price) * qty
+    return pnl
+
+
 settings = load_settings()
 
 # --- 1. LOAD SAVED STATES FIRST ---
@@ -166,7 +199,7 @@ if os.path.exists(BTST_FILE):
         pass
 
 # --- SIDEBAR: AUTH & SETTINGS ---
-st.sidebar.header("⚙️ Bot Configuration")
+st.sidebar.header("Algo Command Center")
 
 api_key = settings.get("API_KEY", "")
 api_secret = settings.get("API_SECRET", "")
@@ -203,7 +236,7 @@ else:
                     st.error(f"Error: {e}")
 
 # --- SIDEBAR: UNIFIED TRADING PARAMETERS ---
-st.sidebar.subheader("📊 Trading Parameters")
+st.sidebar.subheader("Environment & Risk")
 
 nifty_exp = st.sidebar.date_input("NIFTY Expiry Date", saved_nifty)
 sensex_exp = st.sidebar.date_input("SENSEX Expiry Date", saved_sensex)
@@ -214,29 +247,47 @@ if enable_btst != btst_state:
 
 with st.sidebar.form("config_form"):
     env_mode = st.selectbox("Environment", ["SANDBOX", "LIVE"], index=0 if settings.get("ENVIRONMENT") == "SANDBOX" else 1)
-    nifty_qty = st.number_input("Nifty Qty (Multiples of 65)", value=settings.get("NIFTY_LOT_SIZE", 65), step=65)
-    sensex_qty = st.number_input("Sensex Qty (Multiples of 20)", value=settings.get("SENSEX_LOT_SIZE", 20), step=20)
+    virtual_capital = float(settings.get("VIRTUAL_CAPITAL", config.VIRTUAL_CAPITAL))
+    if env_mode == "SANDBOX":
+        virtual_capital = st.number_input("Virtual Capital Allocation", value=virtual_capital, step=10000.0, min_value=0.0)
+    else:
+        st.caption("Live mode uses broker funds for sizing.")
+    max_capital_utilization = st.number_input("Max Capital Utilization", value=float(settings.get("MAX_CAPITAL_UTILIZATION", config.MAX_CAPITAL_UTILIZATION)), step=0.01, min_value=0.10, max_value=1.00)
+    st.caption(f"Dynamic sizing replaces manual quantities. Lot multiples: NIFTY {config.NIFTY_LOT_MULTIPLE}, SENSEX {config.SENSEX_LOT_MULTIPLE}.")
     buy_leg_percent = st.number_input("Buy Leg Premium %", value=float(settings.get("BUY_LEG_PERCENT", config.BUY_LEG_PERCENT)), step=0.5, min_value=1.0, max_value=20.0)
     vix_toggle_level = st.number_input("India VIX Toggle", value=float(settings.get("INDIA_VIX_TOGGLE_LEVEL", config.INDIA_VIX_TOGGLE_LEVEL)), step=0.5, min_value=5.0, max_value=40.0)
     targets_enabled = st.toggle("Enable Profit Target Exits", value=bool(settings.get("SNIPER_TARGETS_ENABLED", config.SNIPER_TARGETS_ENABLED)))
-    sniper_target_pct = st.number_input("Sniper Target %", value=float(settings.get("SNIPER_TARGET_PCT", config.SNIPER_TARGET_PCT)), step=0.5, min_value=0.5, max_value=50.0)
-    atm_drift_eject = st.number_input("ATM Drift Eject Threshold", value=float(settings.get("ATM_DRIFT_EJECT_THRESHOLD", config.ATM_DRIFT_EJECT_THRESHOLD)), step=0.01, min_value=0.01, max_value=1.00)
-    condor_atm_drift = st.number_input("Condor ATM Drift Threshold", value=float(settings.get("CONDOR_ATM_DRIFT_THRESHOLD", config.CONDOR_ATM_DRIFT_THRESHOLD)), step=0.01, min_value=0.01, max_value=1.00)
     btst_momentum_enabled = st.toggle("Enable BTST Momentum", value=bool(settings.get("BTST_MOMENTUM_ENABLED", config.BTST_MOMENTUM_ENABLED)))
-    catastrophe_kill = st.number_input("Catastrophe Kill Multiplier", value=float(settings.get("SNIPER_CATASTROPHE_MULTIPLIER", config.SNIPER_CATASTROPHE_MULTIPLIER)), step=0.01, min_value=1.01, max_value=2.00)
+    st.markdown("**Iron Condor**")
+    iron_condor_drift_points = st.number_input("IC ATM Drift Points", value=float(settings.get("IRON_CONDOR_ATM_DRIFT_POINTS", config.IRON_CONDOR_ATM_DRIFT_POINTS)), step=5.0, min_value=1.0)
+    iron_condor_target = st.number_input("IC Sniper Target %", value=float(settings.get("IRON_CONDOR_TARGET_PCT", config.IRON_CONDOR_TARGET_PCT)), step=1.0, min_value=1.0, max_value=100.0)
+    iron_condor_kill = st.number_input("IC Catastrophe Kill x", value=float(settings.get("IRON_CONDOR_CATASTROPHE_MULTIPLIER", config.IRON_CONDOR_CATASTROPHE_MULTIPLIER)), step=0.05, min_value=1.0, max_value=3.0)
+    st.markdown("**Iron Butterfly**")
+    iron_butterfly_drift_points = st.number_input("IB ATM Drift Points", value=float(settings.get("IRON_BUTTERFLY_ATM_DRIFT_POINTS", config.IRON_BUTTERFLY_ATM_DRIFT_POINTS)), step=5.0, min_value=1.0)
+    iron_butterfly_target = st.number_input("IB Sniper Target %", value=float(settings.get("IRON_BUTTERFLY_TARGET_PCT", config.IRON_BUTTERFLY_TARGET_PCT)), step=1.0, min_value=1.0, max_value=100.0)
+    iron_butterfly_kill = st.number_input("IB Catastrophe Kill x", value=float(settings.get("IRON_BUTTERFLY_CATASTROPHE_MULTIPLIER", config.IRON_BUTTERFLY_CATASTROPHE_MULTIPLIER)), step=0.05, min_value=1.0, max_value=3.0)
+    st.markdown("**Directional Spreads**")
+    directional_target = st.number_input("Directional Target %", value=float(settings.get("DIRECTIONAL_TARGET_PCT", config.DIRECTIONAL_TARGET_PCT)), step=1.0, min_value=1.0, max_value=100.0)
+    directional_kill = st.number_input("Directional Kill x", value=float(settings.get("DIRECTIONAL_CATASTROPHE_MULTIPLIER", config.DIRECTIONAL_CATASTROPHE_MULTIPLIER)), step=0.05, min_value=0.25, max_value=3.0)
+    directional_btst_roc = st.number_input("BTST Auto-Exit ROC %", value=float(settings.get("DIRECTIONAL_BTST_AUTO_EXIT_ROC_PCT", config.DIRECTIONAL_BTST_AUTO_EXIT_ROC_PCT)), step=0.25, min_value=0.0, max_value=20.0)
     
     if st.form_submit_button("💾 Save Settings"):
         settings["ENVIRONMENT"] = env_mode
-        settings["NIFTY_LOT_SIZE"] = nifty_qty
-        settings["SENSEX_LOT_SIZE"] = sensex_qty
+        settings["VIRTUAL_CAPITAL"] = virtual_capital
+        settings["MAX_CAPITAL_UTILIZATION"] = max_capital_utilization
         settings["BUY_LEG_PERCENT"] = buy_leg_percent
         settings["INDIA_VIX_TOGGLE_LEVEL"] = vix_toggle_level
         settings["SNIPER_TARGETS_ENABLED"] = targets_enabled
-        settings["SNIPER_TARGET_PCT"] = sniper_target_pct
-        settings["ATM_DRIFT_EJECT_THRESHOLD"] = atm_drift_eject
-        settings["CONDOR_ATM_DRIFT_THRESHOLD"] = condor_atm_drift
         settings["BTST_MOMENTUM_ENABLED"] = btst_momentum_enabled
-        settings["SNIPER_CATASTROPHE_MULTIPLIER"] = catastrophe_kill
+        settings["IRON_CONDOR_ATM_DRIFT_POINTS"] = iron_condor_drift_points
+        settings["IRON_CONDOR_TARGET_PCT"] = iron_condor_target
+        settings["IRON_CONDOR_CATASTROPHE_MULTIPLIER"] = iron_condor_kill
+        settings["IRON_BUTTERFLY_ATM_DRIFT_POINTS"] = iron_butterfly_drift_points
+        settings["IRON_BUTTERFLY_TARGET_PCT"] = iron_butterfly_target
+        settings["IRON_BUTTERFLY_CATASTROPHE_MULTIPLIER"] = iron_butterfly_kill
+        settings["DIRECTIONAL_TARGET_PCT"] = directional_target
+        settings["DIRECTIONAL_CATASTROPHE_MULTIPLIER"] = directional_kill
+        settings["DIRECTIONAL_BTST_AUTO_EXIT_ROC_PCT"] = directional_btst_roc
         
         # --- THE UNIFIED BRAIN FIX: Save Expiries to settings.json ---
         settings["NIFTY_EXPIRY"] = str(nifty_exp)
@@ -301,7 +352,43 @@ with col_force:
 st.sidebar.caption("Stop is graceful. Kill is emergency-only and requires a broker position check.")
 
 # --- MAIN DASHBOARD ---
-st.title("🦅 Iron Butterfly Command Center V4")
+st.title("ALGO COMMAND CENTER")
+
+live_ticks_header = {}
+if os.path.exists(LIVE_FILE):
+    try:
+        with open(LIVE_FILE, "r") as lf:
+            live_ticks_header = json.load(lf)
+    except json.JSONDecodeError:
+        live_ticks_header = {}
+
+nifty_tick = live_ticks_header.get("NSE_INDEX|Nifty 50", {})
+sensex_tick = live_ticks_header.get("BSE_INDEX|SENSEX", {})
+vix_tick = live_ticks_header.get("NSE_INDEX|India VIX", {})
+latest_state_header = {}
+if os.path.exists(STATE_FILE):
+    try:
+        with open(STATE_FILE, "r") as sf:
+            latest_state_header = json.load(sf)
+    except json.JSONDecodeError:
+        latest_state_header = {}
+market_context_header = latest_state_header.get("market_context", {}) or latest_state_header.get("route_metadata", {}).get("market_context", {})
+
+env_col, cap_col, data_col = st.columns([1, 1, 2])
+with env_col:
+    st.metric("Mode", settings.get("ENVIRONMENT", "SANDBOX"))
+with cap_col:
+    if settings.get("ENVIRONMENT", "SANDBOX") == "SANDBOX":
+        st.metric("Virtual Capital", f"₹{float(settings.get('VIRTUAL_CAPITAL', config.VIRTUAL_CAPITAL)):,.0f}")
+    else:
+        st.metric("Capital Source", "Broker Funds")
+with data_col:
+    st.caption(
+        f"NIFTY: {nifty_tick.get('ltp', 'N/A')} | "
+        f"SENSEX: {sensex_tick.get('ltp', 'N/A')} | "
+        f"INDIA VIX: {vix_tick.get('ltp', 'N/A')} | "
+        f"PCR: {market_context_header.get('pcr', 'N/A')}"
+    )
 
 # --- SYSTEM STATUS & MANUAL EXIT CONTROLS ---
 col1, col2 = st.columns([3, 1])
@@ -379,8 +466,14 @@ with col_status:
                 st.metric("Live Net Premium", f"{live_net_state:.2f}", delta=f"Kill: {state.get('catastrophe_threshold', 0):.2f}", delta_color="off")
             with badge_col3:
                 drift_ratio = state.get("atm_drift_ratio", 0.0)
-                drift_color = "normal" if drift_ratio < config.ATM_DRIFT_EJECT_THRESHOLD else "inverse"
-                st.metric("ATM Drift", f"{drift_ratio:.2f}x", delta=f"Eject: {config.ATM_DRIFT_EJECT_THRESHOLD:.2f}x", delta_color=drift_color)
+                drift_points = state.get("atm_drift_points", 0.0)
+                drift_points_threshold = state.get("atm_drift_points_threshold", 0.0)
+                if drift_points_threshold:
+                    drift_color = "normal" if drift_points < drift_points_threshold else "inverse"
+                    st.metric("ATM Drift", f"{drift_points:.2f} pts", delta=f"Eject: {drift_points_threshold:.2f} pts", delta_color=drift_color)
+                else:
+                    drift_color = "normal" if drift_ratio < config.ATM_DRIFT_EJECT_THRESHOLD else "inverse"
+                    st.metric("ATM Drift", f"{drift_ratio:.2f}x", delta=f"Eject: {config.ATM_DRIFT_EJECT_THRESHOLD:.2f}x", delta_color=drift_color)
 
             st.markdown("")
 
@@ -403,32 +496,28 @@ with col_status:
                 
             legs = state['legs']
             entries = state['entry_prices']
-            
-            live_sell_pe = live_ticks.get(legs['sell_pe'], {}).get('ltp', entries['sell_pe'])
-            live_sell_ce = live_ticks.get(legs['sell_ce'], {}).get('ltp', entries['sell_ce'])
-            live_buy_pe = live_ticks.get(legs['buy_pe'], {}).get('ltp', entries['buy_pe'])
-            live_buy_ce = live_ticks.get(legs['buy_ce'], {}).get('ltp', entries['buy_ce'])
-            
             strikes_data = state.get('strikes', {})
+            sequence = order_sequence_for_state(state)
+            sequence_map = {leg_name: tx for leg_name, tx in sequence}
+            live_leg_prices = {
+                leg_name: float(live_ticks.get(token, {}).get('ltp', entries.get(leg_name, 0.0)) or entries.get(leg_name, 0.0))
+                for leg_name, token in legs.items()
+            }
             
             st.markdown("### Live Position Tracker")
-            table_data = {
-                "Leg Type": ["🔴 SELL PE", "🔴 SELL CE", "🟢 BUY PE", "🟢 BUY CE"],
-                "Strike Price": [
-                    strikes_data.get('sell_pe', 'N/A'),
-                    strikes_data.get('sell_ce', 'N/A'),
-                    strikes_data.get('buy_pe', 'N/A'),
-                    strikes_data.get('buy_ce', 'N/A')
-                ],
-                "Trade Price": [f"₹{entries['sell_pe']:.2f}", f"₹{entries['sell_ce']:.2f}", f"₹{entries['buy_pe']:.2f}", f"₹{entries['buy_ce']:.2f}"],
-                "Current Price": [f"₹{live_sell_pe:.2f}", f"₹{live_sell_ce:.2f}", f"₹{live_buy_pe:.2f}", f"₹{live_buy_ce:.2f}"],
-                "PnL / Point": [
-                    (entries['sell_pe'] - live_sell_pe), 
-                    (entries['sell_ce'] - live_sell_ce), 
-                    (live_buy_pe - entries['buy_pe']),   
-                    (live_buy_ce - entries['buy_ce'])    
-                ]
-            }
+            table_data = []
+            for leg_name, token in legs.items():
+                tx = sequence_map.get(leg_name, "SELL" if leg_name.startswith("sell") else "BUY")
+                entry_price = float(entries.get(leg_name, 0.0) or 0.0)
+                live_price = float(live_leg_prices.get(leg_name, entry_price) or entry_price)
+                pnl_point = (entry_price - live_price) if tx == "SELL" else (live_price - entry_price)
+                table_data.append({
+                    "Leg Type": f"{tx} {leg_name.upper()}",
+                    "Strike Price": strikes_data.get(leg_name, 'N/A'),
+                    "Trade Price": f"₹{entry_price:.2f}",
+                    "Current Price": f"₹{live_price:.2f}",
+                    "PnL / Point": pnl_point,
+                })
 
             df_live = pd.DataFrame(table_data)
             
@@ -439,16 +528,14 @@ with col_status:
             st.dataframe(df_live.style.applymap(color_pnl, subset=['PnL / Point']), hide_index=True, width='stretch')
             
             # --- REAL PNL & TARGET CALCULATOR ---
-            qty = state.get('quantity', settings.get("NIFTY_LOT_SIZE", 65) if state['index_symbol'] == 'NIFTY' else settings.get("SENSEX_LOT_SIZE", 20))
-            
-            entry_net = (entries['sell_ce'] + entries['sell_pe']) - (entries['buy_ce'] + entries['buy_pe'])
-            live_net = (live_sell_ce + live_sell_pe) - (live_buy_ce + live_buy_pe)
-            
-            # --- GROSS PNL FIX APPLIED HERE ---
-            gross_pnl = (entry_net - live_net) * qty
+            qty = state.get('quantity', config.NIFTY_LOT_MULTIPLE if state['index_symbol'] == 'NIFTY' else config.SENSEX_LOT_MULTIPLE)
+            entry_net = net_from_sequence(entries, sequence)
+            live_net = net_from_sequence(live_leg_prices, sequence)
+            gross_pnl = pnl_from_sequence(entries, live_leg_prices, qty, sequence)
             
             sniper_target_pct = state.get("sniper_target_pct", config.SNIPER_TARGET_PCT)
-            sniper_target_pnl = (entry_net * (sniper_target_pct / 100.0)) * qty
+            max_profit_rupees = float(state.get("max_profit_rupees", entry_net * qty) or 0.0)
+            sniper_target_pnl = max_profit_rupees * (sniper_target_pct / 100.0)
             
             st.markdown("---")
             
@@ -498,7 +585,8 @@ with col_status:
                 st.metric(f"Sniper Target ({target_status})", f"₹{sniper_target_pnl:.2f}", delta=f"{sniper_target_pct:.1f}%", delta_color="off")
             
             with metric_col3:
-                st.metric("Catastrophe Kill", f"{config.SNIPER_CATASTROPHE_MULTIPLIER:.2f}x", delta=f"Net {state.get('catastrophe_threshold', 0):.2f}", delta_color="off")
+                catastrophe_multiplier = float(state.get("strategy_params", {}).get("catastrophe_multiplier", config.SNIPER_CATASTROPHE_MULTIPLIER))
+                st.metric("Catastrophe Kill", f"{catastrophe_multiplier:.2f}x", delta=f"Net {state.get('catastrophe_threshold', 0):.2f}", delta_color="off")
 
         else:
             st.warning("🟡 SYSTEM IDLE: Waiting for schedule.")

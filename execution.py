@@ -267,8 +267,11 @@ def place_option_spread_basket(
     spot_price=0.0,
     carry_overnight=False,
     metadata=None,
+    quantity=None,
+    sizing=None,
 ):
-    trade_quantity = config.get_nifty_qty() if index_symbol == "NIFTY" else config.get_sensex_qty()
+    fallback_quantity = config.get_nifty_qty() if index_symbol == "NIFTY" else config.get_sensex_qty()
+    trade_quantity = validate_trade_quantity(index_symbol, quantity if quantity is not None else fallback_quantity)
     order_sequence = _normalize_order_sequence(order_sequence)
     try:
         defined_loss, net_premium = _preflight_option_spread_check(
@@ -284,6 +287,7 @@ def place_option_spread_basket(
         "order_sequence": order_sequence,
         "defined_loss_rupees": round(defined_loss, 2),
         "metadata": metadata or {},
+        "sizing": sizing or {},
     }
 
     if config.ENVIRONMENT == "SANDBOX":
@@ -378,9 +382,18 @@ def place_option_spread_basket(
     )
     return True
 
-
-def place_iron_butterfly_basket(legs, index_symbol, entry_prices, strikes, spot_price=0.0):
-    trade_quantity = config.get_nifty_qty() if index_symbol == "NIFTY" else config.get_sensex_qty()
+def place_iron_butterfly_basket(
+    legs,
+    index_symbol,
+    entry_prices,
+    strikes,
+    spot_price=0.0,
+    quantity=None,
+    strategy_type=None,
+    sizing=None,
+):
+    fallback_quantity = config.get_nifty_qty() if index_symbol == "NIFTY" else config.get_sensex_qty()
+    trade_quantity = validate_trade_quantity(index_symbol, quantity if quantity is not None else fallback_quantity)
     try:
         defined_loss = _preflight_risk_check(index_symbol, entry_prices, trade_quantity, strikes)
     except ValueError as err:
@@ -394,6 +407,8 @@ def place_iron_butterfly_basket(legs, index_symbol, entry_prices, strikes, spot_
         execution_info = {
             "mode": "SANDBOX",
             "defined_loss_rupees": round(defined_loss, 2),
+            "strategy_type": strategy_type or "IRON_BUTTERFLY",
+            "sizing": sizing or {},
             "fills": [
                 {"leg_name": name, "token": token, "transaction_type": "SELL" if name.startswith("sell") else "BUY",
                  "filled_quantity": int(trade_quantity), "average_price": entry_prices[name], "status": "SIMULATED"}
@@ -459,6 +474,8 @@ def place_iron_butterfly_basket(legs, index_symbol, entry_prices, strikes, spot_
     execution_info = {
         "mode": "LIVE",
         "defined_loss_rupees": round(defined_loss, 2),
+        "strategy_type": strategy_type or "IRON_BUTTERFLY",
+        "sizing": sizing or {},
         "fills": confirmed_fills,
     }
     log_trade(
@@ -731,3 +748,157 @@ def square_off_all(exit_prices=None, exit_reason=""):
         state_manager.clear_state()
     else:
         logging.critical("STATE RETAINED: exit execution failed. Manual recovery required.")
+
+
+def _neutral_slice_plan(side):
+    side = str(side or "").upper()
+    if side == "CALL":
+        return {
+            "close_legs": [("sell_ce", "BUY"), ("buy_ce", "SELL")],
+            "carry_legs": ["buy_pe", "sell_pe"],
+            "carry_sequence": [("buy_pe", "BUY"), ("sell_pe", "SELL")],
+            "strategy_type": "BTST_BULL_PUT_CREDIT",
+        }
+    if side == "PUT":
+        return {
+            "close_legs": [("sell_pe", "BUY"), ("buy_pe", "SELL")],
+            "carry_legs": ["buy_ce", "sell_ce"],
+            "carry_sequence": [("buy_ce", "BUY"), ("sell_ce", "SELL")],
+            "strategy_type": "BTST_BEAR_CALL_CREDIT",
+        }
+    raise ValueError(f"Unsupported neutral slice side: {side}")
+
+
+def _rewrite_state_for_slice(state, plan, exit_prices, exit_reason, exit_fills=None):
+    qty = int(state.get("quantity", 0) or 0)
+    carry_legs = {leg_name: state["legs"][leg_name] for leg_name in plan["carry_legs"] if leg_name in state["legs"]}
+    carry_entries = {
+        leg_name: state["entry_prices"][leg_name]
+        for leg_name in plan["carry_legs"]
+        if leg_name in state["entry_prices"]
+    }
+    carry_strikes = {
+        leg_name: state.get("strikes", {}).get(leg_name)
+        for leg_name in plan["carry_legs"]
+        if leg_name in state.get("strikes", {})
+    }
+    if "atm" in state.get("strikes", {}):
+        carry_strikes["atm"] = state["strikes"]["atm"]
+
+    execution_info = dict(state.get("execution_info", {}) or {})
+    execution_info.update({
+        "strategy_type": plan["strategy_type"],
+        "order_sequence": plan["carry_sequence"],
+        "sliced_from_strategy": state.get("strategy_type", ""),
+        "slice_exit_reason": exit_reason,
+        "slice_exit_fills": exit_fills or [],
+    })
+    if "sizing" in state:
+        execution_info["sizing"] = state["sizing"]
+
+    state_manager.save_state(
+        state.get("index_symbol", "UNKNOWN"),
+        carry_legs,
+        carry_entries,
+        qty,
+        carry_strikes,
+        execution_info=execution_info,
+    )
+    entry_net = _net_premium_from_order_sequence(carry_entries, plan["carry_sequence"])
+    state_manager.update_many({
+        "strategy_type": plan["strategy_type"],
+        "carry_overnight": True,
+        "entry_net_premium": round(entry_net, 4),
+        "eod_sliced_from": state.get("strategy_type", ""),
+        "eod_slice_reason": exit_reason,
+        "last_slice_exit_prices": exit_prices or {},
+        "last_slice_success": True,
+    })
+
+
+def slice_neutral_side(side, exit_prices=None, exit_reason="EOD_SLICE"):
+    state = state_manager.load_state()
+    if not state:
+        logging.critical("Neutral slice requested but no active state exists.")
+        return False
+
+    plan = _neutral_slice_plan(side)
+    qty = int(state.get("quantity", 0) or 0)
+    legs = state["legs"]
+    entries = state["entry_prices"]
+    safe_exits, price_note = _safe_exit_prices(exit_prices, entries, legs)
+    index_symbol = state.get("index_symbol", "UNKNOWN")
+    spot_price = state.get("last_spot") or state.get("entry_spot") or 0
+    close_prices = {leg_name: safe_exits.get(leg_name, entries.get(leg_name, 0.0)) for leg_name, _ in plan["close_legs"]}
+    close_entries = {leg_name: entries.get(leg_name, 0.0) for leg_name, _ in plan["close_legs"]}
+    close_pnl = _pnl_from_order_sequence(close_entries, close_prices, qty, plan["close_legs"])
+
+    if config.ENVIRONMENT == "SANDBOX":
+        log_trade(
+            "EXIT",
+            index_symbol,
+            close_prices,
+            _net_premium_from_order_sequence(close_prices, plan["close_legs"]),
+            close_pnl,
+            f"EOD Neutral {side.upper()} Side Slice" + (f" ({price_note})" if price_note else ""),
+            spot_price=spot_price,
+            strikes=state.get("strikes", {}),
+            exit_reason=exit_reason,
+        )
+        _rewrite_state_for_slice(state, plan, safe_exits, exit_reason)
+        send_telegram_alert(
+            f"<b>EOD NEUTRAL SLICE (PAPER): {index_symbol}</b>\n"
+            f"Closed: {side.upper()} side\n"
+            f"Carrying: {plan['strategy_type']}\n"
+            f"Slice PnL: {close_pnl:.2f}"
+        )
+        return True
+
+    if config.ENVIRONMENT != "LIVE":
+        logging.critical("Unknown ENVIRONMENT=%s. State retained.", config.ENVIRONMENT)
+        return False
+
+    order_api_v3, order_api = _make_order_apis()
+    exit_fills = []
+    success = True
+    for leg_name, transaction_type in plan["close_legs"]:
+        try:
+            body = _build_market_order(legs[leg_name], transaction_type, qty, "eod_slice")
+            fill = place_and_confirm(order_api_v3, order_api, body, leg_name, legs[leg_name], transaction_type)
+            exit_fills.append(fill)
+            time.sleep(0.15)
+        except Exception as err:
+            success = False
+            logging.critical("EOD neutral slice failed on %s: %s", leg_name, err)
+            break
+
+    if not success:
+        state_manager.update_many({"last_slice_success": False, "last_slice_exit_fills": exit_fills})
+        send_telegram_alert(
+            f"<b>EOD SLICE FAILED: {index_symbol}</b>\n"
+            f"Side: {side.upper()}\nManual broker reconciliation required."
+        )
+        return False
+
+    actual_exits = _actual_exit_prices(exit_fills, safe_exits)
+    close_prices = {leg_name: actual_exits.get(leg_name, close_prices.get(leg_name, 0.0)) for leg_name, _ in plan["close_legs"]}
+    close_pnl = _pnl_from_order_sequence(close_entries, close_prices, qty, plan["close_legs"])
+    log_trade(
+        "EXIT",
+        index_symbol,
+        close_prices,
+        _net_premium_from_order_sequence(close_prices, plan["close_legs"]),
+        close_pnl,
+        "EOD Neutral Side Slice (Broker fill averages applied)",
+        spot_price=spot_price,
+        strikes=state.get("strikes", {}),
+        exit_reason=exit_reason,
+    )
+    _rewrite_state_for_slice(state, plan, actual_exits, exit_reason, exit_fills=exit_fills)
+    send_telegram_alert(
+        f"<b>EOD NEUTRAL SLICE (LIVE): {index_symbol}</b>\n"
+        f"Closed: {side.upper()} side\n"
+        f"Carrying: {plan['strategy_type']}\n"
+        f"Slice PnL: {close_pnl:.2f}"
+    )
+    return True

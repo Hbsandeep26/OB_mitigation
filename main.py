@@ -25,8 +25,10 @@ from btst_vix_router import (
     is_btst_momentum_time,
     route_btst_momentum_strategy,
     route_intraday_neutral_strategy,
+    route_pcr_dte_strategy,
 )
-from execution import place_iron_butterfly_basket, place_option_spread_basket, square_off_all
+from execution import place_iron_butterfly_basket, place_option_spread_basket, square_off_all, slice_neutral_side
+from position_sizing import calculate_position_size
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 HEARTBEAT_FILE = os.path.join(BASE_DIR, "engine_heartbeat.json")
@@ -178,7 +180,7 @@ def session_for_time(now_dt, nifty_expiry, sensex_expiry):
 
     default_idx = "SENSEX" if now_dt.strftime("%A").upper() in ["WEDNESDAY", "THURSDAY"] else "NIFTY"
     default_exp = sensex_expiry if default_idx == "SENSEX" else nifty_expiry
-    return default_idx, default_exp, 15, 15
+    return default_idx, default_exp, 15, 25
 
 
 def exit_prices_from_rest(legs):
@@ -192,21 +194,101 @@ def exit_prices_from_rest(legs):
     return prices if all(value > 0 for value in prices.values()) else None
 
 
-def initialize_sniper_state(entry_prices, strategy_type="IRON_BUTTERFLY", drift_threshold=None, metadata=None):
+def lot_multiple_for_index(index_symbol):
+    return config.NIFTY_LOT_MULTIPLE if index_symbol == "NIFTY" else config.SENSEX_LOT_MULTIPLE
+
+
+def net_from_order_sequence(prices, order_sequence):
+    net = 0.0
+    for leg_name, transaction_type in order_sequence or []:
+        price = float(prices.get(leg_name, 0.0) or 0.0)
+        if str(transaction_type).upper() == "SELL":
+            net += price
+        elif str(transaction_type).upper() == "BUY":
+            net -= price
+    return net
+
+
+def spread_width(strikes):
+    values = [float(value) for key, value in (strikes or {}).items() if key != "atm" and value not in (None, "")]
+    return max(values) - min(values) if len(values) >= 2 else 0.0
+
+
+def strategy_params_for_type(strategy_type):
+    strategy_type = str(strategy_type or "").upper()
+    if strategy_type == "IRON_CONDOR":
+        return {
+            "target_pct": config.IRON_CONDOR_TARGET_PCT,
+            "catastrophe_multiplier": config.IRON_CONDOR_CATASTROPHE_MULTIPLIER,
+            "atm_drift_points": config.IRON_CONDOR_ATM_DRIFT_POINTS,
+            "vix_activation": config.IRON_CONDOR_VIX_ACTIVATION,
+        }
+    if strategy_type == "IRON_BUTTERFLY":
+        return {
+            "target_pct": config.IRON_BUTTERFLY_TARGET_PCT,
+            "catastrophe_multiplier": config.IRON_BUTTERFLY_CATASTROPHE_MULTIPLIER,
+            "atm_drift_points": config.IRON_BUTTERFLY_ATM_DRIFT_POINTS,
+            "vix_activation": config.IRON_BUTTERFLY_VIX_ACTIVATION,
+        }
+    return {
+        "target_pct": config.DIRECTIONAL_TARGET_PCT,
+        "catastrophe_multiplier": config.DIRECTIONAL_CATASTROPHE_MULTIPLIER,
+        "btst_auto_exit_roc_pct": config.DIRECTIONAL_BTST_AUTO_EXIT_ROC_PCT,
+    }
+
+
+def max_profit_for_route(strategy_type, entry_prices, strikes, quantity, order_sequence=None):
+    if order_sequence:
+        entry_net = net_from_order_sequence(entry_prices, order_sequence)
+        if entry_net >= 0:
+            return max(0.0, entry_net * int(quantity))
+        return max(0.0, (spread_width(strikes) + entry_net) * int(quantity))
     entry_net = (entry_prices["sell_ce"] + entry_prices["sell_pe"]) - (entry_prices["buy_ce"] + entry_prices["buy_pe"])
+    return max(0.0, entry_net * int(quantity))
+
+
+def initialize_sniper_state(
+    entry_prices,
+    strategy_type="IRON_BUTTERFLY",
+    drift_threshold=None,
+    metadata=None,
+    strategy_params=None,
+    sizing=None,
+    expiry_date=None,
+    order_sequence=None,
+):
+    active_state = state_manager.load_state() or {}
+    entry_prices = active_state.get("entry_prices", entry_prices)
+    quantity = int(active_state.get("quantity", 0) or 0)
+    strikes = active_state.get("strikes", {})
+    entry_net = (
+        net_from_order_sequence(entry_prices, order_sequence)
+        if order_sequence
+        else (entry_prices["sell_ce"] + entry_prices["sell_pe"]) - (entry_prices["buy_ce"] + entry_prices["buy_pe"])
+    )
     drift_threshold = config.ATM_DRIFT_EJECT_THRESHOLD if drift_threshold is None else drift_threshold
+    strategy_params = strategy_params or strategy_params_for_type(strategy_type)
+    target_pct = strategy_params.get("target_pct", config.SNIPER_TARGET_PCT)
+    catastrophe_multiplier = strategy_params.get("catastrophe_multiplier", config.SNIPER_CATASTROPHE_MULTIPLIER)
+    max_profit = max_profit_for_route(strategy_type, entry_prices, strikes, quantity, order_sequence=order_sequence)
     state_manager.update_many({
         "sniper_state": "INITIAL",
         "strategy_type": strategy_type,
         "entry_net_premium": round(entry_net, 4),
         "sniper_targets_enabled": config.SNIPER_TARGETS_ENABLED,
-        "sniper_target_pct": config.SNIPER_TARGET_PCT,
+        "sniper_target_pct": target_pct,
         "atm_drift_eject_threshold": round(drift_threshold, 4),
         "atm_drift_ratio": 0.0,
         "live_net_premium": round(entry_net, 4),
         "current_profit_pct": 0.0,
-        "catastrophe_threshold": round(entry_net * config.SNIPER_CATASTROPHE_MULTIPLIER, 4),
+        "catastrophe_threshold": round(entry_net * catastrophe_multiplier, 4),
         "route_metadata": metadata or {},
+        "market_context": (metadata or {}).get("market_context", {}),
+        "strategy_params": strategy_params,
+        "sizing": sizing or active_state.get("execution_info", {}).get("sizing", {}),
+        "capital_deployed": (sizing or {}).get("capital_deployed", active_state.get("capital_deployed", 0.0)),
+        "max_profit_rupees": round(max_profit, 2),
+        "expiry_date": expiry_date or active_state.get("expiry_date", ""),
     })
 
 
@@ -232,6 +314,32 @@ def build_intraday_neutral_route(index_symbol, spot, chain):
     return route
 
 
+def build_command_center_route(index_symbol, expiry_date, spot, chain):
+    live_vix = get_india_vix()
+    route = route_pcr_dte_strategy(
+        index_symbol,
+        expiry_date,
+        spot,
+        chain,
+        live_vix,
+        calculate_iron_butterfly_legs,
+    )
+    if not route.legs:
+        logging.critical("Command-center route rejected: %s", route.no_trade_reason)
+        return None
+    context = route.metadata.get("market_context", {})
+    logging.info(
+        "Command-center route selected %s for %s: PCR=%s, DTE=%s, VIX=%s, sentiment=%s.",
+        route.strategy_type,
+        index_symbol,
+        context.get("pcr"),
+        context.get("dte"),
+        context.get("vix"),
+        context.get("sentiment"),
+    )
+    return route
+
+
 def sync_entry_prices_with_quotes(legs, entry_prices):
     logging.info("Synchronizing with Live Exchange Quotes to bypass cached API data...")
     fresh_quotes = get_fresh_option_quotes(list(legs.values()))
@@ -245,35 +353,81 @@ def sync_entry_prices_with_quotes(legs, entry_prices):
     return entry_prices
 
 
+def execute_command_center_route(index_symbol, expiry_date, spot, route, reason="REGULAR"):
+    sizing = calculate_position_size(
+        config.ENVIRONMENT,
+        route.strategy_type,
+        route.metadata.get("market_context", {}).get("vix"),
+        config.VIRTUAL_CAPITAL,
+        index_symbol,
+        lot_multiple_for_index(index_symbol),
+        route=route,
+    )
+    if sizing.get("status") != "APPROVED":
+        logging.critical("Entry rejected by position sizing: %s", sizing)
+        import notifier
+        notifier.send_telegram_alert(
+            f"<b>ENTRY REJECTED BY SIZING</b>\n"
+            f"{index_symbol} {route.strategy_type}: {sizing.get('reason', 'Rejected')}"
+        )
+        return False
+
+    entry_prices = sync_entry_prices_with_quotes(route.legs, route.entry_prices)
+    strategy_params = strategy_params_for_type(route.strategy_type)
+    if route.order_sequence:
+        execution_success = place_option_spread_basket(
+            route.legs,
+            index_symbol,
+            entry_prices,
+            route.strikes,
+            route.order_sequence,
+            route.strategy_type,
+            spot_price=spot,
+            carry_overnight=False,
+            metadata={**route.metadata, "reason": reason},
+            quantity=sizing["quantity"],
+            sizing=sizing,
+        )
+    else:
+        execution_success = place_iron_butterfly_basket(
+            route.legs,
+            index_symbol,
+            entry_prices,
+            route.strikes,
+            spot_price=spot,
+            quantity=sizing["quantity"],
+            strategy_type=route.strategy_type,
+            sizing=sizing,
+        )
+
+    if execution_success:
+        initialize_sniper_state(
+            entry_prices,
+            strategy_type=route.strategy_type,
+            drift_threshold=route.drift_threshold,
+            metadata={**route.metadata, "reason": reason},
+            strategy_params=strategy_params,
+            sizing=sizing,
+            expiry_date=expiry_date,
+            order_sequence=route.order_sequence,
+        )
+        state_manager.update_state("recenter_reason", reason if reason != "REGULAR" else "")
+    return execution_success
+
+
 def deploy_single_sniper_trade(index_symbol, expiry_date, reason="REGULAR"):
-    logging.info("Deploying %s Sniper & Shield neutral strategy for %s...", reason, index_symbol)
+    logging.info("Deploying %s command-center strategy for %s...", reason, index_symbol)
     spot = get_spot_price(index_symbol)
     chain = get_option_chain(index_symbol, expiry_date) if spot else None
     if not spot or not chain:
         logging.critical("Cannot deploy %s trade: spot found=%s, chain found=%s.", reason, bool(spot), bool(chain))
         return False
 
-    route = build_intraday_neutral_route(index_symbol, spot, chain)
+    route = build_command_center_route(index_symbol, expiry_date, spot, chain)
     if not route:
-        logging.critical("Cannot deploy %s trade: neutral route failed.", reason)
+        logging.critical("Cannot deploy %s trade: command-center route failed.", reason)
         return False
-
-    legs = route.legs
-    entry_prices = sync_entry_prices_with_quotes(legs, route.entry_prices)
-    strikes = route.strikes
-
-    execution_success = place_iron_butterfly_basket(
-        legs, index_symbol, entry_prices, strikes, spot_price=spot
-    )
-    if execution_success:
-        initialize_sniper_state(
-            entry_prices,
-            strategy_type=route.strategy_type,
-            drift_threshold=route.drift_threshold,
-            metadata=route.metadata,
-        )
-        state_manager.update_state("recenter_reason", reason if reason != "REGULAR" else "")
-    return execution_success
+    return execute_command_center_route(index_symbol, expiry_date, spot, route, reason=reason)
 
 
 def deploy_btst_momentum_trade(index_symbol, expiry_date, reason="EOD_MOMENTUM"):
@@ -319,6 +473,19 @@ def deploy_btst_momentum_trade(index_symbol, expiry_date, reason="EOD_MOMENTUM")
         logging.critical("BTST momentum no-trade: %s (%s).", route.no_trade_reason, route.metadata)
         return False
 
+    sizing = calculate_position_size(
+        config.ENVIRONMENT,
+        route.strategy_type,
+        india_vix,
+        config.VIRTUAL_CAPITAL,
+        index_symbol,
+        lot_multiple_for_index(index_symbol),
+        route=route,
+    )
+    if sizing.get("status") != "APPROVED":
+        logging.critical("BTST momentum rejected by position sizing: %s", sizing)
+        return False
+
     entry_prices = sync_entry_prices_with_quotes(route.legs, route.entry_prices)
     execution_success = place_option_spread_basket(
         route.legs,
@@ -330,8 +497,19 @@ def deploy_btst_momentum_trade(index_symbol, expiry_date, reason="EOD_MOMENTUM")
         spot_price=spot,
         carry_overnight=True,
         metadata={**route.metadata, **profile, "reason": reason},
+        quantity=sizing["quantity"],
+        sizing=sizing,
     )
     if execution_success:
+        initialize_sniper_state(
+            entry_prices,
+            strategy_type=route.strategy_type,
+            metadata={**route.metadata, **profile, "reason": reason},
+            strategy_params=strategy_params_for_type(route.strategy_type),
+            sizing=sizing,
+            expiry_date=expiry_date,
+            order_sequence=route.order_sequence,
+        )
         state_manager.update_many({
             "btst_reason": reason,
             "carry_overnight": True,
@@ -563,6 +741,18 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         
         if stop_loss_hit:
             btst_exit_reason = stop_loss_hit  # Remember why we exited
+            if stop_loss_hit == "EOD_CARRY":
+                logging.critical("EOD carry-forward remains aligned. Leaving position open overnight.")
+                state_manager.update_many({"carry_overnight": True, "btst_reason": "EOD_CARRY"})
+                return
+            if stop_loss_hit == "EOD_SLICE_CALL_SIDE":
+                logging.critical("EOD bullish shift on carry-forward: slicing call side.")
+                slice_neutral_side("CALL", exit_prices=exit_prices, exit_reason=stop_loss_hit)
+                return
+            if stop_loss_hit == "EOD_SLICE_PUT_SIDE":
+                logging.critical("EOD bearish shift on carry-forward: slicing put side.")
+                slice_neutral_side("PUT", exit_prices=exit_prices, exit_reason=stop_loss_hit)
+                return
             
             if stop_loss_hit == "SOCKET_DEAD_FATAL":
                 logging.critical("Socket recovery failed on carry-forward. Halting with state retained.")
@@ -680,7 +870,6 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         state = state_manager.load_state()
         is_active = state and state.get("active", False)
         if not is_active and (now.hour > cutoff_hour or (now.hour == cutoff_hour and now.minute >= cutoff_minute)):
-            deploy_btst_momentum_trade(index_symbol, expiry_date, reason="SOFT_CUTOFF")
             logging.info(f"⏰ Soft Cutoff ({cutoff_hour}:{cutoff_minute:02d}) reached. No NEW {index_symbol} trades will be taken.")
             break 
 
@@ -697,7 +886,7 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             legs = state['legs']
             entry_prices = state['entry_prices']
         else:
-            logging.info(f"Deploying fresh neutral strategy for {index_symbol}...")
+            logging.info(f"Deploying fresh command-center strategy for {index_symbol}...")
 
             # --- FETCH SPOT PRICE ---
             spot = get_spot_price(index_symbol)
@@ -725,7 +914,7 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             # Reset API retry counter on success
             api_retry_count = 0
 
-            route = build_intraday_neutral_route(index_symbol, spot, chain)
+            route = build_command_center_route(index_symbol, expiry_date, spot, chain)
         
             if not route:
                 api_retry_count += 1
@@ -739,11 +928,13 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             # Reset API retry counter on success
             api_retry_count = 0
         
-            legs = route.legs
-            entry_prices = sync_entry_prices_with_quotes(legs, route.entry_prices)
-            strikes = route.strikes
-            
-            execution_success = place_iron_butterfly_basket(legs, index_symbol, entry_prices, strikes, spot_price=spot)
+            execution_success = execute_command_center_route(
+                index_symbol,
+                expiry_date,
+                spot,
+                route,
+                reason="REGULAR",
+            )
         
             if not execution_success:
                 logging.critical("🛑 CRITICAL: Basket execution failed mid-flight! Halting session to prevent orphan legs.")
@@ -751,12 +942,8 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
                 notifier.send_telegram_alert(f"🚨 <b>URGENT ACTION REQUIRED!</b> 🚨\n{index_symbol} basket order failed mid-execution. Check Upstox App immediately.")
                 break 
 
-            initialize_sniper_state(
-                entry_prices,
-                strategy_type=route.strategy_type,
-                drift_threshold=route.drift_threshold,
-                metadata=route.metadata,
-            )
+            state = state_manager.load_state() or {}
+            legs = state.get("legs", route.legs)
             
             state_manager.update_state("cutoff_hour", cutoff_hour)
             state_manager.update_state("cutoff_minute", cutoff_minute)
@@ -821,6 +1008,35 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             logging.info(f"🛑 Live market feed ended for {index_symbol}. Proceeding to EOD evaluation.")
             break
 
+        elif stop_loss_hit == "EOD_CARRY":
+            logging.critical("EOD engine approved overnight carry for %s.", index_symbol)
+            state_manager.update_many({
+                "carry_overnight": True,
+                "btst_reason": "EOD_CARRY",
+                "cutoff_hour": 15,
+                "cutoff_minute": 25,
+            })
+            break
+
+        elif stop_loss_hit == "EOD_SQUARE_OFF":
+            logging.critical("EOD engine requested square off for %s.", index_symbol)
+            square_off_all(exit_prices, exit_reason=stop_loss_hit)
+            break
+
+        elif stop_loss_hit == "EOD_SLICE_CALL_SIDE":
+            logging.critical("EOD bullish shift: slicing call side and carrying put credit spread.")
+            if not slice_neutral_side("CALL", exit_prices=exit_prices, exit_reason=stop_loss_hit):
+                logging.critical("Call-side slice failed. State retained for manual recovery.")
+                halt_without_final_squareoff = True
+            break
+
+        elif stop_loss_hit == "EOD_SLICE_PUT_SIDE":
+            logging.critical("EOD bearish shift: slicing put side and carrying call credit spread.")
+            if not slice_neutral_side("PUT", exit_prices=exit_prices, exit_reason=stop_loss_hit):
+                logging.critical("Put-side slice failed. State retained for manual recovery.")
+                halt_without_final_squareoff = True
+            break
+
         elif stop_loss_hit == "SOCKET_DEAD_EXIT":
             logging.critical(f"WebSocket recovery failed for {index_symbol}. Squaring off with REST quote snapshot.")
             square_off_all(exit_prices, exit_reason=stop_loss_hit)
@@ -834,7 +1050,6 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         elif stop_loss_hit == "TIME_EXIT":
             logging.critical(f"⏰ EOD Cutoff triggered for {index_symbol}. Squaring off and ending session.")
             square_off_all(exit_prices, exit_reason=stop_loss_hit)
-            deploy_btst_momentum_trade(index_symbol, expiry_date, reason="TIME_EXIT")
             break 
 
         elif stop_loss_hit == "BTST_RECENTER":
@@ -967,12 +1182,12 @@ def build_todays_schedule():
         weekday = now.strftime("%A").upper()
         if weekday in ["WEDNESDAY", "THURSDAY"]:
             logging.info(f"📅 Normal Trading Day ({today_str} - {weekday}). Defaulting to SENSEX.")
-            schedule.every().day.at(config.NORMAL_ENTRY_TIME).do(continuous_trading_session, index_symbol="SENSEX", expiry_date=sensex_expiry, cutoff_hour=15, cutoff_minute=15).tag('trading_jobs')
+            schedule.every().day.at(config.NORMAL_ENTRY_TIME).do(continuous_trading_session, index_symbol="SENSEX", expiry_date=sensex_expiry, cutoff_hour=15, cutoff_minute=25).tag('trading_jobs')
         else:
             logging.info(f"📅 Normal Trading Day ({today_str} - {weekday}). Defaulting to NIFTY.")
-            schedule.every().day.at(config.NORMAL_ENTRY_TIME).do(continuous_trading_session, index_symbol="NIFTY", expiry_date=nifty_expiry, cutoff_hour=15, cutoff_minute=15).tag('trading_jobs')
+            schedule.every().day.at(config.NORMAL_ENTRY_TIME).do(continuous_trading_session, index_symbol="NIFTY", expiry_date=nifty_expiry, cutoff_hour=15, cutoff_minute=25).tag('trading_jobs')
 
-    schedule.every().day.at("15:25").do(scheduled_btst_momentum_check).tag('trading_jobs')
+    logging.info("15:25 EOD is handled by the active-position decision engine; no fresh entry is scheduled.")
 
 
 # ============================================================================

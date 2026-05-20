@@ -74,6 +74,59 @@ class UpstoxBroker:
         response.raise_for_status()
         return response.json().get("data", [])
 
+    def get_funds_v3(self):
+        url = "https://api.upstox.com/v3/user/get-funds-and-margin"
+        headers = self._headers()
+        headers["Api-Version"] = "3.0"
+        response = requests.get(url, headers=headers, timeout=5)
+        response.raise_for_status()
+        return response.json()
+
+    def get_funds_v2(self):
+        url = "https://api.upstox.com/v2/user/get-funds-and-margin"
+        response = requests.get(url, headers=self._headers(), timeout=5)
+        response.raise_for_status()
+        return response.json()
+
+    @staticmethod
+    def _extract_v3_available_margin(payload):
+        data = payload.get("data", {}) if isinstance(payload, dict) else {}
+        available = data.get("available_to_trade", {}) or {}
+        return float(available.get("total", 0.0) or 0.0)
+
+    @staticmethod
+    def _extract_v2_available_margin(payload):
+        data = payload.get("data", {}) if isinstance(payload, dict) else {}
+        equity = data.get("equity", {}) or {}
+        return float(equity.get("available_margin", 0.0) or 0.0)
+
+    def get_available_margin(self):
+        try:
+            payload = self.get_funds_v3()
+            available_margin = self._extract_v3_available_margin(payload)
+            if available_margin > 0:
+                return available_margin, {"source": "UPSTOX_FUNDS_V3"}
+        except Exception as err:
+            logging.warning("Upstox V3 funds fetch failed; trying V2: %s", err)
+
+        payload = self.get_funds_v2()
+        available_margin = self._extract_v2_available_margin(payload)
+        if available_margin <= 0:
+            raise ValueError("Upstox funds response has no available equity margin")
+        return available_margin, {"source": "UPSTOX_FUNDS_V2"}
+
+    def get_order_margin(self, instruments):
+        url = "https://api.upstox.com/v2/charges/margin"
+        response = requests.post(
+            url,
+            headers={**self._headers(), "Content-Type": "application/json"},
+            json={"instruments": instruments},
+            timeout=5,
+        )
+        response.raise_for_status()
+        data = response.json().get("data", {}) or {}
+        return data.get("final_margin") or data.get("required_margin") or 0.0
+
     def get_fresh_option_quotes(self, instrument_keys):
         data = self.get_quote_payload(instrument_keys)
         fresh_prices = {}

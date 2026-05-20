@@ -56,6 +56,9 @@ import main
 import state_manager
 import strategy
 import btst_vix_router
+import eod_engine
+import market_context
+import position_sizing
 
 
 class FakeOrderApiV3:
@@ -106,6 +109,8 @@ class SafetyHardeningTests(unittest.TestCase):
         self.old_btst_spread_width = config.BTST_SPREAD_WIDTH_POINTS
         self.old_btst_momentum_enabled = config.BTST_MOMENTUM_ENABLED
         self.old_btst_recenter_min_drift = config.BTST_RECENTER_MIN_DRIFT_RATIO
+        self.old_virtual_capital = config.VIRTUAL_CAPITAL
+        self.old_max_capital_utilization = config.MAX_CAPITAL_UTILIZATION
         self.old_post_emergency_enabled = config.POST_EMERGENCY_REENTRY_ENABLED
         self.old_post_emergency_cooldown = config.POST_EMERGENCY_REENTRY_COOLDOWN_SECONDS
         self.old_catastrophe_multiplier = config.SNIPER_CATASTROPHE_MULTIPLIER
@@ -130,6 +135,8 @@ class SafetyHardeningTests(unittest.TestCase):
         config.BTST_SPREAD_WIDTH_POINTS = 400.0
         config.BTST_MOMENTUM_ENABLED = True
         config.BTST_RECENTER_MIN_DRIFT_RATIO = 0.06
+        config.VIRTUAL_CAPITAL = 220000.0
+        config.MAX_CAPITAL_UTILIZATION = 0.80
         config.POST_EMERGENCY_REENTRY_ENABLED = True
         config.POST_EMERGENCY_REENTRY_COOLDOWN_SECONDS = 0.0
         config.SNIPER_CATASTROPHE_MULTIPLIER = 1.05
@@ -164,6 +171,8 @@ class SafetyHardeningTests(unittest.TestCase):
         config.BTST_SPREAD_WIDTH_POINTS = self.old_btst_spread_width
         config.BTST_MOMENTUM_ENABLED = self.old_btst_momentum_enabled
         config.BTST_RECENTER_MIN_DRIFT_RATIO = self.old_btst_recenter_min_drift
+        config.VIRTUAL_CAPITAL = self.old_virtual_capital
+        config.MAX_CAPITAL_UTILIZATION = self.old_max_capital_utilization
         config.POST_EMERGENCY_REENTRY_ENABLED = self.old_post_emergency_enabled
         config.POST_EMERGENCY_REENTRY_COOLDOWN_SECONDS = self.old_post_emergency_cooldown
         config.SNIPER_CATASTROPHE_MULTIPLIER = self.old_catastrophe_multiplier
@@ -471,7 +480,7 @@ class SafetyHardeningTests(unittest.TestCase):
         self.assertEqual(legs["buy_ce"], "C150")
         self.assertEqual(legs["buy_pe"], "P50")
 
-    def test_vix_router_keeps_butterfly_when_vix_is_at_or_below_threshold(self):
+    def test_vix_router_keeps_butterfly_when_vix_is_below_threshold(self):
         calls = []
 
         def fake_butterfly(index_symbol, spot, chain, buy_leg_percent=None):
@@ -482,7 +491,7 @@ class SafetyHardeningTests(unittest.TestCase):
                 {"sell_ce": 100, "sell_pe": 100, "buy_ce": 150, "buy_pe": 50},
             )
 
-        route = btst_vix_router.route_intraday_neutral_strategy("NIFTY", 100.0, [], 15.0, fake_butterfly)
+        route = btst_vix_router.route_intraday_neutral_strategy("NIFTY", 100.0, [], 14.99, fake_butterfly)
 
         self.assertEqual(route.strategy_type, btst_vix_router.STRATEGY_IRON_BUTTERFLY)
         self.assertEqual(route.drift_threshold, config.ATM_DRIFT_EJECT_THRESHOLD)
@@ -566,6 +575,7 @@ class SafetyHardeningTests(unittest.TestCase):
 
     def test_btst_bullish_high_vix_routes_to_bull_put_credit_buy_first(self):
         chain = self._option_chain_for_strikes({
+            19200: (450.0, 10.0),
             19600: (400.0, 25.0),
             20000: (150.0, 150.0),
             20400: (25.0, 400.0),
@@ -582,7 +592,9 @@ class SafetyHardeningTests(unittest.TestCase):
         )
 
         self.assertEqual(route.strategy_type, btst_vix_router.STRATEGY_BTST_BULL_PUT_CREDIT)
-        self.assertEqual(route.legs, {"buy_pe": "P19600", "sell_pe": "P20000"})
+        self.assertEqual(route.legs, {"buy_pe": "P19200", "sell_pe": "P19600"})
+        self.assertLess(route.strikes["sell_pe"], route.strikes["atm"])
+        self.assertLess(route.strikes["buy_pe"], route.strikes["sell_pe"])
         self.assertEqual(route.order_sequence, [("buy_pe", "BUY"), ("sell_pe", "SELL")])
 
     def test_btst_bearish_low_vix_routes_to_bear_put_debit_buy_first(self):
@@ -662,7 +674,7 @@ class SafetyHardeningTests(unittest.TestCase):
 
         self.assertFalse(result)
 
-    def test_btst_recenter_skips_when_drift_is_below_gate(self):
+    def test_eod_missing_context_squares_off_neutral(self):
         self._save_sniper_state()
         btst_file = os.path.join(strategy.BASE_DIR, "btst_flag.txt")
         with open(btst_file, "w") as f:
@@ -672,19 +684,37 @@ class SafetyHardeningTests(unittest.TestCase):
         with self._market_time_patch(15, 25):
             result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
 
-        self.assertFalse(result)
+        self.assertEqual(result, "EOD_SQUARE_OFF")
 
-    def test_btst_recenter_requires_minimum_atm_drift(self):
+    def test_eod_neutral_context_carries_forward(self):
+        class NeutralContextBroker:
+            def get_option_chain(self, index_symbol, expiry_date):
+                return [
+                    {
+                        "strike_price": 100,
+                        "underlying_spot_price": 100.0,
+                        "call_options": {"market_data": {"oi": 100}},
+                        "put_options": {"market_data": {"oi": 90}},
+                    }
+                ]
+
+            def get_india_vix(self):
+                return 12.0
+
+            def get_spot_price(self, index_symbol):
+                return 100.0
+
+        broker.set_broker_for_tests(NeutralContextBroker())
         self._save_sniper_state()
         btst_file = os.path.join(strategy.BASE_DIR, "btst_flag.txt")
         with open(btst_file, "w") as f:
             f.write("TRUE")
-        live_data = self._sniper_live_data(18.0, 18.0, 4.5, 4.5, spot=106.0)
+        live_data = self._sniper_live_data(18.0, 18.0, 4.5, 4.5, spot=100.0)
 
         with self._market_time_patch(15, 25):
             result, _ = strategy.risk_management_evaluator(live_data, state_manager.load_state()["legs"])
 
-        self.assertEqual(result, "BTST_RECENTER")
+        self.assertEqual(result, "EOD_CARRY")
 
     def test_post_emergency_reentry_blocks_near_sensex_cutoff(self):
         class NearCutoffDatetime(datetime.datetime):
@@ -796,12 +826,99 @@ class SafetyHardeningTests(unittest.TestCase):
         self.assertEqual(tick["ts"], 1778567400.0)
         self.assertEqual(tick["received_ts"], 1778567500.0)
 
+    def test_sandbox_position_sizing_replaces_manual_quantity(self):
+        approved = position_sizing.calculate_position_size(
+            "SANDBOX", "IRON_BUTTERFLY", 14.0, 300000.0, "NIFTY", 65
+        )
+        rejected = position_sizing.calculate_position_size(
+            "SANDBOX", "IRON_BUTTERFLY", 14.0, 220000.0, "NIFTY", 65
+        )
+
+        self.assertEqual(approved["status"], "APPROVED")
+        self.assertEqual(approved["lots_to_deploy"], 1)
+        self.assertEqual(approved["quantity"], 65)
+        self.assertEqual(rejected["status"], "REJECTED")
+
+    def test_live_position_sizing_prefers_basket_margin(self):
+        class MarginBroker:
+            def get_available_margin(self):
+                return 500000.0, {"source": "TEST_FUNDS"}
+
+            def get_order_margin(self, instruments):
+                self.instruments = instruments
+                return 75000.0
+
+        fake_broker = MarginBroker()
+        broker.set_broker_for_tests(fake_broker)
+        route = SimpleNamespace(
+            legs={"buy_pe": "BPE", "sell_pe": "SPE"},
+            order_sequence=[("buy_pe", "BUY"), ("sell_pe", "SELL")],
+        )
+
+        result = position_sizing.calculate_position_size(
+            "LIVE", "BTST_BULL_PUT_CREDIT", 16.0, 0.0, "NIFTY", 65, route=route
+        )
+
+        self.assertEqual(result["status"], "APPROVED")
+        self.assertEqual(result["margin_source"], "UPSTOX_BASKET_MARGIN")
+        self.assertEqual(result["lots_to_deploy"], 5)
+        self.assertEqual(fake_broker.instruments[0]["quantity"], 65)
+
+    def test_pcr_dte_matrix_routes_extreme_bullish_to_otm_bull_put(self):
+        chain = self._option_chain_for_strikes({
+            19000: (500.0, 5.0),
+            19500: (300.0, 20.0),
+            20000: (100.0, 100.0),
+            20500: (20.0, 300.0),
+        })
+        for strike_data in chain:
+            strike_data["call_options"]["market_data"]["oi"] = 100
+            strike_data["put_options"]["market_data"]["oi"] = 140
+
+        route = btst_vix_router.route_pcr_dte_strategy(
+            "NIFTY",
+            "2026-04-30",
+            20000.0,
+            chain,
+            14.0,
+            strategy.calculate_iron_butterfly_legs,
+            now=datetime.datetime(2026, 4, 29, 10, 0),
+        )
+
+        self.assertEqual(route.strategy_type, btst_vix_router.STRATEGY_BTST_BULL_PUT_CREDIT)
+        self.assertLess(route.strikes["sell_pe"], route.strikes["atm"])
+        self.assertLess(route.strikes["buy_pe"], route.strikes["sell_pe"])
+
+    def test_eod_call_side_slice_rewrites_state_to_put_credit_carry(self):
+        config.ENVIRONMENT = "SANDBOX"
+        state_manager.save_state(
+            "NIFTY",
+            {"buy_ce": "BCE", "buy_pe": "BPE", "sell_ce": "SCE", "sell_pe": "SPE"},
+            {"buy_ce": 5.0, "buy_pe": 5.0, "sell_ce": 20.0, "sell_pe": 20.0},
+            65,
+            {"buy_ce": 150, "buy_pe": 50, "sell_ce": 100, "sell_pe": 100, "atm": 100},
+        )
+        state_manager.update_state("strategy_type", btst_vix_router.STRATEGY_IRON_CONDOR)
+
+        self.assertTrue(execution.slice_neutral_side(
+            "CALL",
+            {"buy_ce": 6.0, "buy_pe": 4.0, "sell_ce": 25.0, "sell_pe": 18.0},
+            exit_reason="EOD_SLICE_CALL_SIDE",
+        ))
+        state = state_manager.load_state()
+
+        self.assertEqual(state["strategy_type"], btst_vix_router.STRATEGY_BTST_BULL_PUT_CREDIT)
+        self.assertEqual(state["legs"], {"buy_pe": "BPE", "sell_pe": "SPE"})
+        self.assertTrue(state["carry_overnight"])
+
     def test_btst_recenter_helper_attempts_exactly_one_fresh_entry(self):
         calls = []
+        config.ENVIRONMENT = "SANDBOX"
+        config.VIRTUAL_CAPITAL = 300000.0
 
         def fake_basket(legs, index_symbol, entry_prices, strikes, **kwargs):
             calls.append((legs, index_symbol, entry_prices, strikes, kwargs))
-            state_manager.save_state(index_symbol, legs, entry_prices, 65, strikes)
+            state_manager.save_state(index_symbol, legs, entry_prices, kwargs.get("quantity", 65), strikes)
             return True
 
         with patch.object(main, "get_spot_price", return_value=100.0), \
@@ -809,18 +926,18 @@ class SafetyHardeningTests(unittest.TestCase):
              patch.object(main, "get_option_chain", return_value=[
                  {
                      "strike_price": 50,
-                     "call_options": {"instrument_key": "C50", "market_data": {"ltp": 50}, "greeks": {"delta": 0.95}},
-                     "put_options": {"instrument_key": "P50", "market_data": {"ltp": 3}, "greeks": {"delta": -0.05}},
+                     "call_options": {"instrument_key": "C50", "market_data": {"ltp": 50, "oi": 100}, "greeks": {"delta": 0.95}},
+                     "put_options": {"instrument_key": "P50", "market_data": {"ltp": 3, "oi": 90}, "greeks": {"delta": -0.05}},
                  },
                  {
                      "strike_price": 100,
-                     "call_options": {"instrument_key": "C100", "market_data": {"ltp": 20}, "greeks": {"delta": 0.50}},
-                     "put_options": {"instrument_key": "P100", "market_data": {"ltp": 20}, "greeks": {"delta": -0.50}},
+                     "call_options": {"instrument_key": "C100", "market_data": {"ltp": 20, "oi": 100}, "greeks": {"delta": 0.50}},
+                     "put_options": {"instrument_key": "P100", "market_data": {"ltp": 20, "oi": 90}, "greeks": {"delta": -0.50}},
                  },
                  {
                      "strike_price": 150,
-                     "call_options": {"instrument_key": "C150", "market_data": {"ltp": 3}, "greeks": {"delta": 0.05}},
-                     "put_options": {"instrument_key": "P150", "market_data": {"ltp": 50}, "greeks": {"delta": -0.95}},
+                     "call_options": {"instrument_key": "C150", "market_data": {"ltp": 3, "oi": 100}, "greeks": {"delta": 0.05}},
+                     "put_options": {"instrument_key": "P150", "market_data": {"ltp": 50, "oi": 90}, "greeks": {"delta": -0.95}},
                  },
              ]), \
              patch.object(main, "get_fresh_option_quotes", return_value={
