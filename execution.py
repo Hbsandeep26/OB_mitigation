@@ -230,6 +230,24 @@ def _spread_width(strikes):
     return max(values) - min(values) if len(values) >= 2 else 0.0
 
 
+def _lot_size_for_index(index_symbol):
+    return config.NIFTY_LOT_MULTIPLE if index_symbol == "NIFTY" else config.SENSEX_LOT_MULTIPLE
+
+
+def _log_dimensions(index_symbol, quantity, sizing=None):
+    sizing = sizing or {}
+    broker_lot_size = int(sizing.get("lot_multiple") or _lot_size_for_index(index_symbol))
+    total_quantity = int(quantity or sizing.get("quantity") or 0)
+    total_lots = int(sizing.get("lots_to_deploy") or (total_quantity // broker_lot_size if broker_lot_size else 0))
+    margin_blocked = float(sizing.get("capital_deployed") or 0.0)
+    return {
+        "broker_lot_size": broker_lot_size,
+        "total_lots_deployed": total_lots,
+        "total_quantity": total_quantity,
+        "margin_blocked": margin_blocked,
+    }
+
+
 def _preflight_option_spread_check(index_symbol, entry_prices, quantity, strikes, order_sequence):
     validate_trade_quantity(index_symbol, quantity)
     order_sequence = _normalize_order_sequence(order_sequence)
@@ -308,7 +326,8 @@ def place_option_spread_basket(
         })
         log_trade(
             "ENTRY", index_symbol, entry_prices, net_premium, 0.0,
-            f"{strategy_type} Paper Trade (Simulated)", spot_price=spot_price, strikes=strikes
+            f"{strategy_type} Paper Trade (Simulated)", spot_price=spot_price, strikes=strikes,
+            strategy_type=strategy_type, **_log_dimensions(index_symbol, trade_quantity, sizing)
         )
         state_manager.save_state(index_symbol, legs, entry_prices, trade_quantity, strikes, execution_info=execution_info)
         state_manager.update_many({
@@ -364,7 +383,8 @@ def place_option_spread_basket(
     execution_info.update({"mode": "LIVE", "fills": confirmed_fills})
     log_trade(
         "ENTRY", index_symbol, actual_prices, actual_net_premium, 0.0,
-        f"{strategy_type} Live Basket Confirmed", spot_price=spot_price, strikes=strikes
+        f"{strategy_type} Live Basket Confirmed", spot_price=spot_price, strikes=strikes,
+        strategy_type=strategy_type, **_log_dimensions(index_symbol, trade_quantity, sizing)
     )
     state_manager.save_state(index_symbol, legs, actual_prices, trade_quantity, strikes, execution_info=execution_info)
     state_manager.update_many({
@@ -418,7 +438,8 @@ def place_iron_butterfly_basket(
         logging.info("Simulated basket executed successfully.")
         log_trade(
             "ENTRY", index_symbol, entry_prices, net_premium, 0.0,
-            "Local Paper Trade (Simulated)", spot_price=spot_price, strikes=strikes
+            "Local Paper Trade (Simulated)", spot_price=spot_price, strikes=strikes,
+            strategy_type=strategy_type or "IRON_BUTTERFLY", **_log_dimensions(index_symbol, trade_quantity, sizing)
         )
         state_manager.save_state(index_symbol, legs, entry_prices, trade_quantity, strikes, execution_info=execution_info)
         state_manager.update_state("entry_spot", spot_price)
@@ -480,7 +501,8 @@ def place_iron_butterfly_basket(
     }
     log_trade(
         "ENTRY", index_symbol, actual_prices, net_premium, 0.0,
-        "Live Basket Confirmed", spot_price=spot_price, strikes=strikes
+        "Live Basket Confirmed", spot_price=spot_price, strikes=strikes,
+        strategy_type=strategy_type or "IRON_BUTTERFLY", **_log_dimensions(index_symbol, trade_quantity, sizing)
     )
     state_manager.save_state(index_symbol, legs, actual_prices, trade_quantity, strikes, execution_info=execution_info)
     state_manager.update_state("entry_spot", spot_price)
@@ -554,6 +576,16 @@ def _state_order_sequence(state):
     return _normalize_order_sequence(execution_info.get("order_sequence", []))
 
 
+def _state_log_dimensions(state):
+    index_symbol = state.get("index_symbol", "")
+    quantity = int(state.get("quantity", 0) or 0)
+    sizing = state.get("sizing") or state.get("execution_info", {}).get("sizing", {})
+    dimensions = _log_dimensions(index_symbol, quantity, sizing)
+    if not dimensions["margin_blocked"]:
+        dimensions["margin_blocked"] = float(state.get("margin_blocked") or state.get("capital_deployed") or 0.0)
+    return dimensions
+
+
 def _square_off_option_spread(state, exit_prices=None, exit_reason=""):
     success = True
     entry = state["entry_prices"]
@@ -575,7 +607,8 @@ def _square_off_option_spread(state, exit_prices=None, exit_reason=""):
         pnl = _pnl_from_order_sequence(entry, safe_exits, qty, order_sequence)
         log_trade(
             "EXIT", index_symbol, safe_exits, exit_premium, pnl, notes,
-            spot_price=spot_price, strikes=strikes, exit_reason=exit_reason
+            spot_price=spot_price, strikes=strikes, exit_reason=exit_reason,
+            strategy_type=strategy_type, **_state_log_dimensions(state)
         )
         logging.info("Simulated PnL for %s: %.2f", strategy_type, pnl)
         send_telegram_alert(
@@ -633,7 +666,8 @@ def _square_off_option_spread(state, exit_prices=None, exit_reason=""):
 
     log_trade(
         "EXIT", index_symbol, safe_exits, exit_premium, pnl, notes,
-        spot_price=spot_price, strikes=strikes, exit_reason=exit_reason
+        spot_price=spot_price, strikes=strikes, exit_reason=exit_reason,
+        strategy_type=strategy_type, **_state_log_dimensions(state)
     )
     state_manager.update_many({"last_exit_fills": exit_fills, "last_exit_success": success})
 
@@ -683,7 +717,8 @@ def square_off_all(exit_prices=None, exit_reason=""):
         pnl = _pnl(entry, safe_exits, qty)
         log_trade(
             "EXIT", index_symbol, safe_exits, exit_premium, pnl, notes,
-            spot_price=spot_price, strikes=strikes, exit_reason=exit_reason
+            spot_price=spot_price, strikes=strikes, exit_reason=exit_reason,
+            strategy_type=state.get("strategy_type", "IRON_BUTTERFLY"), **_state_log_dimensions(state)
         )
         logging.info("Simulated PnL for this trade: %.2f", pnl)
         send_telegram_alert(
@@ -732,7 +767,8 @@ def square_off_all(exit_prices=None, exit_reason=""):
 
     log_trade(
         "EXIT", index_symbol, safe_exits, exit_premium, pnl, notes,
-        spot_price=spot_price, strikes=strikes, exit_reason=exit_reason
+        spot_price=spot_price, strikes=strikes, exit_reason=exit_reason,
+        strategy_type=state.get("strategy_type", "IRON_BUTTERFLY"), **_state_log_dimensions(state)
     )
     state_manager.update_many({"last_exit_fills": exit_fills, "last_exit_success": success})
 
@@ -813,6 +849,10 @@ def _rewrite_state_for_slice(state, plan, exit_prices, exit_reason, exit_fills=N
         "eod_slice_reason": exit_reason,
         "last_slice_exit_prices": exit_prices or {},
         "last_slice_success": True,
+        "broker_lot_size": state.get("broker_lot_size"),
+        "total_lots_deployed": state.get("total_lots_deployed"),
+        "total_quantity": state.get("total_quantity", qty),
+        "margin_blocked": state.get("margin_blocked", state.get("capital_deployed", 0.0)),
     })
 
 
@@ -844,6 +884,8 @@ def slice_neutral_side(side, exit_prices=None, exit_reason="EOD_SLICE"):
             spot_price=spot_price,
             strikes=state.get("strikes", {}),
             exit_reason=exit_reason,
+            strategy_type=state.get("strategy_type", ""),
+            **_state_log_dimensions(state),
         )
         _rewrite_state_for_slice(state, plan, safe_exits, exit_reason)
         send_telegram_alert(
@@ -893,6 +935,8 @@ def slice_neutral_side(side, exit_prices=None, exit_reason="EOD_SLICE"):
         spot_price=spot_price,
         strikes=state.get("strikes", {}),
         exit_reason=exit_reason,
+        strategy_type=state.get("strategy_type", ""),
+        **_state_log_dimensions(state),
     )
     _rewrite_state_for_slice(state, plan, actual_exits, exit_reason, exit_fills=exit_fills)
     send_telegram_alert(

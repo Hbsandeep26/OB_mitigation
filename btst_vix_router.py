@@ -4,11 +4,17 @@ from dataclasses import dataclass, field
 
 import config
 from market_context import (
+    FLOW_SIGNAL_BEARISH,
+    FLOW_SIGNAL_BULLISH,
+    FLOW_SIGNAL_NEUTRAL,
+    STRADDLE_CONTRACTING,
+    STRADDLE_EXPANDING,
     SENTIMENT_EXTREMELY_BEARISH,
     SENTIMENT_EXTREMELY_BULLISH,
     SENTIMENT_MILDLY_BEARISH,
     SENTIMENT_MILDLY_BULLISH,
     SENTIMENT_NEUTRAL,
+    build_oi_flow_context,
     build_market_context,
 )
 
@@ -106,6 +112,20 @@ def _next_farther_otm_strike(option_chain_data, short_strike, direction):
     if not candidates:
         return None
     return min(candidates, key=lambda strike: abs(strike - short))
+
+
+def _farther_otm_strike_candidates(option_chain_data, short_strike, direction, min_steps=2, max_steps=3):
+    strikes = _sorted_strikes(option_chain_data)
+    short = float(short_strike)
+    if short not in strikes:
+        return []
+    short_idx = strikes.index(short)
+    candidates = []
+    for offset in range(int(min_steps), int(max_steps) + 1):
+        target_idx = short_idx + offset if direction == "above" else short_idx - offset
+        if 0 <= target_idx < len(strikes):
+            candidates.append(strikes[target_idx])
+    return candidates
 
 
 def _option_info_at_strike(option_chain_data, strike, option_type):
@@ -294,13 +314,13 @@ def strategy_type_for_context(market_context):
     if sentiment == SENTIMENT_EXTREMELY_BULLISH:
         return STRATEGY_BTST_BULL_PUT_CREDIT
     if sentiment == SENTIMENT_MILDLY_BULLISH:
-        return STRATEGY_BTST_BULL_CALL_DEBIT
+        return STRATEGY_BTST_BULL_PUT_CREDIT
     if sentiment == SENTIMENT_NEUTRAL:
         if vix is None:
             return ""
         return STRATEGY_IRON_CONDOR if float(vix) >= config.IRON_CONDOR_VIX_ACTIVATION else STRATEGY_IRON_BUTTERFLY
     if sentiment == SENTIMENT_MILDLY_BEARISH:
-        return STRATEGY_BTST_BEAR_PUT_DEBIT
+        return STRATEGY_BTST_BEAR_CALL_CREDIT
     if sentiment == SENTIMENT_EXTREMELY_BEARISH:
         return STRATEGY_BTST_BEAR_CALL_CREDIT
     return ""
@@ -313,11 +333,17 @@ def calculate_matrix_spread_legs(index_symbol, spot_price, option_chain_data, st
 
     if strategy_type == STRATEGY_BTST_BULL_PUT_CREDIT:
         sell_pe_strike = _nearest_otm_strike(option_chain_data, atm_strike, "below")
-        buy_pe_strike = _next_farther_otm_strike(option_chain_data, sell_pe_strike, "below") if sell_pe_strike else None
-        if buy_pe_strike is None or sell_pe_strike is None or not (buy_pe_strike < sell_pe_strike < atm_strike):
-            return StrategyRoute(strategy_type=strategy_type, no_trade_reason="Bull Put OTM structure invalid")
+        if sell_pe_strike is None:
+            return StrategyRoute(strategy_type=strategy_type, no_trade_reason="Bull Put requires 2-3 strike credit width")
         sell_key, sell_price = _spread_leg(option_chain_data, sell_pe_strike, "put")
-        buy_key, buy_price = _spread_leg(option_chain_data, buy_pe_strike, "put")
+        buy_pe_strike, buy_key, buy_price = None, "", 0.0
+        for candidate in _farther_otm_strike_candidates(option_chain_data, sell_pe_strike, "below", min_steps=2, max_steps=3):
+            candidate_key, candidate_price = _spread_leg(option_chain_data, candidate, "put")
+            if candidate_key and candidate_price > 0 and sell_price > candidate_price:
+                buy_pe_strike, buy_key, buy_price = candidate, candidate_key, candidate_price
+                break
+        if buy_pe_strike is None or not (buy_pe_strike < sell_pe_strike < atm_strike):
+            return StrategyRoute(strategy_type=strategy_type, no_trade_reason="Bull Put requires 2-3 strike credit width")
         return _spread_route(
             strategy_type,
             {"buy_pe": buy_key, "sell_pe": sell_key},
@@ -365,11 +391,17 @@ def calculate_matrix_spread_legs(index_symbol, spot_price, option_chain_data, st
 
     if strategy_type == STRATEGY_BTST_BEAR_CALL_CREDIT:
         sell_ce_strike = _nearest_otm_strike(option_chain_data, atm_strike, "above")
-        buy_ce_strike = _next_farther_otm_strike(option_chain_data, sell_ce_strike, "above") if sell_ce_strike else None
-        if buy_ce_strike is None or sell_ce_strike is None or not (atm_strike < sell_ce_strike < buy_ce_strike):
-            return StrategyRoute(strategy_type=strategy_type, no_trade_reason="Bear Call OTM structure invalid")
+        if sell_ce_strike is None:
+            return StrategyRoute(strategy_type=strategy_type, no_trade_reason="Bear Call requires 2-3 strike credit width")
         sell_key, sell_price = _spread_leg(option_chain_data, sell_ce_strike, "call")
-        buy_key, buy_price = _spread_leg(option_chain_data, buy_ce_strike, "call")
+        buy_ce_strike, buy_key, buy_price = None, "", 0.0
+        for candidate in _farther_otm_strike_candidates(option_chain_data, sell_ce_strike, "above", min_steps=2, max_steps=3):
+            candidate_key, candidate_price = _spread_leg(option_chain_data, candidate, "call")
+            if candidate_key and candidate_price > 0 and sell_price > candidate_price:
+                buy_ce_strike, buy_key, buy_price = candidate, candidate_key, candidate_price
+                break
+        if buy_ce_strike is None or not (atm_strike < sell_ce_strike < buy_ce_strike):
+            return StrategyRoute(strategy_type=strategy_type, no_trade_reason="Bear Call requires 2-3 strike credit width")
         return _spread_route(
             strategy_type,
             {"buy_ce": buy_key, "sell_ce": sell_key},
@@ -382,6 +414,61 @@ def calculate_matrix_spread_legs(index_symbol, spot_price, option_chain_data, st
         )
 
     return StrategyRoute(strategy_type=strategy_type, no_trade_reason="Unsupported matrix strategy")
+
+
+def route_command_center_strategy(
+    index_symbol,
+    expiry_date,
+    spot_price,
+    option_chain_data,
+    india_vix,
+    butterfly_calculator,
+    previous_snapshot=None,
+    now=None,
+):
+    flow_context = build_oi_flow_context(
+        index_symbol,
+        expiry_date,
+        option_chain_data,
+        spot=spot_price,
+        previous_snapshot=previous_snapshot,
+        now=now,
+    )
+    context_metadata = flow_context.as_dict()
+    base_metadata = {
+        "market_context": context_metadata,
+        "entry_regime_signal": flow_context.flow_signal,
+        "straddle_signal": flow_context.straddle_signal,
+        "oi_flow_snapshot": flow_context.oi_flow_snapshot or {},
+    }
+
+    strategy_type = ""
+    if flow_context.flow_signal == FLOW_SIGNAL_NEUTRAL and flow_context.straddle_signal == STRADDLE_CONTRACTING:
+        neutral_route = route_intraday_neutral_strategy(
+            index_symbol,
+            spot_price,
+            option_chain_data,
+            india_vix,
+            butterfly_calculator,
+        )
+        neutral_route.metadata = {**(neutral_route.metadata or {}), **base_metadata}
+        return neutral_route
+
+    if flow_context.flow_signal == FLOW_SIGNAL_BULLISH and flow_context.straddle_signal == STRADDLE_EXPANDING:
+        strategy_type = STRATEGY_BTST_BULL_PUT_CREDIT
+    elif flow_context.flow_signal == FLOW_SIGNAL_BEARISH and flow_context.straddle_signal == STRADDLE_EXPANDING:
+        strategy_type = STRATEGY_BTST_BEAR_CALL_CREDIT
+    else:
+        reason = flow_context.no_trade_reason or (
+            f"Flow {flow_context.flow_signal} with straddle {flow_context.straddle_signal} is not tradable"
+        )
+        return StrategyRoute(metadata=base_metadata, no_trade_reason=reason)
+
+    route = calculate_matrix_spread_legs(index_symbol, spot_price, option_chain_data, strategy_type)
+    route.metadata = {**(route.metadata or {}), **base_metadata}
+    if not route.legs and not route.no_trade_reason:
+        route.no_trade_reason = f"{strategy_type} leg calculation failed"
+    return route
 
 
 def route_pcr_dte_strategy(index_symbol, expiry_date, spot_price, option_chain_data, india_vix, butterfly_calculator, now=None):
@@ -494,6 +581,24 @@ def _spread_route(strategy_type, legs, prices, strikes, order_sequence, signal, 
             no_trade_reason=f"{strategy_type} leg data missing",
         )
 
+    if "DEBIT" in str(strategy_type).upper():
+        return StrategyRoute(
+            strategy_type=strategy_type,
+            metadata={"signal": signal, "india_vix": india_vix, "daily_range_close": daily_range_close},
+            no_trade_reason="Directional debit spreads are disabled",
+        )
+
+    net_credit = 0.0
+    for leg_name, transaction_type in order_sequence:
+        price = float(prices.get(leg_name, 0.0) or 0.0)
+        net_credit += price if str(transaction_type).upper() == "SELL" else -price
+    if "CREDIT" in str(strategy_type).upper() and net_credit <= 0:
+        return StrategyRoute(
+            strategy_type=strategy_type,
+            metadata={"signal": signal, "india_vix": india_vix, "daily_range_close": daily_range_close},
+            no_trade_reason=f"{strategy_type} is not a credit spread",
+        )
+
     return StrategyRoute(
         strategy_type=strategy_type,
         legs=legs,
@@ -510,52 +615,15 @@ def calculate_btst_spread_legs(index_symbol, spot_price, option_chain_data, sign
     if atm_strike is None:
         return StrategyRoute(no_trade_reason="Option chain has no strikes")
 
-    width = config.BTST_SPREAD_WIDTH_POINTS
-    high_vix = float(india_vix) >= config.INDIA_VIX_TOGGLE_LEVEL
-
-    if signal == SIGNAL_BULLISH and high_vix:
+    if signal == SIGNAL_BULLISH:
         route = calculate_matrix_spread_legs(index_symbol, spot_price, option_chain_data, STRATEGY_BTST_BULL_PUT_CREDIT)
         route.metadata.update({"signal": signal, "india_vix": india_vix, "daily_range_close": daily_range_close})
         return route
 
-    if signal == SIGNAL_BULLISH:
-        sell_ce_strike = _nearest_chain_strike(option_chain_data, atm_strike + width)
-        if sell_ce_strike is None or sell_ce_strike <= atm_strike:
-            return StrategyRoute(strategy_type=STRATEGY_BTST_BULL_CALL_DEBIT, no_trade_reason="Bull Call short strike invalid")
-        buy_key, buy_price = _spread_leg(option_chain_data, atm_strike, "call")
-        sell_key, sell_price = _spread_leg(option_chain_data, sell_ce_strike, "call")
-        return _spread_route(
-            STRATEGY_BTST_BULL_CALL_DEBIT,
-            {"buy_ce": buy_key, "sell_ce": sell_key},
-            {"buy_ce": buy_price, "sell_ce": sell_price},
-            {"buy_ce": atm_strike, "sell_ce": sell_ce_strike},
-            [("buy_ce", "BUY"), ("sell_ce", "SELL")],
-            signal,
-            india_vix,
-            daily_range_close,
-        )
-
-    if signal == SIGNAL_BEARISH and high_vix:
+    if signal == SIGNAL_BEARISH:
         route = calculate_matrix_spread_legs(index_symbol, spot_price, option_chain_data, STRATEGY_BTST_BEAR_CALL_CREDIT)
         route.metadata.update({"signal": signal, "india_vix": india_vix, "daily_range_close": daily_range_close})
         return route
-
-    if signal == SIGNAL_BEARISH:
-        sell_pe_strike = _nearest_chain_strike(option_chain_data, atm_strike - width)
-        if sell_pe_strike is None or sell_pe_strike >= atm_strike:
-            return StrategyRoute(strategy_type=STRATEGY_BTST_BEAR_PUT_DEBIT, no_trade_reason="Bear Put short strike invalid")
-        buy_key, buy_price = _spread_leg(option_chain_data, atm_strike, "put")
-        sell_key, sell_price = _spread_leg(option_chain_data, sell_pe_strike, "put")
-        return _spread_route(
-            STRATEGY_BTST_BEAR_PUT_DEBIT,
-            {"buy_pe": buy_key, "sell_pe": sell_key},
-            {"buy_pe": buy_price, "sell_pe": sell_price},
-            {"buy_pe": atm_strike, "sell_pe": sell_pe_strike},
-            [("buy_pe", "BUY"), ("sell_pe", "SELL")],
-            signal,
-            india_vix,
-            daily_range_close,
-        )
 
     return StrategyRoute(no_trade_reason="No BTST spread for neutral/no-trade signal")
 

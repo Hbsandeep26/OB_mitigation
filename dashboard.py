@@ -387,7 +387,8 @@ with data_col:
         f"NIFTY: {nifty_tick.get('ltp', 'N/A')} | "
         f"SENSEX: {sensex_tick.get('ltp', 'N/A')} | "
         f"INDIA VIX: {vix_tick.get('ltp', 'N/A')} | "
-        f"PCR: {market_context_header.get('pcr', 'N/A')}"
+        f"Flow: {market_context_header.get('flow_signal', 'N/A')} | "
+        f"Straddle: {market_context_header.get('straddle_signal', 'N/A')}"
     )
 
 # --- SYSTEM STATUS & MANUAL EXIT CONTROLS ---
@@ -456,7 +457,12 @@ with col_status:
             pass 
             
         if state.get("active"):
-            st.success(f"🟢 ACTIVE TRADE: {state['index_symbol']} | Qty: {state.get('quantity', 'N/A')}")
+            st.success(
+                f"🟢 ACTIVE TRADE: {state['index_symbol']} | "
+                f"Lots: {state.get('total_lots_deployed', 'N/A')} | "
+                f"Qty: {state.get('total_quantity', state.get('quantity', 'N/A'))} | "
+                f"Margin: ₹{float(state.get('margin_blocked', state.get('capital_deployed', 0.0)) or 0.0):,.0f}"
+            )
 
             badge_col1, badge_col2, badge_col3 = st.columns(3)
             with badge_col1:
@@ -611,6 +617,20 @@ st.subheader("📜 Trade Ledger & Performance")
 
 if os.path.exists(CSV_LOG_FILE):
     df = pd.read_csv(CSV_LOG_FILE)
+    required_ledger_fields = [
+        "Index_Name",
+        "Strategy_Type",
+        "Broker_Lot_Size",
+        "Total_Lots_Deployed",
+        "Total_Quantity",
+        "Margin_Blocked",
+    ]
+    for field in required_ledger_fields:
+        if field not in df.columns:
+            df[field] = ""
+    if "Index" in df.columns:
+        df["Index_Name"] = df["Index_Name"].fillna("")
+        df["Index_Name"] = df["Index_Name"].where(df["Index_Name"].astype(str).str.len() > 0, df["Index"])
     def highlight_exits(row):
         return ['background-color: #2b2b2b' if row['Action'] == 'EXIT' else '' for _ in row]
     st.dataframe(df.style.apply(highlight_exits, axis=1), width='stretch')

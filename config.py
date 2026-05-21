@@ -55,6 +55,24 @@ def _bool_setting(key, default):
     return bool(value)
 
 
+def _list_setting(key, default):
+    value = _setting(key, default)
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return list(default)
+        try:
+            parsed = json.loads(text)
+            if isinstance(parsed, list):
+                return parsed
+        except Exception:
+            pass
+        return [item.strip() for item in text.split(",") if item.strip()]
+    return list(default)
+
+
 def get_live_token():
     """Dynamically reads the freshest token from environment/settings."""
     return _setting("LIVE_ACCESS_TOKEN", "")
@@ -213,6 +231,16 @@ HEARTBEAT_INTERVAL_SECONDS = _float_setting("HEARTBEAT_INTERVAL_SECONDS", 5.0)
 MAX_DEFINED_LOSS_RUPEES = _float_setting("MAX_DEFINED_LOSS_RUPEES", 0.0)
 NORMAL_ENTRY_TIME = _setting("NORMAL_ENTRY_TIME", "09:16")
 EXPIRY_ENTRY_TIME = _setting("EXPIRY_ENTRY_TIME", "09:20")
+ENTRY_STANDBY_TIME = _setting("ENTRY_STANDBY_TIME", "09:45")
+FLOW_POLL_SECONDS = _float_setting("FLOW_POLL_SECONDS", 300.0)
+OI_FLOW_DOMINANCE_RATIO = _float_setting("OI_FLOW_DOMINANCE_RATIO", 1.25)
+OI_FLOW_MIN_BAND_CHANGE_PCT = _float_setting("OI_FLOW_MIN_BAND_CHANGE_PCT", 0.001)
+OI_FLOW_MIN_ABS_CHANGE = _float_setting("OI_FLOW_MIN_ABS_CHANGE", 0.0)
+STRADDLE_PREMIUM_CHANGE_PCT = _float_setting("STRADDLE_PREMIUM_CHANGE_PCT", 0.002)
+WEBSOCKET_RECONNECT_BACKOFF_SECONDS = [
+    float(value)
+    for value in _list_setting("WEBSOCKET_RECONNECT_BACKOFF_SECONDS", [2, 4, 8, 16, 30])
+]
 
 # --- SNIPER & SHIELD STRATEGY ---
 SNIPER_TARGETS_ENABLED = _bool_setting("SNIPER_TARGETS_ENABLED", True)

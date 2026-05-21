@@ -4,6 +4,7 @@ import time
 import unittest
 import types
 import json
+import csv
 import datetime
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -53,6 +54,7 @@ import broker
 import data_feed
 import execution
 import main
+import logger
 import state_manager
 import strategy
 import btst_vix_router
@@ -115,6 +117,13 @@ class SafetyHardeningTests(unittest.TestCase):
         self.old_post_emergency_cooldown = config.POST_EMERGENCY_REENTRY_COOLDOWN_SECONDS
         self.old_catastrophe_multiplier = config.SNIPER_CATASTROPHE_MULTIPLIER
         self.old_exit_confirmation_enabled = config.EMERGENCY_EXIT_CONFIRMATION_ENABLED
+        self.old_entry_standby_time = config.ENTRY_STANDBY_TIME
+        self.old_flow_poll_seconds = config.FLOW_POLL_SECONDS
+        self.old_oi_flow_dominance = config.OI_FLOW_DOMINANCE_RATIO
+        self.old_oi_flow_min_pct = config.OI_FLOW_MIN_BAND_CHANGE_PCT
+        self.old_oi_flow_min_abs = config.OI_FLOW_MIN_ABS_CHANGE
+        self.old_straddle_change_pct = config.STRADDLE_PREMIUM_CHANGE_PCT
+        self.old_backoff = list(config.WEBSOCKET_RECONNECT_BACKOFF_SECONDS)
         self.old_strategy_base = strategy.BASE_DIR
         self.current_state_file = os.path.join(self.tmp_name, "trade_state.json")
         if os.path.exists(self.current_state_file):
@@ -141,12 +150,19 @@ class SafetyHardeningTests(unittest.TestCase):
         config.POST_EMERGENCY_REENTRY_COOLDOWN_SECONDS = 0.0
         config.SNIPER_CATASTROPHE_MULTIPLIER = 1.05
         config.EMERGENCY_EXIT_CONFIRMATION_ENABLED = False
+        config.ENTRY_STANDBY_TIME = "09:45"
+        config.FLOW_POLL_SECONDS = 300.0
+        config.OI_FLOW_DOMINANCE_RATIO = 1.25
+        config.OI_FLOW_MIN_BAND_CHANGE_PCT = 0.001
+        config.OI_FLOW_MIN_ABS_CHANGE = 0.0
+        config.STRADDLE_PREMIUM_CHANGE_PCT = 0.002
+        config.WEBSOCKET_RECONNECT_BACKOFF_SECONDS = [2, 4, 8, 16, 30]
         strategy.BASE_DIR = self.tmp_name
         broker.set_broker_for_tests(None)
 
     def tearDown(self):
         try:
-            for filename in ("btst_flag.txt", "manual_exit_flag.txt", "graceful_stop_flag.txt", "expiries.json"):
+            for filename in ("btst_flag.txt", "manual_exit_flag.txt", "graceful_stop_flag.txt", "expiries.json", "sandbox_trade_logs.csv"):
                 flag_path = os.path.join(self.tmp_name, filename)
                 if os.path.exists(flag_path):
                     os.remove(flag_path)
@@ -177,6 +193,13 @@ class SafetyHardeningTests(unittest.TestCase):
         config.POST_EMERGENCY_REENTRY_COOLDOWN_SECONDS = self.old_post_emergency_cooldown
         config.SNIPER_CATASTROPHE_MULTIPLIER = self.old_catastrophe_multiplier
         config.EMERGENCY_EXIT_CONFIRMATION_ENABLED = self.old_exit_confirmation_enabled
+        config.ENTRY_STANDBY_TIME = self.old_entry_standby_time
+        config.FLOW_POLL_SECONDS = self.old_flow_poll_seconds
+        config.OI_FLOW_DOMINANCE_RATIO = self.old_oi_flow_dominance
+        config.OI_FLOW_MIN_BAND_CHANGE_PCT = self.old_oi_flow_min_pct
+        config.OI_FLOW_MIN_ABS_CHANGE = self.old_oi_flow_min_abs
+        config.STRADDLE_PREMIUM_CHANGE_PCT = self.old_straddle_change_pct
+        config.WEBSOCKET_RECONNECT_BACKOFF_SECONDS = self.old_backoff
         strategy.BASE_DIR = self.old_strategy_base
         broker.set_broker_for_tests(None)
 
@@ -277,6 +300,28 @@ class SafetyHardeningTests(unittest.TestCase):
         self.assertEqual(result[0], "SNIPER_TARGET")
         self.assertEqual(len(calls), 2)
 
+    def test_socket_dead_uses_exponential_backoff_sequence(self):
+        calls = []
+        sleeps = []
+        config.WEBSOCKET_RECONNECT_BACKOFF_SECONDS = [2, 4, 8]
+        active_state = {"active": True, "legs": {"sell_ce": "SCE"}}
+
+        def fake_monitor(legs, callback):
+            calls.append(dict(legs))
+            return ("SOCKET_DEAD", {}) if len(calls) <= 3 else ("SNIPER_TARGET", {"sell_ce": 1})
+
+        with patch.object(main, "monitor_live_prices", side_effect=fake_monitor), \
+             patch.object(main.state_manager, "load_state", return_value=active_state), \
+             patch.object(main.state_manager, "update_state"), \
+             patch.object(main.state_manager, "update_many"), \
+             patch.object(main, "get_fresh_option_quotes", return_value={"SCE": 1.0}), \
+             patch.object(main, "write_heartbeat"), \
+             patch.object(main.time, "sleep", side_effect=lambda seconds: sleeps.append(seconds)):
+            result = main.monitor_with_reconnects({"sell_ce": "SCE"}, "NIFTY")
+
+        self.assertEqual(result[0], "SNIPER_TARGET")
+        self.assertEqual(sleeps, [2.0, 4.0, 8.0])
+
     def test_stale_ticks_block_risk_decision(self):
         state_manager.save_state(
             "NIFTY",
@@ -314,6 +359,22 @@ class SafetyHardeningTests(unittest.TestCase):
         self.assertEqual(config.get_next_expiry("NIFTY", now=now), "2026-04-30")
         self.assertEqual(config.get_next_expiry("SENSEX", now=now), "2026-05-08")
         self.assertEqual(config.validate_expiry_calendar(now=now), [])
+
+    def test_safe_trading_expiry_skips_same_day_expiry(self):
+        with open(config.EXPIRIES_FILE, "w") as f:
+            json.dump({
+                "NIFTY": ["2026-05-26"],
+                "SENSEX": ["2026-05-21", "2026-05-27"],
+            }, f)
+
+        now = datetime.datetime(2026, 5, 21, 10, 0)
+
+        self.assertEqual(main.safe_trading_expiry("SENSEX", now=now), "2026-05-27")
+        self.assertEqual(main.safe_trading_expiry("NIFTY", now=now), "2026-05-26")
+
+    def test_fresh_entry_gate_blocks_until_0945(self):
+        self.assertFalse(main.fresh_entry_gate_open(datetime.datetime(2026, 5, 21, 9, 44, 59)))
+        self.assertTrue(main.fresh_entry_gate_open(datetime.datetime(2026, 5, 21, 9, 45, 0)))
 
     def test_manual_exit_uses_fresh_broker_quotes_for_pnl(self):
         class FreshQuoteBroker:
@@ -423,6 +484,21 @@ class SafetyHardeningTests(unittest.TestCase):
                 },
             })
         return chain
+
+    def _flow_previous_snapshot(self, strikes, call_oi=1000, put_oi=1000, straddle_premium=200.0):
+        return {
+            "atm_strike": 20000.0,
+            "straddle_premium": straddle_premium,
+            "band": {
+                str(float(strike)): {
+                    "call_oi": float(call_oi),
+                    "put_oi": float(put_oi),
+                    "call_ltp": 100.0,
+                    "put_ltp": 100.0,
+                }
+                for strike in strikes
+            },
+        }
 
     def _market_time_patch(self, hour=10, minute=30):
         class MarketHoursDatetime(datetime.datetime):
@@ -536,7 +612,7 @@ class SafetyHardeningTests(unittest.TestCase):
         self.assertIsNone(prices)
         self.assertIsNone(strikes)
 
-    def test_condor_uses_distinct_wider_atm_drift_threshold(self):
+    def test_condor_uses_dynamic_spot_and_dte_drift_threshold(self):
         state_manager.save_state(
             "NIFTY",
             {"buy_ce": "BCE", "buy_pe": "BPE", "sell_ce": "SCE", "sell_pe": "SPE"},
@@ -547,18 +623,20 @@ class SafetyHardeningTests(unittest.TestCase):
         state_manager.update_many({
             "strategy_type": btst_vix_router.STRATEGY_IRON_CONDOR,
             "entry_net_premium": 30.0,
+            "dte": 5,
         })
 
         with self._market_time_patch():
             result, _ = strategy.risk_management_evaluator(
-                self._sniper_live_data(20.0, 20.0, 5.0, 5.0, spot=130.0),
+                self._sniper_live_data(20.0, 20.0, 5.0, 5.0, spot=100.3),
                 state_manager.load_state()["legs"],
             )
         self.assertFalse(result)
+        self.assertAlmostEqual(state_manager.load_state()["atm_drift_points_threshold"], 0.4)
 
         with self._market_time_patch():
             result, _ = strategy.risk_management_evaluator(
-                self._sniper_live_data(20.0, 20.0, 5.0, 5.0, spot=145.0),
+                self._sniper_live_data(20.0, 20.0, 5.0, 5.0, spot=100.5),
                 state_manager.load_state()["legs"],
             )
         self.assertEqual(result, "ATM_DRIFT")
@@ -575,6 +653,8 @@ class SafetyHardeningTests(unittest.TestCase):
 
     def test_btst_bullish_high_vix_routes_to_bull_put_credit_buy_first(self):
         chain = self._option_chain_for_strikes({
+            18800: (500.0, 3.0),
+            19000: (480.0, 5.0),
             19200: (450.0, 10.0),
             19600: (400.0, 25.0),
             20000: (150.0, 150.0),
@@ -592,16 +672,18 @@ class SafetyHardeningTests(unittest.TestCase):
         )
 
         self.assertEqual(route.strategy_type, btst_vix_router.STRATEGY_BTST_BULL_PUT_CREDIT)
-        self.assertEqual(route.legs, {"buy_pe": "P19200", "sell_pe": "P19600"})
+        self.assertEqual(route.legs, {"buy_pe": "P19000", "sell_pe": "P19600"})
         self.assertLess(route.strikes["sell_pe"], route.strikes["atm"])
         self.assertLess(route.strikes["buy_pe"], route.strikes["sell_pe"])
         self.assertEqual(route.order_sequence, [("buy_pe", "BUY"), ("sell_pe", "SELL")])
 
-    def test_btst_bearish_low_vix_routes_to_bear_put_debit_buy_first(self):
+    def test_btst_bearish_low_vix_routes_to_bear_call_credit_buy_first(self):
         chain = self._option_chain_for_strikes({
             19600: (400.0, 25.0),
             20000: (150.0, 150.0),
             20400: (25.0, 400.0),
+            20600: (10.0, 450.0),
+            20800: (5.0, 500.0),
         })
 
         route = btst_vix_router.route_btst_momentum_strategy(
@@ -614,9 +696,91 @@ class SafetyHardeningTests(unittest.TestCase):
             daily_high=21000.0,
         )
 
-        self.assertEqual(route.strategy_type, btst_vix_router.STRATEGY_BTST_BEAR_PUT_DEBIT)
-        self.assertEqual(route.legs, {"buy_pe": "P20000", "sell_pe": "P19600"})
-        self.assertEqual(route.order_sequence, [("buy_pe", "BUY"), ("sell_pe", "SELL")])
+        self.assertEqual(route.strategy_type, btst_vix_router.STRATEGY_BTST_BEAR_CALL_CREDIT)
+        self.assertEqual(route.legs, {"buy_ce": "C20800", "sell_ce": "C20400"})
+        self.assertEqual(route.order_sequence, [("buy_ce", "BUY"), ("sell_ce", "SELL")])
+
+    def test_directional_spread_rejects_one_strike_width(self):
+        chain = self._option_chain_for_strikes({
+            19500: (300.0, 20.0),
+            20000: (100.0, 100.0),
+            20500: (20.0, 300.0),
+        })
+
+        route = btst_vix_router.calculate_matrix_spread_legs(
+            "NIFTY", 20000.0, chain, btst_vix_router.STRATEGY_BTST_BULL_PUT_CREDIT
+        )
+
+        self.assertFalse(route.legs)
+        self.assertIn("2-3 strike", route.no_trade_reason)
+
+    def test_directional_spread_allows_three_strike_width_when_two_is_unusable(self):
+        chain = self._option_chain_for_strikes({
+            18500: (520.0, 3.0),
+            19000: (500.0, 0.0),
+            19200: (450.0, 10.0),
+            19600: (400.0, 25.0),
+            20000: (150.0, 150.0),
+        })
+
+        route = btst_vix_router.calculate_matrix_spread_legs(
+            "NIFTY", 20000.0, chain, btst_vix_router.STRATEGY_BTST_BULL_PUT_CREDIT
+        )
+
+        self.assertEqual(route.legs, {"buy_pe": "P18500", "sell_pe": "P19600"})
+        self.assertEqual(route.strikes["buy_pe"], 18500.0)
+
+    def test_flow_first_snapshot_returns_no_trade(self):
+        chain = self._option_chain_for_strikes({
+            19500: (300.0, 20.0),
+            20000: (100.0, 100.0),
+            20500: (20.0, 300.0),
+        })
+
+        route = btst_vix_router.route_command_center_strategy(
+            "NIFTY",
+            "2026-05-26",
+            20000.0,
+            chain,
+            14.0,
+            strategy.calculate_iron_butterfly_legs,
+        )
+
+        self.assertFalse(route.legs)
+        self.assertIn("oi delta", route.no_trade_reason.lower())
+
+    def test_flow_neutral_contraction_routes_to_condor(self):
+        chain = self._option_chain_for_strikes({
+            19400: (650.0, 5.0),
+            19500: (600.0, 6.0),
+            19700: (350.0, 50.0),
+            20000: (100.0, 100.0),
+            20300: (50.0, 350.0),
+            20500: (6.0, 600.0),
+            20600: (5.0, 650.0),
+        })
+        for strike_data in chain:
+            strike_data["call_options"]["market_data"]["oi"] = 1200
+            strike_data["put_options"]["market_data"]["oi"] = 1200
+
+        route = btst_vix_router.route_command_center_strategy(
+            "NIFTY",
+            "2026-05-26",
+            20000.0,
+            chain,
+            16.0,
+            strategy.calculate_iron_butterfly_legs,
+            previous_snapshot=self._flow_previous_snapshot(
+                [19400, 19500, 19700, 20000, 20300, 20500, 20600],
+                call_oi=1000,
+                put_oi=1000,
+                straddle_premium=220.0,
+            ),
+        )
+
+        self.assertEqual(route.strategy_type, btst_vix_router.STRATEGY_IRON_CONDOR)
+        self.assertEqual(route.metadata["market_context"]["flow_signal"], "NEUTRAL")
+        self.assertEqual(route.metadata["market_context"]["straddle_signal"], "CONTRACTING")
 
     def test_catastrophe_kill_overrides_drift_and_profit_logic(self):
         self._save_sniper_state()
@@ -809,12 +973,17 @@ class SafetyHardeningTests(unittest.TestCase):
         self.assertEqual(prices, {})
         self.assertEqual(state_manager.load_state()["feed_status"], "UNCONFIRMED_ATM_DRIFT:REST_DISAGREE")
 
-    def test_manual_entry_after_nifty_expiry_afternoon_resolves_to_sensex(self):
+    def test_manual_entry_uses_default_index_and_skips_same_day_expiry(self):
+        with open(config.EXPIRIES_FILE, "w") as f:
+            json.dump({
+                "NIFTY": ["2026-05-12", "2026-05-19"],
+                "SENSEX": ["2026-05-14"],
+            }, f)
         now_dt = datetime.datetime(2026, 5, 12, 12, 38)
 
         session = main.session_for_time(now_dt, "2026-05-12", "2026-05-14")
 
-        self.assertEqual(session, ("SENSEX", "2026-05-14", 15, 25))
+        self.assertEqual(session, ("NIFTY", "2026-05-19", 15, 25))
 
     def test_stream_tick_uses_exchange_ltt_when_available(self):
         tick = data_feed._extract_ltp_tick(
@@ -864,30 +1033,70 @@ class SafetyHardeningTests(unittest.TestCase):
         self.assertEqual(result["lots_to_deploy"], 5)
         self.assertEqual(fake_broker.instruments[0]["quantity"], 65)
 
-    def test_pcr_dte_matrix_routes_extreme_bullish_to_otm_bull_put(self):
+    def test_trade_ledger_writes_v2_lot_quantity_margin_fields(self):
+        old_log_file = logger.LOG_FILE
+        test_log_file = os.path.join(self.tmp_name, "sandbox_trade_logs.csv")
+        logger.LOG_FILE = test_log_file
+        try:
+            logger.log_trade(
+                "ENTRY",
+                "SENSEX",
+                {"sell_ce": 10, "sell_pe": 10, "buy_ce": 2, "buy_pe": 2},
+                16,
+                0,
+                "test",
+                strategy_type="IRON_CONDOR",
+                broker_lot_size=20,
+                total_lots_deployed=3,
+                total_quantity=60,
+                margin_blocked=123456.78,
+            )
+            with open(test_log_file, newline="") as f:
+                row = next(csv.DictReader(f))
+        finally:
+            logger.LOG_FILE = old_log_file
+
+        self.assertEqual(row["Index_Name"], "SENSEX")
+        self.assertEqual(row["Strategy_Type"], "IRON_CONDOR")
+        self.assertEqual(row["Broker_Lot_Size"], "20")
+        self.assertEqual(row["Total_Lots_Deployed"], "3")
+        self.assertEqual(row["Total_Quantity"], "60")
+        self.assertEqual(row["Margin_Blocked"], "123456.78")
+
+    def test_flow_matrix_routes_bullish_expansion_to_wide_bull_put_credit(self):
         chain = self._option_chain_for_strikes({
+            18500: (520.0, 3.0),
             19000: (500.0, 5.0),
+            19200: (450.0, 10.0),
             19500: (300.0, 20.0),
-            20000: (100.0, 100.0),
+            20000: (110.0, 110.0),
             20500: (20.0, 300.0),
+            21000: (5.0, 500.0),
         })
         for strike_data in chain:
-            strike_data["call_options"]["market_data"]["oi"] = 100
-            strike_data["put_options"]["market_data"]["oi"] = 140
+            strike_data["call_options"]["market_data"]["oi"] = 900
+            strike_data["put_options"]["market_data"]["oi"] = 1200
 
-        route = btst_vix_router.route_pcr_dte_strategy(
+        route = btst_vix_router.route_command_center_strategy(
             "NIFTY",
             "2026-04-30",
             20000.0,
             chain,
             14.0,
             strategy.calculate_iron_butterfly_legs,
+            previous_snapshot=self._flow_previous_snapshot(
+                [18500, 19000, 19200, 19500, 20000, 20500, 21000],
+                call_oi=1000,
+                put_oi=1000,
+                straddle_premium=200.0,
+            ),
             now=datetime.datetime(2026, 4, 29, 10, 0),
         )
 
         self.assertEqual(route.strategy_type, btst_vix_router.STRATEGY_BTST_BULL_PUT_CREDIT)
         self.assertLess(route.strikes["sell_pe"], route.strikes["atm"])
         self.assertLess(route.strikes["buy_pe"], route.strikes["sell_pe"])
+        self.assertEqual(route.strikes["buy_pe"], 19000.0)
 
     def test_eod_call_side_slice_rewrites_state_to_put_credit_carry(self):
         config.ENVIRONMENT = "SANDBOX"
@@ -911,7 +1120,7 @@ class SafetyHardeningTests(unittest.TestCase):
         self.assertEqual(state["legs"], {"buy_pe": "BPE", "sell_pe": "SPE"})
         self.assertTrue(state["carry_overnight"])
 
-    def test_btst_recenter_helper_attempts_exactly_one_fresh_entry(self):
+    def test_btst_recenter_waits_for_flow_baseline_before_fresh_entry(self):
         calls = []
         config.ENVIRONMENT = "SANDBOX"
         config.VIRTUAL_CAPITAL = 300000.0
@@ -947,11 +1156,10 @@ class SafetyHardeningTests(unittest.TestCase):
                  "P50": 3.0,
              }), \
              patch.object(main, "place_iron_butterfly_basket", side_effect=fake_basket):
-            self.assertTrue(main.deploy_single_sniper_trade("NIFTY", "2026-05-07", reason="BTST_RECENTER"))
+            self.assertFalse(main.deploy_single_sniper_trade("NIFTY", "2026-05-07", reason="BTST_RECENTER"))
 
-        self.assertEqual(len(calls), 1)
-        self.assertEqual(state_manager.load_state()["sniper_state"], "INITIAL")
-        self.assertEqual(state_manager.load_state()["recenter_reason"], "BTST_RECENTER")
+        self.assertEqual(len(calls), 0)
+        self.assertIsNone(state_manager.load_state())
 
 
 if __name__ == "__main__":

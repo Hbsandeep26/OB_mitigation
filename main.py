@@ -23,10 +23,11 @@ from strategy import calculate_iron_butterfly_legs, risk_management_evaluator
 from btst_vix_router import (
     candles_market_profile,
     is_btst_momentum_time,
+    route_command_center_strategy,
     route_btst_momentum_strategy,
     route_intraday_neutral_strategy,
-    route_pcr_dte_strategy,
 )
+from market_context import days_to_expiry
 from execution import place_iron_butterfly_basket, place_option_spread_basket, square_off_all, slice_neutral_side
 from position_sizing import calculate_position_size
 
@@ -159,27 +160,84 @@ def calendar_blocks_trading():
     return False
 
 
-def current_expiries():
-    return config.get_next_expiry("NIFTY"), config.get_next_expiry("SENSEX")
+def _parse_hhmm(value, default="09:45"):
+    try:
+        return datetime.strptime(str(value), "%H:%M").time()
+    except ValueError:
+        return datetime.strptime(default, "%H:%M").time()
+
+
+def fresh_entry_gate_open(now=None):
+    now = now or datetime.now()
+    return now.time() >= _parse_hhmm(config.ENTRY_STANDBY_TIME)
+
+
+def wait_for_fresh_entry_gate(cutoff_hour, cutoff_minute):
+    logged_wait = False
+    while not fresh_entry_gate_open():
+        write_heartbeat("STANDBY")
+        now = datetime.now()
+        if now.hour > cutoff_hour or (now.hour == cutoff_hour and now.minute >= cutoff_minute):
+            logging.info("Cutoff reached during 09:45 standby gate. Ending session.")
+            return False
+        if consume_graceful_stop():
+            logging.critical("Graceful stop requested during 09:45 standby gate. Halting session.")
+            mark_engine_stopped()
+            raise SystemExit(0)
+        if not logged_wait:
+            logging.info("STANDBY: fresh entries blocked until %s.", config.ENTRY_STANDBY_TIME)
+            logged_wait = True
+        time.sleep(2)
+    return True
+
+
+def sleep_until_next_flow_poll(cutoff_hour, cutoff_minute):
+    deadline = time.time() + float(config.FLOW_POLL_SECONDS)
+    while time.time() < deadline:
+        write_heartbeat("NO_TRADE_STANDBY")
+        now = datetime.now()
+        if now.hour > cutoff_hour or (now.hour == cutoff_hour and now.minute >= cutoff_minute):
+            logging.info("Cutoff reached while waiting for next OI-flow poll.")
+            return False
+        if consume_graceful_stop():
+            logging.critical("Graceful stop requested during OI-flow standby. Halting session.")
+            mark_engine_stopped()
+            raise SystemExit(0)
+        time.sleep(min(5, max(0.1, deadline - time.time())))
+    return True
+
+
+def safe_trading_expiry(index_symbol, now=None):
+    now = now or datetime.now()
+    today = now.date()
+    calendar = config.load_expiry_calendar()
+    holidays = set(calendar.get("HOLIDAYS", []))
+    for expiry in calendar.get(index_symbol, []):
+        try:
+            expiry_date = datetime.strptime(str(expiry), "%Y-%m-%d").date()
+        except (TypeError, ValueError):
+            continue
+        if str(expiry) in holidays or expiry_date.weekday() >= 5:
+            continue
+        if expiry_date > today:
+            return str(expiry)
+    fallback = config.get_next_expiry(index_symbol, now)
+    try:
+        if datetime.strptime(str(fallback), "%Y-%m-%d").date() <= today:
+            return "UNKNOWN"
+    except (TypeError, ValueError):
+        return fallback
+    return fallback
+
+
+def current_expiries(now=None):
+    now = now or datetime.now()
+    return safe_trading_expiry("NIFTY", now), safe_trading_expiry("SENSEX", now)
 
 
 def session_for_time(now_dt, nifty_expiry, sensex_expiry):
-    today_str = now_dt.strftime("%Y-%m-%d")
-    current_time = now_dt.time()
-    afternoon_start = datetime.strptime("12:31", "%H:%M").time()
-
-    if today_str == nifty_expiry:
-        if current_time >= afternoon_start:
-            return "SENSEX", sensex_expiry, 15, 25
-        return "NIFTY", nifty_expiry, 12, 30
-
-    if today_str == sensex_expiry:
-        if current_time >= afternoon_start:
-            return "NIFTY", nifty_expiry, 15, 25
-        return "SENSEX", sensex_expiry, 12, 30
-
     default_idx = "SENSEX" if now_dt.strftime("%A").upper() in ["WEDNESDAY", "THURSDAY"] else "NIFTY"
-    default_exp = sensex_expiry if default_idx == "SENSEX" else nifty_expiry
+    default_exp = safe_trading_expiry(default_idx, now_dt)
     return default_idx, default_exp, 15, 25
 
 
@@ -268,6 +326,11 @@ def initialize_sniper_state(
     )
     drift_threshold = config.ATM_DRIFT_EJECT_THRESHOLD if drift_threshold is None else drift_threshold
     strategy_params = strategy_params or strategy_params_for_type(strategy_type)
+    metadata = metadata or {}
+    market_context = metadata.get("market_context", {})
+    sizing_data = sizing or active_state.get("execution_info", {}).get("sizing", {})
+    broker_lot_size = int(sizing_data.get("lot_multiple") or lot_multiple_for_index(active_state.get("index_symbol", "NIFTY")))
+    total_lots = int(sizing_data.get("lots_to_deploy") or (quantity // broker_lot_size if broker_lot_size else 0))
     target_pct = strategy_params.get("target_pct", config.SNIPER_TARGET_PCT)
     catastrophe_multiplier = strategy_params.get("catastrophe_multiplier", config.SNIPER_CATASTROPHE_MULTIPLIER)
     max_profit = max_profit_for_route(strategy_type, entry_prices, strikes, quantity, order_sequence=order_sequence)
@@ -282,13 +345,26 @@ def initialize_sniper_state(
         "live_net_premium": round(entry_net, 4),
         "current_profit_pct": 0.0,
         "catastrophe_threshold": round(entry_net * catastrophe_multiplier, 4),
-        "route_metadata": metadata or {},
-        "market_context": (metadata or {}).get("market_context", {}),
+        "route_metadata": metadata,
+        "market_context": market_context,
         "strategy_params": strategy_params,
-        "sizing": sizing or active_state.get("execution_info", {}).get("sizing", {}),
-        "capital_deployed": (sizing or {}).get("capital_deployed", active_state.get("capital_deployed", 0.0)),
+        "sizing": sizing_data,
+        "capital_deployed": sizing_data.get("capital_deployed", active_state.get("capital_deployed", 0.0)),
         "max_profit_rupees": round(max_profit, 2),
         "expiry_date": expiry_date or active_state.get("expiry_date", ""),
+        "effective_expiry_date": expiry_date or active_state.get("effective_expiry_date", ""),
+        "dte": market_context.get("dte", days_to_expiry(expiry_date)) if expiry_date else active_state.get("dte", 0),
+        "entry_regime_signal": metadata.get("entry_regime_signal") or market_context.get("flow_signal", ""),
+        "latest_regime_signal": market_context.get("flow_signal", ""),
+        "regime_reversal_count": 0,
+        "last_regime_check_ts": time.time(),
+        "straddle_premium": market_context.get("straddle_premium"),
+        "previous_straddle_premium": market_context.get("previous_straddle_premium"),
+        "oi_flow_snapshot": metadata.get("oi_flow_snapshot") or market_context.get("oi_flow_snapshot", {}),
+        "broker_lot_size": broker_lot_size,
+        "total_lots_deployed": total_lots,
+        "total_quantity": int(quantity),
+        "margin_blocked": sizing_data.get("capital_deployed", 0.0),
     })
 
 
@@ -314,28 +390,28 @@ def build_intraday_neutral_route(index_symbol, spot, chain):
     return route
 
 
-def build_command_center_route(index_symbol, expiry_date, spot, chain):
+def build_command_center_route(index_symbol, expiry_date, spot, chain, previous_snapshot=None):
     live_vix = get_india_vix()
-    route = route_pcr_dte_strategy(
+    route = route_command_center_strategy(
         index_symbol,
         expiry_date,
         spot,
         chain,
         live_vix,
         calculate_iron_butterfly_legs,
+        previous_snapshot=previous_snapshot,
     )
     if not route.legs:
-        logging.critical("Command-center route rejected: %s", route.no_trade_reason)
-        return None
+        logging.info("Command-center route standby: %s", route.no_trade_reason)
+        return route
     context = route.metadata.get("market_context", {})
     logging.info(
-        "Command-center route selected %s for %s: PCR=%s, DTE=%s, VIX=%s, sentiment=%s.",
+        "Command-center route selected %s for %s: flow=%s, straddle=%s, DTE=%s.",
         route.strategy_type,
         index_symbol,
-        context.get("pcr"),
+        context.get("flow_signal"),
+        context.get("straddle_signal"),
         context.get("dte"),
-        context.get("vix"),
-        context.get("sentiment"),
     )
     return route
 
@@ -357,7 +433,7 @@ def execute_command_center_route(index_symbol, expiry_date, spot, route, reason=
     sizing = calculate_position_size(
         config.ENVIRONMENT,
         route.strategy_type,
-        route.metadata.get("market_context", {}).get("vix"),
+        route.metadata.get("india_vix") or route.metadata.get("market_context", {}).get("vix"),
         config.VIRTUAL_CAPITAL,
         index_symbol,
         lot_multiple_for_index(index_symbol),
@@ -424,8 +500,12 @@ def deploy_single_sniper_trade(index_symbol, expiry_date, reason="REGULAR"):
         return False
 
     route = build_command_center_route(index_symbol, expiry_date, spot, chain)
-    if not route:
-        logging.critical("Cannot deploy %s trade: command-center route failed.", reason)
+    if not route or not route.legs:
+        logging.critical(
+            "Cannot deploy %s trade: command-center route failed/standby (%s).",
+            reason,
+            getattr(route, "no_trade_reason", ""),
+        )
         return False
     return execute_command_center_route(index_symbol, expiry_date, spot, route, reason=reason)
 
@@ -530,8 +610,28 @@ def scheduled_btst_momentum_check():
     return deploy_btst_momentum_trade(index_symbol, expiry_date, reason="SCHEDULED_1525")
 
 
+def sync_open_position_after_reconnect(active_state):
+    active_legs = (active_state or {}).get("legs", {})
+    if not active_legs:
+        return active_legs
+    quotes = get_fresh_option_quotes(list(active_legs.values()))
+    if quotes:
+        last_live_prices = {
+            leg_name: float(quotes.get(token, 0.0) or 0.0)
+            for leg_name, token in active_legs.items()
+            if float(quotes.get(token, 0.0) or 0.0) > 0
+        }
+        if last_live_prices:
+            state_manager.update_many({
+                "last_live_prices": last_live_prices,
+                "feed_status": "RECONNECTED_REST_SYNC",
+            })
+    return active_legs
+
+
 def monitor_with_reconnects(legs, index_symbol):
     reconnects = 0
+    backoff_seconds = list(config.WEBSOCKET_RECONNECT_BACKOFF_SECONDS)
     while True:
         write_heartbeat("MONITORING")
         stop_loss_hit, exit_prices = monitor_live_prices(legs, risk_management_evaluator)
@@ -541,12 +641,20 @@ def monitor_with_reconnects(legs, index_symbol):
         reconnects += 1
         state_manager.update_state("socket_reconnects", reconnects)
         logging.critical(
-            f"WebSocket died for {index_symbol}; reconnect attempt {reconnects}/{config.MAX_SOCKET_RECONNECTS}."
+            "WebSocket died for %s; reconnect attempt %s/%s.",
+            index_symbol,
+            reconnects,
+            len(backoff_seconds),
         )
 
         active_state = state_manager.load_state()
-        if reconnects <= config.MAX_SOCKET_RECONNECTS and active_state and active_state.get("active"):
-            time.sleep(10)
+        if reconnects <= len(backoff_seconds) and active_state and active_state.get("active"):
+            sleep_seconds = float(backoff_seconds[reconnects - 1])
+            logging.info("Reconnecting WebSocket after %.1fs backoff.", sleep_seconds)
+            time.sleep(sleep_seconds)
+            active_state = state_manager.load_state()
+            if active_state and active_state.get("active"):
+                legs = sync_open_position_after_reconnect(active_state) or legs
             continue
 
         fresh_exit_prices = exit_prices_from_rest(legs)
@@ -709,6 +817,7 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
     logging.info(f"--- STARTING CONTINUOUS SESSION FOR {index_symbol} ---")
     write_heartbeat(f"SESSION:{index_symbol}")
     halt_without_final_squareoff = False
+    previous_flow_snapshot = None
 
     # ================================================================
     # EXPIRY DATE VALIDATION GUARD
@@ -799,6 +908,10 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             ):
                 logging.critical("Post-emergency guard blocked fresh carry-forward re-entry. Session halted.")
                 return
+
+    if not (state_manager.load_state() and state_manager.load_state().get("active")):
+        if not wait_for_fresh_entry_gate(cutoff_hour, cutoff_minute):
+            return
 
     # ================================================================
     # PHASE 1: OPENING RANGE GAP FILTER
@@ -914,9 +1027,31 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             # Reset API retry counter on success
             api_retry_count = 0
 
-            route = build_command_center_route(index_symbol, expiry_date, spot, chain)
+            route = build_command_center_route(
+                index_symbol,
+                expiry_date,
+                spot,
+                chain,
+                previous_snapshot=previous_flow_snapshot,
+            )
+            route_context = (route.metadata or {}).get("market_context", {}) if route else {}
+            if route_context.get("oi_flow_snapshot"):
+                previous_flow_snapshot = route_context.get("oi_flow_snapshot")
         
-            if not route:
+            if not route or not route.legs:
+                no_trade_reason = getattr(route, "no_trade_reason", "") if route else ""
+                if route and route.metadata:
+                    logging.info(
+                        "NO TRADE: %s (flow=%s, straddle=%s). Waiting for next 5-minute poll.",
+                        no_trade_reason,
+                        route_context.get("flow_signal"),
+                        route_context.get("straddle_signal"),
+                    )
+                    api_retry_count = 0
+                    if not sleep_until_next_flow_poll(cutoff_hour, cutoff_minute):
+                        break
+                    continue
+
                 api_retry_count += 1
                 if api_retry_count >= MAX_API_RETRIES:
                     logging.critical(f"❌ Wing calculation failed {MAX_API_RETRIES} times. Halting session.")
@@ -1144,6 +1279,26 @@ def build_todays_schedule():
     if calendar_blocks_trading():
         return
 
+    nifty_expiry, sensex_expiry = current_expiries(now)
+    weekday = now.strftime("%A").upper()
+    index_symbol = "SENSEX" if weekday in ["WEDNESDAY", "THURSDAY"] else "NIFTY"
+    expiry_date = sensex_expiry if index_symbol == "SENSEX" else nifty_expiry
+    logging.info(
+        "Scheduled %s using safe expiry %s at %s. Same-day 0-DTE chains are skipped.",
+        index_symbol,
+        expiry_date,
+        config.ENTRY_STANDBY_TIME,
+    )
+    schedule.every().day.at(config.ENTRY_STANDBY_TIME).do(
+        continuous_trading_session,
+        index_symbol=index_symbol,
+        expiry_date=expiry_date,
+        cutoff_hour=15,
+        cutoff_minute=25,
+    ).tag('trading_jobs')
+    logging.info("15:25 EOD is handled by the active-position decision engine; no fresh entry is scheduled.")
+    return
+
     nifty_expiry, sensex_expiry = current_expiries()
 
     # ================================================================
@@ -1207,7 +1362,8 @@ if __name__ == "__main__":
     logging.info(f"  ATM Drift Ejector: {config.ATM_DRIFT_EJECT_THRESHOLD:.2f}x")
     logging.info(f"  Catastrophe Kill: {config.SNIPER_CATASTROPHE_MULTIPLIER:.2f}x entry net premium")
     logging.info(f"  Opening Range Gap Filter: ON ({config.GAP_THRESHOLD_PCT*100:.1f}% threshold, {config.GAP_SETTLE_MINUTES}min settle)")
-    logging.info(f"  Expiry Day Strategy: Expiring index trades MORNING, other AFTERNOON")
+    logging.info(f"  Entry Standby Gate: fresh entries start at {config.ENTRY_STANDBY_TIME}")
+    logging.info("  Expiry Day Strategy: 0-DTE chains skipped; next weekly expiry used")
     logging.info(f"  Weekend Guard: ON")
 
     calendar_invalid = calendar_blocks_trading()
@@ -1238,8 +1394,8 @@ if __name__ == "__main__":
     
     if not calendar_invalid and not (hasattr(config, 'MARKET_HOLIDAYS') and today_str in config.MARKET_HOLIDAYS) and now.weekday() < 5:
         current_time = now.time()
-        morning_start = datetime.strptime(config.NORMAL_ENTRY_TIME, "%H:%M").time()
-        afternoon_start = datetime.strptime("12:31", "%H:%M").time()
+        morning_start = datetime.strptime(config.ENTRY_STANDBY_TIME, "%H:%M").time()
+        afternoon_start = eod_cutoff
 
         # --- EXPIRY DAY STRATEGY: Expiring index trades MORNING, other AFTERNOON ---
         if today_str == nifty_expiry:
@@ -1258,7 +1414,7 @@ if __name__ == "__main__":
 
         if morning_start <= current_time < afternoon_start:
             logging.critical(f"🏃 LATE BOOT DETECTED! Jumping straight into Morning Session ({morning_idx})...")
-            continuous_trading_session(morning_idx, morning_exp, 12, 30)
+            continuous_trading_session(morning_idx, morning_exp, 15, 25)
             
         elif afternoon_start <= current_time < eod_cutoff:
             logging.critical(f"🏃 LATE BOOT DETECTED! Jumping straight into Afternoon Session ({afternoon_idx})...")

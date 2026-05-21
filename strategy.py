@@ -7,7 +7,15 @@ import config
 import state_manager
 from btst_vix_router import drift_threshold_for_strategy, is_btst_strategy
 from eod_engine import evaluate_eod_decision
-from market_context import build_market_context
+from market_context import (
+    FLOW_SIGNAL_BEARISH,
+    FLOW_SIGNAL_BULLISH,
+    FLOW_SIGNAL_NEUTRAL,
+    STRADDLE_EXPANDING,
+    build_oi_flow_context,
+    build_market_context,
+    days_to_expiry,
+)
 from broker import get_broker
 from notifier import send_telegram_alert
 
@@ -323,13 +331,123 @@ def _positive_float(value):
     return value if value > 0 else 0.0
 
 
+def _state_expiry_date(state):
+    index_symbol = state.get("index_symbol", "NIFTY")
+    return state.get("effective_expiry_date") or state.get("expiry_date") or config.get_next_expiry(index_symbol)
+
+
+def _entry_signal_for_state(state):
+    explicit = state.get("entry_regime_signal") or state.get("route_metadata", {}).get("entry_regime_signal")
+    if explicit:
+        return str(explicit).upper()
+    strategy_type = str(state.get("strategy_type") or state.get("execution_info", {}).get("strategy_type", "")).upper()
+    if "BULL" in strategy_type:
+        return FLOW_SIGNAL_BULLISH
+    if "BEAR" in strategy_type:
+        return FLOW_SIGNAL_BEARISH
+    if strategy_type in ("IRON_BUTTERFLY", "IRON_CONDOR"):
+        return FLOW_SIGNAL_NEUTRAL
+    return ""
+
+
+def _is_confirmed_regime_reversal(entry_signal, flow_signal, straddle_signal):
+    if straddle_signal != STRADDLE_EXPANDING:
+        return False
+    if entry_signal == FLOW_SIGNAL_BULLISH:
+        return flow_signal == FLOW_SIGNAL_BEARISH
+    if entry_signal == FLOW_SIGNAL_BEARISH:
+        return flow_signal == FLOW_SIGNAL_BULLISH
+    if entry_signal == FLOW_SIGNAL_NEUTRAL:
+        return flow_signal in (FLOW_SIGNAL_BULLISH, FLOW_SIGNAL_BEARISH)
+    return False
+
+
+def _check_regime_reversal(state, current_prices, live_spot=None):
+    last_check = float(state.get("last_regime_check_ts", 0.0) or 0.0)
+    now_ts = time.time()
+    if now_ts - last_check < float(config.FLOW_POLL_SECONDS):
+        return False, {}
+
+    index_symbol = state.get("index_symbol", "NIFTY")
+    expiry_date = _state_expiry_date(state)
+    try:
+        chain = get_broker().get_option_chain(index_symbol, expiry_date)
+        spot = live_spot or state.get("last_spot") or state.get("entry_spot") or get_broker().get_spot_price(index_symbol)
+        context = build_oi_flow_context(
+            index_symbol,
+            expiry_date,
+            chain,
+            spot=spot,
+            previous_snapshot=state.get("oi_flow_snapshot"),
+        )
+    except Exception as err:
+        logging.warning("Regime reversal check skipped: %s", err)
+        state_manager.update_many({
+            "last_regime_check_ts": now_ts,
+            "latest_regime_error": str(err),
+        })
+        return False, {}
+
+    entry_signal = _entry_signal_for_state(state)
+    is_reversal = _is_confirmed_regime_reversal(entry_signal, context.flow_signal, context.straddle_signal)
+    reversal_count = int(state.get("regime_reversal_count", 0) or 0)
+    reversal_count = reversal_count + 1 if is_reversal else 0
+    state_manager.update_many({
+        "last_regime_check_ts": now_ts,
+        "latest_regime_signal": context.flow_signal,
+        "latest_straddle_signal": context.straddle_signal,
+        "regime_reversal_count": reversal_count,
+        "straddle_premium": context.straddle_premium,
+        "previous_straddle_premium": context.previous_straddle_premium,
+        "oi_flow_snapshot": context.oi_flow_snapshot or state.get("oi_flow_snapshot", {}),
+        "market_context": context.as_dict(),
+        "effective_expiry_date": expiry_date,
+        "dte": context.dte,
+    })
+
+    if reversal_count >= 3:
+        logging.critical(
+            "REGIME REVERSAL: entry=%s latest=%s/%s sustained for %s cycles.",
+            entry_signal,
+            context.flow_signal,
+            context.straddle_signal,
+            reversal_count,
+        )
+        return "REGIME_REVERSAL", current_prices
+    return False, {}
+
+
+def _dynamic_atm_drift_limit(strategy_type, live_spot, dte):
+    spot = _positive_float(live_spot)
+    if spot <= 0:
+        return 0.0
+    strategy_type = str(strategy_type or "").upper()
+    near_expiry = int(dte or 0) <= 3
+    if strategy_type == "IRON_BUTTERFLY":
+        pct = 0.0015 if near_expiry else 0.0025
+        return spot * pct
+    if strategy_type == "IRON_CONDOR":
+        pct = 0.0025 if near_expiry else 0.0040
+        return spot * pct
+    return 0.0
+
+
 def _eod_context_for_state(state):
     index_symbol = state.get("index_symbol", "NIFTY")
-    expiry_date = state.get("expiry_date") or config.get_next_expiry(index_symbol)
+    expiry_date = _state_expiry_date(state)
     try:
         chain = get_broker().get_option_chain(index_symbol, expiry_date)
         vix = get_broker().get_india_vix()
         spot = state.get("last_spot") or state.get("entry_spot") or get_broker().get_spot_price(index_symbol)
+        flow_context = build_oi_flow_context(
+            index_symbol,
+            expiry_date,
+            chain,
+            spot=spot,
+            previous_snapshot=state.get("oi_flow_snapshot"),
+        )
+        if flow_context.sentiment != "UNKNOWN":
+            return flow_context
         return build_market_context(index_symbol, expiry_date, chain, vix, spot=spot)
     except Exception as err:
         logging.warning("EOD market context unavailable: %s", err)
@@ -405,6 +523,10 @@ def _btst_spread_risk_evaluator(live_data, legs, state):
         "max_profit_capture_pct": round(max_profit_capture_pct, 4),
         "last_spot": round(last_spot, 2) if last_spot else 0,
     })
+
+    reversal_signal, reversal_prices = _check_regime_reversal(state, current_prices, live_spot=last_spot)
+    if reversal_signal:
+        return reversal_signal, reversal_prices
 
     if _btst_next_day_exit_due(state):
         logging.critical("BTST next-day exit time reached. Squaring off overnight momentum spread.")
@@ -507,7 +629,11 @@ def risk_management_evaluator(live_data, legs):
     drift_points = _atm_drift_points(live_spot, strikes)
     drift_threshold = drift_threshold_for_strategy(strategy_type)
     strategy_params = _strategy_params(state)
-    drift_points_threshold = _positive_float(strategy_params.get("atm_drift_points"))
+    dte = state.get("dte")
+    if dte is None:
+        dte = days_to_expiry(_state_expiry_date(state))
+    dynamic_drift_limit = _dynamic_atm_drift_limit(strategy_type, live_spot, dte)
+    drift_points_threshold = dynamic_drift_limit or _positive_float(strategy_params.get("atm_drift_points"))
     target_pct = _target_pct_for_state(state)
     catastrophe_multiplier = _catastrophe_multiplier_for_state(state)
     max_profit = _max_profit_rupees(state, entry_net)
@@ -527,7 +653,12 @@ def risk_management_evaluator(live_data, legs):
         "max_profit_rupees": round(max_profit, 2),
         "catastrophe_threshold": round(entry_net * catastrophe_multiplier, 4),
         "last_spot": round(live_spot, 2) if live_spot else state.get("last_spot", 0),
+        "dte": int(dte or 0),
     })
+
+    reversal_signal, reversal_prices = _check_regime_reversal(state, current_prices, live_spot=live_spot)
+    if reversal_signal:
+        return reversal_signal, reversal_prices
 
     if entry_net > 0 and live_net >= entry_net * catastrophe_multiplier:
         threshold = entry_net * catastrophe_multiplier
