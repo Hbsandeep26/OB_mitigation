@@ -144,7 +144,12 @@ def _extract_ltp_tick(feed_data, received_at):
         if exchange_ts:
             break
 
-    return {"ltp": ltp, "ts": exchange_ts or received_at, "received_ts": received_at}
+    return {
+        "ltp": ltp,
+        "ts": received_at,
+        "received_ts": received_at,
+        "exchange_ts": exchange_ts,
+    }
 
 
 def monitor_live_prices(instrument_keys_dict, callback_function):
@@ -173,6 +178,56 @@ def monitor_live_prices(instrument_keys_dict, callback_function):
         "incomplete_since": None,
         "last_write_time": 0,
     }
+
+    def refresh_from_rest_quotes():
+        refreshed = False
+        now_ts = time.time()
+        try:
+            quotes = get_broker().get_fresh_option_quotes(list(instrument_keys_dict.values()))
+            for token, ltp in (quotes or {}).items():
+                ltp = float(ltp or 0.0)
+                if ltp > 0:
+                    ws_state["latest_prices"][token] = {
+                        "ltp": ltp,
+                        "ts": now_ts,
+                        "received_ts": now_ts,
+                        "source": "REST_FALLBACK",
+                    }
+                    refreshed = True
+        except Exception as err:
+            logging.warning("REST option quote fallback failed during stale feed recovery: %s", err)
+
+        try:
+            spot = get_broker().get_spot_price(index_symbol)
+            if spot:
+                ws_state["latest_prices"][spot_key] = {
+                    "ltp": float(spot),
+                    "ts": now_ts,
+                    "received_ts": now_ts,
+                    "source": "REST_FALLBACK",
+                }
+                refreshed = True
+        except Exception as err:
+            logging.warning("REST spot fallback failed during stale feed recovery: %s", err)
+
+        try:
+            vix = get_broker().get_india_vix()
+            if vix:
+                ws_state["latest_prices"][vix_key] = {
+                    "ltp": float(vix),
+                    "ts": now_ts,
+                    "received_ts": now_ts,
+                    "source": "REST_FALLBACK",
+                }
+                refreshed = True
+        except Exception:
+            pass
+
+        if refreshed:
+            ws_state["last_tick_time"] = now_ts
+            _atomic_write_json(os.path.join(BASE_DIR, "live_prices.json"), ws_state["latest_prices"])
+            ws_state["last_write_time"] = now_ts
+        return refreshed
 
     def on_message(message):
         try:
@@ -211,6 +266,20 @@ def monitor_live_prices(instrument_keys_dict, callback_function):
                 ws_state["incomplete_since"] = time.time()
             incomplete_age = time.time() - ws_state["incomplete_since"]
             if incomplete_age >= config.MAX_INCOMPLETE_FEED_SECONDS:
+                if refresh_from_rest_quotes():
+                    try:
+                        stop_loss_triggered, current_prices = callback_function(
+                            ws_state["latest_prices"], instrument_keys_dict
+                        )
+                        ws_state["incomplete_since"] = None
+                        if stop_loss_triggered:
+                            logging.critical("Exit Signal Received after REST feed refresh: %s. Terminating WebSocket.", stop_loss_triggered)
+                            ws_state["stop_loss_hit"] = stop_loss_triggered
+                            ws_state["exit_prices"] = current_prices
+                            streamer.disconnect()
+                        return
+                    except ValueError as refresh_err:
+                        logging.warning("REST feed refresh still incomplete: %s", refresh_err)
                 logging.critical(
                     "Live feed incomplete/stale for %.1f seconds. Marking socket dead.",
                     incomplete_age,

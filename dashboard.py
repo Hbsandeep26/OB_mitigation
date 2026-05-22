@@ -11,6 +11,7 @@ import urllib.parse
 import psutil
 import datetime
 import config
+import telemetry
 import uuid
 
 try:
@@ -56,6 +57,36 @@ st.markdown("""
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5);
     }
+    .muted-header {
+        color: #94a3b8;
+        font-size: 0.82rem;
+        margin-bottom: 0.4rem;
+    }
+    .market-tile {
+        background: rgba(15, 23, 42, 0.72);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 8px;
+        padding: 14px 16px;
+        min-height: 92px;
+    }
+    .market-label {
+        color: #94a3b8;
+        font-size: 0.76rem;
+        font-weight: 600;
+        letter-spacing: 0;
+        text-transform: uppercase;
+    }
+    .market-value {
+        color: #f8fafc;
+        font-size: 1.45rem;
+        font-weight: 800;
+        line-height: 1.25;
+        margin-top: 3px;
+    }
+    .tone-bullish { color: #22c55e; }
+    .tone-bearish { color: #ef4444; }
+    .tone-neutral { color: #f59e0b; }
+    .tone-muted { color: #cbd5e1; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -373,15 +404,46 @@ if os.path.exists(STATE_FILE):
     except json.JSONDecodeError:
         latest_state_header = {}
 market_context_header = latest_state_header.get("market_context", {}) or latest_state_header.get("route_metadata", {}).get("market_context", {})
+try:
+    latest_telemetry = telemetry.get_latest_context()
+except Exception:
+    latest_telemetry = {}
+cumulative_context = latest_telemetry.get("cumulative") or {}
+if cumulative_context:
+    market_context_header = cumulative_context
+
+
+def tone_class(value):
+    text = str(value or "").upper()
+    if "BULL" in text or text == "EXPANDING":
+        return "tone-bullish"
+    if "BEAR" in text or text == "CONTRACTING":
+        return "tone-bearish"
+    if "NEUTRAL" in text or "FLAT" in text:
+        return "tone-neutral"
+    return "tone-muted"
+
+
+def tile(label, value, tone="tone-muted", subtext=""):
+    st.markdown(
+        f"""
+        <div class="market-tile">
+            <div class="market-label">{label}</div>
+            <div class="market-value {tone}">{value}</div>
+            <div class="muted-header">{subtext}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 env_col, cap_col, data_col = st.columns([1, 1, 2])
 with env_col:
-    st.metric("Mode", settings.get("ENVIRONMENT", "SANDBOX"))
+    st.caption(f"mode: {settings.get('ENVIRONMENT', 'SANDBOX').lower()}")
 with cap_col:
     if settings.get("ENVIRONMENT", "SANDBOX") == "SANDBOX":
-        st.metric("Virtual Capital", f"₹{float(settings.get('VIRTUAL_CAPITAL', config.VIRTUAL_CAPITAL)):,.0f}")
+        st.caption(f"virtual capital: ₹{float(settings.get('VIRTUAL_CAPITAL', config.VIRTUAL_CAPITAL)):,.0f}")
     else:
-        st.metric("Capital Source", "Broker Funds")
+        st.caption("capital source: broker funds")
 with data_col:
     st.caption(
         f"NIFTY: {nifty_tick.get('ltp', 'N/A')} | "
@@ -390,6 +452,32 @@ with data_col:
         f"Flow: {market_context_header.get('flow_signal', 'N/A')} | "
         f"Straddle: {market_context_header.get('straddle_signal', 'N/A')}"
     )
+
+price_col1, price_col2, price_col3 = st.columns(3)
+with price_col1:
+    tile("NIFTY", nifty_tick.get("ltp", "N/A"))
+with price_col2:
+    tile("SENSEX", sensex_tick.get("ltp", "N/A"))
+with price_col3:
+    tile("INDIA VIX", vix_tick.get("ltp", "N/A"))
+
+flow_value = market_context_header.get("flow_signal", "N/A")
+straddle_value = market_context_header.get("straddle_signal", "N/A")
+regime_value = "NO TRADE"
+if flow_value == "BULLISH" and straddle_value == "EXPANDING":
+    regime_value = "BULL PUT SPREAD"
+elif flow_value == "BEARISH" and straddle_value == "EXPANDING":
+    regime_value = "BEAR CALL SPREAD"
+elif flow_value == "NEUTRAL" and straddle_value == "CONTRACTING":
+    regime_value = "IRON CONDOR RANGE"
+
+signal_col1, signal_col2, signal_col3 = st.columns(3)
+with signal_col1:
+    tile("CUMULATIVE FLOW", flow_value, tone_class(flow_value), latest_telemetry.get("time", ""))
+with signal_col2:
+    tile("STRADDLE", straddle_value, tone_class(straddle_value), "vs session baseline")
+with signal_col3:
+    tile("REGIME STATUS", regime_value, tone_class(flow_value), "adaptive strategy")
 
 # --- SYSTEM STATUS & MANUAL EXIT CONTROLS ---
 col1, col2 = st.columns([3, 1])
@@ -421,7 +509,9 @@ if os.path.exists(STATE_FILE):
 now = datetime.datetime.now()
 market_open = now.replace(hour=9, minute=15, second=0, microsecond=0)
 market_close = now.replace(hour=15, minute=25, second=0, microsecond=0)
+fresh_entry_close = now.replace(hour=15, minute=10, second=0, microsecond=0)
 is_trading_hours = (market_open <= now <= market_close) and (now.weekday() < 5)
+is_fresh_entry_hours = (market_open <= now <= fresh_entry_close) and (now.weekday() < 5)
 
 with col2:
     exit_locked = (not is_trade_active) or (not is_trading_hours)
@@ -433,7 +523,7 @@ with col2:
             atomic_write_text(MANUAL_EXIT_FILE, "TRUE")
             st.toast("Manual exit signal sent! Engine will square off immediately.")
         
-    entry_locked = is_trade_active or (not is_trading_hours)
+    entry_locked = is_trade_active or (not is_fresh_entry_hours)
     if st.button("▶️ MANUAL ENTRY", type="secondary", disabled=entry_locked):
         atomic_write_text(MANUAL_ENTRY_FILE, "TRUE")
         st.toast("Manual entry signal sent! Engine will deploy a fresh trade.")

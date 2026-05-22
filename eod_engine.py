@@ -14,6 +14,7 @@ ACTION_SQUARE_OFF = "EOD_SQUARE_OFF"
 ACTION_CARRY = "EOD_CARRY"
 ACTION_SLICE_CALL_SIDE = "EOD_SLICE_CALL_SIDE"
 ACTION_SLICE_PUT_SIDE = "EOD_SLICE_PUT_SIDE"
+ACTION_RECENTER_CONDOR = "BTST_RECENTER"
 
 
 @dataclass
@@ -147,6 +148,8 @@ def evaluate_eod_decision(state, market_context, current_prices):
     metrics = {
         "strategy_type": strategy_type,
         "sentiment": sentiment,
+        "flow_signal": getattr(market_context, "flow_signal", None),
+        "straddle_signal": getattr(market_context, "straddle_signal", None),
         "pcr": getattr(market_context, "pcr", None),
         "dte": getattr(market_context, "dte", None),
     }
@@ -156,6 +159,8 @@ def evaluate_eod_decision(state, market_context, current_prices):
 
     if _is_neutral(strategy_type):
         if sentiment == SENTIMENT_NEUTRAL:
+            if str(strategy_type or "").upper() == "IRON_BUTTERFLY":
+                return EodDecision(ACTION_RECENTER_CONDOR, "NEUTRAL_BTST_PREFERS_IRON_CONDOR", metrics)
             return EodDecision(ACTION_CARRY, "NEUTRAL_STILL_ALIGNED", metrics)
         if _is_bullish_shift(sentiment):
             return EodDecision(ACTION_SLICE_CALL_SIDE, "BULLISH_REGIME_SHIFT", metrics)

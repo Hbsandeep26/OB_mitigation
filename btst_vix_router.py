@@ -3,6 +3,7 @@ import logging
 from dataclasses import dataclass, field
 
 import config
+import telemetry
 from market_context import (
     FLOW_SIGNAL_BEARISH,
     FLOW_SIGNAL_BULLISH,
@@ -125,6 +126,23 @@ def _farther_otm_strike_candidates(option_chain_data, short_strike, direction, m
         target_idx = short_idx + offset if direction == "above" else short_idx - offset
         if 0 <= target_idx < len(strikes):
             candidates.append(strikes[target_idx])
+    return candidates
+
+
+def _minimum_wing_candidates(option_chain_data, short_strike, direction, min_steps=None):
+    min_steps = int(min_steps if min_steps is not None else config.DIRECTIONAL_MIN_WING_STEPS)
+    strikes = _sorted_strikes(option_chain_data)
+    short = float(short_strike)
+    if short not in strikes:
+        return []
+    short_idx = strikes.index(short)
+    candidates = []
+    if direction == "above":
+        start = short_idx + min_steps
+        candidates = strikes[start:] if start < len(strikes) else []
+    else:
+        end = short_idx - min_steps
+        candidates = list(reversed(strikes[: end + 1])) if end >= 0 else []
     return candidates
 
 
@@ -331,19 +349,21 @@ def calculate_matrix_spread_legs(index_symbol, spot_price, option_chain_data, st
     if atm_strike is None:
         return StrategyRoute(strategy_type=strategy_type, no_trade_reason="Option chain has no strikes")
 
+    width_reason = f"requires at least {config.DIRECTIONAL_MIN_WING_STEPS}-strike credit width"
+
     if strategy_type == STRATEGY_BTST_BULL_PUT_CREDIT:
         sell_pe_strike = _nearest_otm_strike(option_chain_data, atm_strike, "below")
         if sell_pe_strike is None:
-            return StrategyRoute(strategy_type=strategy_type, no_trade_reason="Bull Put requires 2-3 strike credit width")
+            return StrategyRoute(strategy_type=strategy_type, no_trade_reason=f"Bull Put {width_reason}")
         sell_key, sell_price = _spread_leg(option_chain_data, sell_pe_strike, "put")
         buy_pe_strike, buy_key, buy_price = None, "", 0.0
-        for candidate in _farther_otm_strike_candidates(option_chain_data, sell_pe_strike, "below", min_steps=2, max_steps=3):
+        for candidate in _minimum_wing_candidates(option_chain_data, sell_pe_strike, "below"):
             candidate_key, candidate_price = _spread_leg(option_chain_data, candidate, "put")
             if candidate_key and candidate_price > 0 and sell_price > candidate_price:
                 buy_pe_strike, buy_key, buy_price = candidate, candidate_key, candidate_price
                 break
         if buy_pe_strike is None or not (buy_pe_strike < sell_pe_strike < atm_strike):
-            return StrategyRoute(strategy_type=strategy_type, no_trade_reason="Bull Put requires 2-3 strike credit width")
+            return StrategyRoute(strategy_type=strategy_type, no_trade_reason=f"Bull Put {width_reason}")
         return _spread_route(
             strategy_type,
             {"buy_pe": buy_key, "sell_pe": sell_key},
@@ -392,16 +412,16 @@ def calculate_matrix_spread_legs(index_symbol, spot_price, option_chain_data, st
     if strategy_type == STRATEGY_BTST_BEAR_CALL_CREDIT:
         sell_ce_strike = _nearest_otm_strike(option_chain_data, atm_strike, "above")
         if sell_ce_strike is None:
-            return StrategyRoute(strategy_type=strategy_type, no_trade_reason="Bear Call requires 2-3 strike credit width")
+            return StrategyRoute(strategy_type=strategy_type, no_trade_reason=f"Bear Call {width_reason}")
         sell_key, sell_price = _spread_leg(option_chain_data, sell_ce_strike, "call")
         buy_ce_strike, buy_key, buy_price = None, "", 0.0
-        for candidate in _farther_otm_strike_candidates(option_chain_data, sell_ce_strike, "above", min_steps=2, max_steps=3):
+        for candidate in _minimum_wing_candidates(option_chain_data, sell_ce_strike, "above"):
             candidate_key, candidate_price = _spread_leg(option_chain_data, candidate, "call")
             if candidate_key and candidate_price > 0 and sell_price > candidate_price:
                 buy_ce_strike, buy_key, buy_price = candidate, candidate_key, candidate_price
                 break
         if buy_ce_strike is None or not (atm_strike < sell_ce_strike < buy_ce_strike):
-            return StrategyRoute(strategy_type=strategy_type, no_trade_reason="Bear Call requires 2-3 strike credit width")
+            return StrategyRoute(strategy_type=strategy_type, no_trade_reason=f"Bear Call {width_reason}")
         return _spread_route(
             strategy_type,
             {"buy_ce": buy_key, "sell_ce": sell_key},
@@ -416,6 +436,63 @@ def calculate_matrix_spread_legs(index_symbol, spot_price, option_chain_data, st
     return StrategyRoute(strategy_type=strategy_type, no_trade_reason="Unsupported matrix strategy")
 
 
+def build_telemetry_flow_contexts(
+    index_symbol,
+    expiry_date,
+    spot_price,
+    option_chain_data,
+    india_vix,
+    previous_snapshot=None,
+    now=None,
+):
+    instant_context = build_oi_flow_context(
+        index_symbol,
+        expiry_date,
+        option_chain_data,
+        spot=spot_price,
+        previous_snapshot=previous_snapshot,
+        now=now,
+    )
+
+    cumulative_context = None
+    try:
+        baseline_snapshot = telemetry.get_session_baseline_snapshot(index_symbol, expiry_date, now=now) or previous_snapshot
+        if baseline_snapshot:
+            cumulative_context = build_oi_flow_context(
+                index_symbol,
+                expiry_date,
+                option_chain_data,
+                spot=spot_price,
+                previous_snapshot=baseline_snapshot,
+                now=now,
+            )
+        telemetry.record_market_snapshot(
+            index_symbol,
+            expiry_date,
+            spot_price,
+            india_vix,
+            instant_context,
+            cumulative_context=cumulative_context,
+            now=now,
+        )
+    except Exception as err:
+        logging.warning("Market telemetry update failed: %s", err)
+
+    return instant_context, cumulative_context
+
+
+def _metadata_for_context(trade_context, instant_context=None):
+    context_metadata = trade_context.as_dict()
+    base_metadata = {
+        "market_context": context_metadata,
+        "instant_market_context": instant_context.as_dict() if instant_context else context_metadata,
+        "entry_regime_signal": trade_context.flow_signal,
+        "straddle_signal": trade_context.straddle_signal,
+        "oi_flow_snapshot": trade_context.oi_flow_snapshot or {},
+    }
+    return context_metadata, base_metadata
+
+
 def route_command_center_strategy(
     index_symbol,
     expiry_date,
@@ -426,21 +503,25 @@ def route_command_center_strategy(
     previous_snapshot=None,
     now=None,
 ):
-    flow_context = build_oi_flow_context(
+    instant_context, cumulative_context = build_telemetry_flow_contexts(
         index_symbol,
         expiry_date,
+        spot_price,
         option_chain_data,
-        spot=spot_price,
+        india_vix,
         previous_snapshot=previous_snapshot,
         now=now,
     )
-    context_metadata = flow_context.as_dict()
-    base_metadata = {
-        "market_context": context_metadata,
-        "entry_regime_signal": flow_context.flow_signal,
-        "straddle_signal": flow_context.straddle_signal,
-        "oi_flow_snapshot": flow_context.oi_flow_snapshot or {},
-    }
+
+    if cumulative_context is None:
+        _, base_metadata = _metadata_for_context(instant_context, instant_context)
+        return StrategyRoute(
+            metadata=base_metadata,
+            no_trade_reason="Telemetry baseline captured; waiting for next cumulative poll",
+        )
+
+    flow_context = cumulative_context
+    context_metadata, base_metadata = _metadata_for_context(flow_context, instant_context)
 
     strategy_type = ""
     if flow_context.flow_signal == FLOW_SIGNAL_NEUTRAL and flow_context.straddle_signal == STRADDLE_CONTRACTING:
@@ -468,6 +549,76 @@ def route_command_center_strategy(
     route.metadata = {**(route.metadata or {}), **base_metadata}
     if not route.legs and not route.no_trade_reason:
         route.no_trade_reason = f"{strategy_type} leg calculation failed"
+    return route
+
+
+def route_adaptive_btst_strategy(
+    index_symbol,
+    expiry_date,
+    spot_price,
+    option_chain_data,
+    india_vix,
+    previous_snapshot=None,
+    now=None,
+):
+    instant_context, cumulative_context = build_telemetry_flow_contexts(
+        index_symbol,
+        expiry_date,
+        spot_price,
+        option_chain_data,
+        india_vix,
+        previous_snapshot=previous_snapshot,
+        now=now,
+    )
+
+    if cumulative_context is None:
+        _, base_metadata = _metadata_for_context(instant_context, instant_context)
+        return StrategyRoute(
+            metadata={**base_metadata, "btst_policy": "ADAPTIVE"},
+            no_trade_reason="BTST skipped: cumulative telemetry baseline unavailable",
+        )
+
+    flow_context = cumulative_context
+    context_metadata, base_metadata = _metadata_for_context(flow_context, instant_context)
+    metadata = {**base_metadata, "btst_policy": "ADAPTIVE", "carry_overnight": True}
+
+    if flow_context.flow_signal == FLOW_SIGNAL_NEUTRAL and flow_context.straddle_signal == STRADDLE_CONTRACTING:
+        legs, entry_prices, strikes = calculate_iron_condor_legs(
+            index_symbol,
+            spot_price,
+            option_chain_data,
+            buy_leg_percent=config.BUY_LEG_PERCENT,
+        )
+        if not legs:
+            return StrategyRoute(
+                strategy_type=STRATEGY_IRON_CONDOR,
+                metadata=metadata,
+                no_trade_reason="BTST Iron Condor leg calculation failed",
+            )
+        return StrategyRoute(
+            strategy_type=STRATEGY_IRON_CONDOR,
+            legs=legs,
+            entry_prices=entry_prices,
+            strikes=strikes,
+            drift_threshold=drift_threshold_for_strategy(STRATEGY_IRON_CONDOR),
+            metadata=metadata,
+            carry_overnight=True,
+        )
+
+    if flow_context.flow_signal == FLOW_SIGNAL_BULLISH and flow_context.straddle_signal == STRADDLE_EXPANDING:
+        route = calculate_matrix_spread_legs(index_symbol, spot_price, option_chain_data, STRATEGY_BTST_BULL_PUT_CREDIT)
+    elif flow_context.flow_signal == FLOW_SIGNAL_BEARISH and flow_context.straddle_signal == STRADDLE_EXPANDING:
+        route = calculate_matrix_spread_legs(index_symbol, spot_price, option_chain_data, STRATEGY_BTST_BEAR_CALL_CREDIT)
+    else:
+        reason = flow_context.no_trade_reason or (
+            f"BTST skipped: flow {flow_context.flow_signal} with straddle {flow_context.straddle_signal} is not safe"
+        )
+        return StrategyRoute(metadata=metadata, no_trade_reason=reason)
+
+    route.metadata = {**(route.metadata or {}), **metadata}
+    route.carry_overnight = True
+    if not route.legs and not route.no_trade_reason:
+        route.no_trade_reason = f"{route.strategy_type} leg calculation failed"
     return route
 
 

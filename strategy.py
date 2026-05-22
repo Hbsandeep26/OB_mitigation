@@ -5,6 +5,7 @@ import time
 
 import config
 import state_manager
+import telemetry
 from btst_vix_router import drift_threshold_for_strategy, is_btst_strategy
 from eod_engine import evaluate_eod_decision
 from market_context import (
@@ -55,7 +56,7 @@ def _fresh_ltp(live_data, token, leg_name):
         state_manager.update_state("feed_status", f"MISSING:{leg_name}")
         raise ValueError(f"Missing live price for {leg_name}")
 
-    tick_ts = tick.get("ts")
+    tick_ts = tick.get("received_ts", tick.get("ts"))
     if tick_ts is None:
         state_manager.update_state("feed_status", f"NO_TS:{leg_name}")
         raise ValueError(f"Live price for {leg_name} has no timestamp")
@@ -373,12 +374,13 @@ def _check_regime_reversal(state, current_prices, live_spot=None):
     try:
         chain = get_broker().get_option_chain(index_symbol, expiry_date)
         spot = live_spot or state.get("last_spot") or state.get("entry_spot") or get_broker().get_spot_price(index_symbol)
+        previous_snapshot = telemetry.get_session_baseline_snapshot(index_symbol, expiry_date) or state.get("oi_flow_snapshot")
         context = build_oi_flow_context(
             index_symbol,
             expiry_date,
             chain,
             spot=spot,
-            previous_snapshot=state.get("oi_flow_snapshot"),
+            previous_snapshot=previous_snapshot,
         )
     except Exception as err:
         logging.warning("Regime reversal check skipped: %s", err)
@@ -439,12 +441,13 @@ def _eod_context_for_state(state):
         chain = get_broker().get_option_chain(index_symbol, expiry_date)
         vix = get_broker().get_india_vix()
         spot = state.get("last_spot") or state.get("entry_spot") or get_broker().get_spot_price(index_symbol)
+        previous_snapshot = telemetry.get_session_baseline_snapshot(index_symbol, expiry_date) or state.get("oi_flow_snapshot")
         flow_context = build_oi_flow_context(
             index_symbol,
             expiry_date,
             chain,
             spot=spot,
-            previous_snapshot=state.get("oi_flow_snapshot"),
+            previous_snapshot=previous_snapshot,
         )
         if flow_context.sentiment != "UNKNOWN":
             return flow_context

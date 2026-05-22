@@ -22,7 +22,9 @@ from data_feed import (
 from strategy import calculate_iron_butterfly_legs, risk_management_evaluator
 from btst_vix_router import (
     candles_market_profile,
+    build_telemetry_flow_contexts,
     is_btst_momentum_time,
+    route_adaptive_btst_strategy,
     route_command_center_strategy,
     route_btst_momentum_strategy,
     route_intraday_neutral_strategy,
@@ -172,6 +174,11 @@ def fresh_entry_gate_open(now=None):
     return now.time() >= _parse_hhmm(config.ENTRY_STANDBY_TIME)
 
 
+def fresh_entry_cutoff_reached(now=None):
+    now = now or datetime.now()
+    return now.time() >= _parse_hhmm(config.FRESH_ENTRY_CUTOFF_TIME, default="15:10")
+
+
 def wait_for_fresh_entry_gate(cutoff_hour, cutoff_minute):
     logged_wait = False
     while not fresh_entry_gate_open():
@@ -196,6 +203,9 @@ def sleep_until_next_flow_poll(cutoff_hour, cutoff_minute):
     while time.time() < deadline:
         write_heartbeat("NO_TRADE_STANDBY")
         now = datetime.now()
+        if fresh_entry_cutoff_reached(now):
+            logging.info("Fresh entry cutoff %s reached while waiting for next OI-flow poll.", config.FRESH_ENTRY_CUTOFF_TIME)
+            return False
         if now.hour > cutoff_hour or (now.hour == cutoff_hour and now.minute >= cutoff_minute):
             logging.info("Cutoff reached while waiting for next OI-flow poll.")
             return False
@@ -416,6 +426,53 @@ def build_command_center_route(index_symbol, expiry_date, spot, chain, previous_
     return route
 
 
+def collect_opening_telemetry(index_symbol, expiry_date):
+    logging.info("Starting opening telemetry collector for %s until %s.", index_symbol, config.ENTRY_STANDBY_TIME)
+    previous_snapshot = None
+    entry_time = _parse_hhmm(config.ENTRY_STANDBY_TIME)
+    while datetime.now().time() < entry_time:
+        write_heartbeat(f"TELEMETRY:{index_symbol}")
+        if consume_graceful_stop():
+            logging.critical("Graceful stop requested during telemetry collection. Halting session.")
+            mark_engine_stopped()
+            raise SystemExit(0)
+
+        spot = get_spot_price(index_symbol)
+        chain = get_option_chain(index_symbol, expiry_date) if spot else None
+        india_vix = get_india_vix()
+        if spot and chain:
+            instant_context, cumulative_context = build_telemetry_flow_contexts(
+                index_symbol,
+                expiry_date,
+                spot,
+                chain,
+                india_vix,
+                previous_snapshot=previous_snapshot,
+            )
+            if instant_context.oi_flow_snapshot:
+                previous_snapshot = instant_context.oi_flow_snapshot
+            active_context = cumulative_context or instant_context
+            logging.info(
+                "Telemetry snapshot: flow=%s/%s straddle=%s/%s.",
+                instant_context.flow_signal,
+                active_context.flow_signal,
+                instant_context.straddle_signal,
+                active_context.straddle_signal,
+            )
+        else:
+            logging.warning("Telemetry snapshot skipped: spot=%s chain=%s.", bool(spot), bool(chain))
+
+        deadline = time.time() + float(config.FLOW_POLL_SECONDS)
+        while datetime.now().time() < entry_time and time.time() < deadline:
+            write_heartbeat(f"TELEMETRY:{index_symbol}")
+            if consume_graceful_stop():
+                logging.critical("Graceful stop requested during telemetry collection. Halting session.")
+                mark_engine_stopped()
+                raise SystemExit(0)
+            time.sleep(min(5, max(0.1, deadline - time.time())))
+    logging.info("Opening telemetry collector finished for %s.", index_symbol)
+
+
 def sync_entry_prices_with_quotes(legs, entry_prices):
     logging.info("Synchronizing with Live Exchange Quotes to bypass cached API data...")
     fresh_quotes = get_fresh_option_quotes(list(legs.values()))
@@ -429,7 +486,7 @@ def sync_entry_prices_with_quotes(legs, entry_prices):
     return entry_prices
 
 
-def execute_command_center_route(index_symbol, expiry_date, spot, route, reason="REGULAR"):
+def execute_command_center_route(index_symbol, expiry_date, spot, route, reason="REGULAR", carry_overnight=False):
     sizing = calculate_position_size(
         config.ENVIRONMENT,
         route.strategy_type,
@@ -440,7 +497,7 @@ def execute_command_center_route(index_symbol, expiry_date, spot, route, reason=
         route=route,
     )
     if sizing.get("status") != "APPROVED":
-        logging.critical("Entry rejected by position sizing: %s", sizing)
+        logging.critical("Entry rejected before order placement by position sizing: %s", sizing)
         import notifier
         notifier.send_telegram_alert(
             f"<b>ENTRY REJECTED BY SIZING</b>\n"
@@ -459,7 +516,7 @@ def execute_command_center_route(index_symbol, expiry_date, spot, route, reason=
             route.order_sequence,
             route.strategy_type,
             spot_price=spot,
-            carry_overnight=False,
+            carry_overnight=carry_overnight,
             metadata={**route.metadata, "reason": reason},
             quantity=sizing["quantity"],
             sizing=sizing,
@@ -487,6 +544,8 @@ def execute_command_center_route(index_symbol, expiry_date, spot, route, reason=
             expiry_date=expiry_date,
             order_sequence=route.order_sequence,
         )
+        if carry_overnight:
+            state_manager.update_many({"carry_overnight": True, "btst_reason": reason})
         state_manager.update_state("recenter_reason", reason if reason != "REGULAR" else "")
     return execution_success
 
@@ -600,6 +659,53 @@ def deploy_btst_momentum_trade(index_symbol, expiry_date, reason="EOD_MOMENTUM")
     return execution_success
 
 
+def deploy_adaptive_btst_trade(index_symbol, expiry_date, reason="ADAPTIVE_BTST"):
+    if not config.BTST_MOMENTUM_ENABLED:
+        logging.info("Adaptive BTST skipped: BTST module disabled by config.")
+        return False
+
+    if state_manager.load_state() and state_manager.load_state().get("active"):
+        logging.info("Adaptive BTST skipped: an active position still exists.")
+        return False
+
+    spot = get_spot_price(index_symbol)
+    chain = get_option_chain(index_symbol, expiry_date) if spot else None
+    india_vix = get_india_vix()
+    if not spot or not chain or india_vix is None:
+        logging.critical(
+            "Adaptive BTST aborted: spot=%s, chain=%s, vix=%s.",
+            bool(spot),
+            bool(chain),
+            india_vix,
+        )
+        return False
+
+    route = route_adaptive_btst_strategy(
+        index_symbol,
+        expiry_date,
+        spot,
+        chain,
+        india_vix,
+    )
+    if not route.legs:
+        logging.critical("Adaptive BTST no-trade: %s", route.no_trade_reason)
+        return False
+
+    logging.critical(
+        "Adaptive BTST selected %s for %s.",
+        route.strategy_type,
+        index_symbol,
+    )
+    return execute_command_center_route(
+        index_symbol,
+        expiry_date,
+        spot,
+        route,
+        reason=reason,
+        carry_overnight=True,
+    )
+
+
 def scheduled_btst_momentum_check():
     if state_manager.load_state() and state_manager.load_state().get("active"):
         logging.info("Scheduled BTST momentum check skipped because an active position exists.")
@@ -607,7 +713,7 @@ def scheduled_btst_momentum_check():
 
     nifty_expiry, sensex_expiry = current_expiries()
     index_symbol, expiry_date, _, _ = session_for_time(datetime.now(), nifty_expiry, sensex_expiry)
-    return deploy_btst_momentum_trade(index_symbol, expiry_date, reason="SCHEDULED_1525")
+    return deploy_adaptive_btst_trade(index_symbol, expiry_date, reason="SCHEDULED_1525")
 
 
 def sync_open_position_after_reconnect(active_state):
@@ -701,6 +807,14 @@ def post_emergency_reentry_allowed(
 ):
     if not config.POST_EMERGENCY_REENTRY_ENABLED:
         return True
+
+    if fresh_entry_cutoff_reached():
+        logging.critical(
+            "%s re-entry blocked: fresh entry cutoff %s has passed.",
+            exit_reason,
+            config.FRESH_ENTRY_CUTOFF_TIME,
+        )
+        return False
 
     minutes_left = _minutes_to_cutoff(cutoff_hour, cutoff_minute)
     if minutes_left < config.POST_EMERGENCY_REENTRY_MIN_MINUTES_TO_CUTOFF:
@@ -982,8 +1096,15 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
         
         state = state_manager.load_state()
         is_active = state and state.get("active", False)
+        if not is_active and fresh_entry_cutoff_reached(now):
+            logging.info(
+                "Soft Cutoff (%s) reached. No NEW %s trades will be taken.",
+                config.FRESH_ENTRY_CUTOFF_TIME,
+                index_symbol,
+            )
+            break
         if not is_active and (now.hour > cutoff_hour or (now.hour == cutoff_hour and now.minute >= cutoff_minute)):
-            logging.info(f"⏰ Soft Cutoff ({cutoff_hour}:{cutoff_minute:02d}) reached. No NEW {index_symbol} trades will be taken.")
+            logging.info(f"⏰ Session Cutoff ({cutoff_hour}:{cutoff_minute:02d}) reached. No NEW {index_symbol} trades will be taken.")
             break 
 
         if consume_graceful_stop():
@@ -1072,9 +1193,14 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             )
         
             if not execution_success:
-                logging.critical("🛑 CRITICAL: Basket execution failed mid-flight! Halting session to prevent orphan legs.")
-                import notifier
-                notifier.send_telegram_alert(f"🚨 <b>URGENT ACTION REQUIRED!</b> 🚨\n{index_symbol} basket order failed mid-execution. Check Upstox App immediately.")
+                post_attempt_state = state_manager.load_state() or {}
+                recovery_required = post_attempt_state.get("active") and post_attempt_state.get("execution_info", {}).get("recovery_required")
+                if recovery_required:
+                    logging.critical("🛑 CRITICAL: Basket execution failed after partial live confirmation. Halting session to prevent orphan legs.")
+                    import notifier
+                    notifier.send_telegram_alert(f"🚨 <b>URGENT ACTION REQUIRED!</b> 🚨\n{index_symbol} basket order failed mid-execution. Check Upstox App immediately.")
+                else:
+                    logging.critical("Entry rejected before order placement or before any fill was confirmed. No orphan legs expected.")
                 break 
 
             state = state_manager.load_state() or {}
@@ -1188,9 +1314,9 @@ def continuous_trading_session(index_symbol, expiry_date, cutoff_hour, cutoff_mi
             break 
 
         elif stop_loss_hit == "BTST_RECENTER":
-            logging.critical("BTST unhealthy at cutoff. Squaring off and deploying one fresh centered carry trade.")
+            logging.critical("BTST neutral carry should be recentered as an Iron Condor. Squaring off and deploying adaptive carry trade.")
             square_off_all(exit_prices, exit_reason=stop_loss_hit)
-            if deploy_single_sniper_trade(index_symbol, expiry_date, reason="BTST_RECENTER"):
+            if deploy_adaptive_btst_trade(index_symbol, expiry_date, reason="BTST_RECENTER"):
                 logging.critical("BTST recenter trade deployed successfully. Resuming monitoring.")
                 continue
             else:
@@ -1289,6 +1415,11 @@ def build_todays_schedule():
         expiry_date,
         config.ENTRY_STANDBY_TIME,
     )
+    schedule.every().day.at(config.TELEMETRY_START_TIME).do(
+        collect_opening_telemetry,
+        index_symbol=index_symbol,
+        expiry_date=expiry_date,
+    ).tag('trading_jobs')
     schedule.every().day.at(config.ENTRY_STANDBY_TIME).do(
         continuous_trading_session,
         index_symbol=index_symbol,
@@ -1296,7 +1427,8 @@ def build_todays_schedule():
         cutoff_hour=15,
         cutoff_minute=25,
     ).tag('trading_jobs')
-    logging.info("15:25 EOD is handled by the active-position decision engine; no fresh entry is scheduled.")
+    schedule.every().day.at("15:25").do(scheduled_btst_momentum_check).tag('trading_jobs')
+    logging.info("15:25 adaptive BTST is scheduled for flat sessions; active positions use the EOD engine.")
     return
 
     nifty_expiry, sensex_expiry = current_expiries()
@@ -1391,11 +1523,12 @@ if __name__ == "__main__":
     now = datetime.now()
     today_str = now.strftime("%Y-%m-%d")
     eod_cutoff = datetime.strptime("15:25", "%H:%M").time()
+    fresh_entry_cutoff = _parse_hhmm(config.FRESH_ENTRY_CUTOFF_TIME, default="15:10")
     
     if not calendar_invalid and not (hasattr(config, 'MARKET_HOLIDAYS') and today_str in config.MARKET_HOLIDAYS) and now.weekday() < 5:
         current_time = now.time()
         morning_start = datetime.strptime(config.ENTRY_STANDBY_TIME, "%H:%M").time()
-        afternoon_start = eod_cutoff
+        telemetry_start = _parse_hhmm(config.TELEMETRY_START_TIME, default="09:15")
 
         # --- EXPIRY DAY STRATEGY: Expiring index trades MORNING, other AFTERNOON ---
         if today_str == nifty_expiry:
@@ -1412,13 +1545,16 @@ if __name__ == "__main__":
             morning_idx, afternoon_idx = default_idx, default_idx
             morning_exp, afternoon_exp = default_exp, default_exp
 
-        if morning_start <= current_time < afternoon_start:
+        if telemetry_start <= current_time < morning_start:
+            logging.critical("LATE BOOT DETECTED inside telemetry window. Collecting opening context for %s...", morning_idx)
+            collect_opening_telemetry(morning_idx, morning_exp)
+
+        if morning_start <= current_time < fresh_entry_cutoff:
             logging.critical(f"🏃 LATE BOOT DETECTED! Jumping straight into Morning Session ({morning_idx})...")
             continuous_trading_session(morning_idx, morning_exp, 15, 25)
             
-        elif afternoon_start <= current_time < eod_cutoff:
-            logging.critical(f"🏃 LATE BOOT DETECTED! Jumping straight into Afternoon Session ({afternoon_idx})...")
-            continuous_trading_session(afternoon_idx, afternoon_exp, 15, 25)
+        elif fresh_entry_cutoff <= current_time < eod_cutoff:
+            logging.info("Late boot after fresh cutoff. Waiting for 15:25 adaptive BTST/EOD handling.")
 
     logging.info("Waiting for scheduled events...")
     while True:
@@ -1448,8 +1584,8 @@ if __name__ == "__main__":
             
             if calendar_invalid:
                 logging.critical("Manual entry ignored because expiry calendar is invalid.")
-            elif datetime.now().time() >= eod_cutoff:
-                logging.info("Soft Cutoff (15:15) reached. No manual entry will be taken.")
+            elif fresh_entry_cutoff_reached():
+                logging.info("Soft Cutoff (%s) reached. No manual entry will be taken.", config.FRESH_ENTRY_CUTOFF_TIME)
             else:
                 logging.info(
                     "Manual entry resolved to %s session with cutoff %02d:%02d.",

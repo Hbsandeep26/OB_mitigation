@@ -3,3 +3,5 @@ venv
 engine_pid.txt
 engine_heartbeat.json
 btst_flag.txt
+market_telemetry.db
+market_telemetry.db-journal
