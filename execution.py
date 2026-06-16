@@ -18,14 +18,34 @@ class PartialFillError(OrderConfirmationError):
     def __init__(self, message, fill_info):
         super().__init__(message)
         self.fill_info = fill_info
+import logging
+import time
+
+from broker import get_broker
+import config
+import upstox_client
+from logger import log_trade
+from notifier import send_telegram_alert
+from upstox_client.rest import ApiException
+import state_manager
 
 
-COMPLETE_STATUSES = {"COMPLETE", "COMPLETED", "FILLED"}
+class OrderConfirmationError(Exception):
+    pass
+
+
+class PartialFillError(OrderConfirmationError):
+    def __init__(self, message, fill_info):
+        super().__init__(message)
+        self.fill_info = fill_info
+
+
+COMPLETE_STATUSES = {"COMPLETE", "COMPLETED", "FILLED", "TRADED"}
 FAILED_STATUSES = {"REJECTED", "CANCELLED", "CANCELED"}
 
 
 def validate_trade_quantity(index_symbol, quantity):
-    lot_multiple = config.NIFTY_LOT_MULTIPLE if index_symbol == "NIFTY" else config.SENSEX_LOT_MULTIPLE
+    lot_multiple = config.get_symbol_lot_size(index_symbol)
     quantity = int(quantity)
     if quantity <= 0:
         raise ValueError(f"{index_symbol} quantity must be positive. Got {quantity}.")
@@ -202,26 +222,28 @@ def _normalize_order_sequence(order_sequence):
     return normalized
 
 
-def _net_premium_from_order_sequence(prices, order_sequence):
+def _net_premium_from_order_sequence(prices, order_sequence, strategy_type=None):
     net = 0.0
     for leg_name, transaction_type in _normalize_order_sequence(order_sequence):
         leg_price = float(prices.get(leg_name, 0.0) or 0.0)
+        mult = 2.0 if (strategy_type == "Ratio" and leg_name.startswith("sell_")) else 1.0
         if transaction_type == "SELL":
-            net += leg_price
+            net += leg_price * mult
         elif transaction_type == "BUY":
-            net -= leg_price
+            net -= leg_price * mult
     return net
 
 
-def _pnl_from_order_sequence(entry, exits, qty, order_sequence):
+def _pnl_from_order_sequence(entry, exits, qty, order_sequence, strategy_type=None):
     pnl = 0.0
     for leg_name, transaction_type in _normalize_order_sequence(order_sequence):
         entry_price = float(entry.get(leg_name, 0.0) or 0.0)
         exit_price = float(exits.get(leg_name, 0.0) or 0.0)
+        mult = 2.0 if (strategy_type == "Ratio" and leg_name.startswith("sell_")) else 1.0
         if transaction_type == "SELL":
-            pnl += (entry_price - exit_price) * qty
+            pnl += (entry_price - exit_price) * qty * mult
         elif transaction_type == "BUY":
-            pnl += (exit_price - entry_price) * qty
+            pnl += (exit_price - entry_price) * qty * mult
     return pnl
 
 
@@ -248,7 +270,7 @@ def _log_dimensions(index_symbol, quantity, sizing=None):
     }
 
 
-def _preflight_option_spread_check(index_symbol, entry_prices, quantity, strikes, order_sequence):
+def _preflight_option_spread_check(index_symbol, entry_prices, quantity, strikes, order_sequence, strategy_type=None):
     validate_trade_quantity(index_symbol, quantity)
     order_sequence = _normalize_order_sequence(order_sequence)
     if not order_sequence:
@@ -261,9 +283,11 @@ def _preflight_option_spread_check(index_symbol, entry_prices, quantity, strikes
     if missing:
         raise ValueError(f"Option spread has missing/zero entry prices: {missing}")
 
-    net_premium = _net_premium_from_order_sequence(entry_prices, order_sequence)
+    net_premium = _net_premium_from_order_sequence(entry_prices, order_sequence, strategy_type)
     width = _spread_width(strikes)
-    if net_premium >= 0:
+    if strategy_type == "Ratio":
+        defined_loss = abs(net_premium) * int(quantity)
+    elif net_premium >= 0:
         defined_loss = max(0.0, (width - net_premium) * int(quantity))
     else:
         defined_loss = abs(net_premium) * int(quantity)
@@ -293,7 +317,7 @@ def place_option_spread_basket(
     order_sequence = _normalize_order_sequence(order_sequence)
     try:
         defined_loss, net_premium = _preflight_option_spread_check(
-            index_symbol, entry_prices, trade_quantity, strikes, order_sequence
+            index_symbol, entry_prices, trade_quantity, strikes, order_sequence, strategy_type
         )
     except ValueError as err:
         logging.critical("Spread preflight risk check failed: %s", err)
@@ -317,7 +341,7 @@ def place_option_spread_basket(
                     "leg_name": leg_name,
                     "token": legs[leg_name],
                     "transaction_type": transaction_type,
-                    "filled_quantity": int(trade_quantity),
+                    "filled_quantity": int(2 * trade_quantity) if (strategy_type == "Ratio" and leg_name.startswith("sell_")) else int(trade_quantity),
                     "average_price": entry_prices[leg_name],
                     "status": "SIMULATED",
                 }
@@ -342,12 +366,19 @@ def place_option_spread_basket(
         logging.critical("Unknown ENVIRONMENT=%s. Refusing to trade.", config.ENVIRONMENT)
         return False
 
-    logging.critical("LIVE MODE: routing %s spread orders to Upstox with fill confirmation.", strategy_type)
+    logging.critical(
+        "LIVE MODE: routing %s spread orders to %s with fill confirmation.",
+        strategy_type,
+        config.get_active_broker(),
+    )
     order_api_v3, order_api = _make_order_apis()
     confirmed_fills = []
     try:
         for leg_name, transaction_type in order_sequence:
-            body = _build_market_order(legs[leg_name], transaction_type, trade_quantity, "btst_entry")
+            qty = trade_quantity
+            if strategy_type == "Ratio" and leg_name.startswith("sell_"):
+                qty = 2 * trade_quantity
+            body = _build_market_order(legs[leg_name], transaction_type, qty, "btst_entry")
             confirmed_fills.append(
                 place_and_confirm(order_api_v3, order_api, body, leg_name, legs[leg_name], transaction_type)
             )
@@ -379,7 +410,7 @@ def place_option_spread_basket(
         return False
 
     actual_prices = _actual_entry_prices(confirmed_fills, entry_prices)
-    actual_net_premium = _net_premium_from_order_sequence(actual_prices, order_sequence)
+    actual_net_premium = _net_premium_from_order_sequence(actual_prices, order_sequence, strategy_type)
     execution_info.update({"mode": "LIVE", "fills": confirmed_fills})
     log_trade(
         "ENTRY", index_symbol, actual_prices, actual_net_premium, 0.0,
@@ -449,7 +480,7 @@ def place_iron_butterfly_basket(
         logging.critical("Unknown ENVIRONMENT=%s. Refusing to trade.", config.ENVIRONMENT)
         return False
 
-    logging.critical("LIVE MODE: routing orders to Upstox with fill confirmation.")
+    logging.critical("LIVE MODE: routing orders to %s with fill confirmation.", config.get_active_broker())
     order_api_v3, order_api = _make_order_apis()
     orders = [
         ("buy_ce", legs["buy_ce"], "BUY"),
@@ -603,8 +634,8 @@ def _square_off_option_spread(state, exit_prices=None, exit_reason=""):
         notes = f"{notes} ({price_note})"
 
     if config.ENVIRONMENT == "SANDBOX":
-        exit_premium = _net_premium_from_order_sequence(safe_exits, order_sequence)
-        pnl = _pnl_from_order_sequence(entry, safe_exits, qty, order_sequence)
+        exit_premium = _net_premium_from_order_sequence(safe_exits, order_sequence, strategy_type)
+        pnl = _pnl_from_order_sequence(entry, safe_exits, qty, order_sequence, strategy_type)
         log_trade(
             "EXIT", index_symbol, safe_exits, exit_premium, pnl, notes,
             spot_price=spot_price, strikes=strikes, exit_reason=exit_reason,
@@ -625,65 +656,11 @@ def _square_off_option_spread(state, exit_prices=None, exit_reason=""):
         logging.critical("Unknown ENVIRONMENT=%s. State retained.", config.ENVIRONMENT)
         return
 
-    logging.critical("Routing %s spread exit orders to LIVE Upstox with fill confirmation.", strategy_type)
-    order_api_v3, order_api = _make_order_apis()
-    exit_fills = []
-
-    def close_leg(leg_name, tx_type):
-        body = _build_market_order(legs[leg_name], tx_type, qty, "btst_exit")
-        fill = place_and_confirm(order_api_v3, order_api, body, leg_name, legs[leg_name], tx_type)
-        exit_fills.append(fill)
-        time.sleep(0.15)
-        return fill
-
-    short_legs = [(leg_name, tx_type) for leg_name, tx_type in order_sequence if tx_type == "SELL"]
-    long_legs = [(leg_name, tx_type) for leg_name, tx_type in order_sequence if tx_type == "BUY"]
-    shorts_closed = True
-
-    for leg_name, _ in short_legs:
-        try:
-            close_leg(leg_name, "BUY")
-        except Exception as err:
-            success = False
-            shorts_closed = False
-            logging.critical("Failed to close short spread leg %s. Error: %s", leg_name, err)
-
-    if shorts_closed:
-        for leg_name, _ in long_legs:
-            try:
-                close_leg(leg_name, "SELL")
-            except Exception as err:
-                success = False
-                logging.critical("Failed to close long spread leg %s. Error: %s", leg_name, err)
-    else:
-        logging.critical("Keeping long spread hedges intact because one or more short legs failed to close.")
-
-    safe_exits = _actual_exit_prices(exit_fills, safe_exits)
-    exit_premium = _net_premium_from_order_sequence(safe_exits, order_sequence)
-    pnl = _pnl_from_order_sequence(entry, safe_exits, qty, order_sequence)
-    if exit_fills:
-        notes = f"{notes} (Broker fill averages applied)"
-
-    log_trade(
-        "EXIT", index_symbol, safe_exits, exit_premium, pnl, notes,
-        spot_price=spot_price, strikes=strikes, exit_reason=exit_reason,
-        strategy_type=strategy_type, **_state_log_dimensions(state)
+    logging.critical(
+        "Routing %s spread exit orders to LIVE %s with fill confirmation.",
+        strategy_type,
+        config.get_active_broker(),
     )
-    state_manager.update_many({"last_exit_fills": exit_fills, "last_exit_success": success})
-
-    send_telegram_alert(
-        f"<b>BTST TRADE CLOSED (LIVE): {index_symbol}</b>\n"
-        f"Strategy: {strategy_type}\n"
-        f"Reason: <b>{exit_reason or 'EXIT'}</b>\n"
-        f"Realized PnL: <b>{pnl:.2f}</b>\n"
-        f"Net Premium Exited: {exit_premium:.2f}\n"
-        f"Status: {'Execution Safe' if success else 'WARNING: Leg Failure'}"
-    )
-
-    if success:
-        state_manager.clear_state()
-    else:
-        logging.critical("STATE RETAINED: spread exit execution failed. Manual recovery required.")
 
 
 def square_off_all(exit_prices=None, exit_reason=""):
@@ -734,7 +711,7 @@ def square_off_all(exit_prices=None, exit_reason=""):
         logging.critical("Unknown ENVIRONMENT=%s. State retained.", config.ENVIRONMENT)
         return
 
-    logging.critical("Routing exit orders to LIVE Upstox with fill confirmation.")
+    logging.critical("Routing exit orders to LIVE %s with fill confirmation.", config.get_active_broker())
     order_api_v3, order_api = _make_order_apis()
     exit_fills = []
 

@@ -1,0 +1,27 @@
+2026-06-09 22:58:14,898 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-09 22:58:14,898 - INFO - [1/3] Backtesting NIFTY from data\historical\NIFTY_5m.csv
+2026-06-09 22:58:16,123 - INFO - [NIFTY] trades=55 win_rate=58.18% expectancy=0.38R total=20.80R
+2026-06-09 22:58:16,124 - INFO - [2/3] Backtesting SENSEX from data\historical\SENSEX_5m.csv
+2026-06-09 22:58:17,470 - INFO - [SENSEX] trades=55 win_rate=52.73% expectancy=0.27R total=14.93R
+2026-06-09 22:58:17,471 - INFO - [3/3] Backtesting RELIANCE from data\historical\RELIANCE_5m.csv
+2026-06-09 22:58:18,877 - INFO - [RELIANCE] trades=37 win_rate=67.57% expectancy=0.57R total=21.26R
+2026-06-09 22:58:18,882 - INFO - Portfolio: trades=147 win_rate=58.50% expectancy=0.39R total=56.99R max_dd=-8.24R
+2026-06-09 22:58:18,883 - INFO - Backtest reports written to data\backtests_temp
+2026-06-09 23:02:04,009 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-09 23:02:04,010 - INFO - [1/3] Backtesting NIFTY from data\historical\NIFTY_5m.csv
+2026-06-09 23:02:05,128 - INFO - [NIFTY] trades=53 win_rate=73.58% expectancy=0.12R total=6.57R
+2026-06-09 23:02:05,128 - INFO - [2/3] Backtesting SENSEX from data\historical\SENSEX_5m.csv
+2026-06-09 23:02:06,254 - INFO - [SENSEX] trades=54 win_rate=72.22% expectancy=0.06R total=3.50R
+2026-06-09 23:02:06,254 - INFO - [3/3] Backtesting RELIANCE from data\historical\RELIANCE_5m.csv
+2026-06-09 23:02:07,484 - INFO - [RELIANCE] trades=32 win_rate=75.00% expectancy=0.08R total=2.63R
+2026-06-09 23:02:07,490 - INFO - Portfolio: trades=139 win_rate=73.38% expectancy=0.09R total=12.69R max_dd=-2.76R
+2026-06-09 23:02:07,490 - INFO - Backtest reports written to data\backtests_temp
+2026-06-09 23:17:22,762 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-09 23:17:22,763 - INFO - [1/3] Backtesting NIFTY from data\historical\NIFTY_5m.csv
+2026-06-09 23:17:23,920 - INFO - [NIFTY] trades=53 win_rate=49.06% expectancy=0.34R total=17.88R
+2026-06-09 23:17:23,921 - INFO - [2/3] Backtesting SENSEX from data\historical\SENSEX_5m.csv
+2026-06-09 23:17:25,241 - INFO - [SENSEX] trades=54 win_rate=38.89% expectancy=0.26R total=13.93R
+2026-06-09 23:17:25,241 - INFO - [3/3] Backtesting RELIANCE from data\historical\RELIANCE_5m.csv
+2026-06-09 23:17:26,520 - INFO - [RELIANCE] trades=32 win_rate=53.12% expectancy=0.40R total=12.74R
+2026-06-09 23:17:26,526 - INFO - Portfolio: trades=139 win_rate=46.04% expectancy=0.32R total=44.55R max_dd=-5.01R
+2026-06-09 23:17:26,526 - INFO - Backtest reports written to data\backtests_temp

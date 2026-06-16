@@ -1,0 +1,19 @@
+2026-06-12 23:39:25,281 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-12 23:39:25,895 - INFO - Portfolio: trades=532 win_rate=53.38% expectancy=0.38R total=202.70R max_dd=-8.08R
+2026-06-12 23:39:25,895 - INFO - Backtest reports written to data\backtests
+2026-06-12 23:39:49,011 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-12 23:39:49,012 - INFO - Starting grid search optimization for Confirmed Fibonacci Pullback strategy...
+2026-06-12 23:39:51,473 - INFO - [10/96] Strategy=Naked ATM Buy, Pivot=5, Retracement=0.786, Target=extension_0272 -> Trades=305, WR=28.85%, Expectancy=0.09R
+2026-06-12 23:39:53,515 - INFO - [20/96] Strategy=Naked ATM Buy, Pivot=8, Retracement=0.705, Target=rr_ratio -> Trades=265, WR=27.92%, Expectancy=-0.06R
+2026-06-12 23:39:55,497 - INFO - [30/96] Strategy=Debit Spread, Pivot=5, Retracement=0.705, Target=extension_0272 -> Trades=381, WR=36.48%, Expectancy=0.36R
+2026-06-12 23:39:57,558 - INFO - [40/96] Strategy=Debit Spread, Pivot=8, Retracement=0.618, Target=rr_ratio -> Trades=316, WR=37.66%, Expectancy=0.07R
+2026-06-12 23:39:59,497 - INFO - [50/96] Strategy=Credit Spread, Pivot=5, Retracement=0.618, Target=extension_0272 -> Trades=487, WR=47.43%, Expectancy=-0.06R
+2026-06-12 23:40:01,506 - INFO - [60/96] Strategy=Credit Spread, Pivot=5, Retracement=0.786, Target=rr_ratio -> Trades=310, WR=34.84%, Expectancy=-0.31R
+2026-06-12 23:40:03,441 - INFO - [70/96] Strategy=Credit Spread, Pivot=8, Retracement=0.786, Target=extension_0272 -> Trades=215, WR=33.02%, Expectancy=-0.34R
+2026-06-12 23:40:05,530 - INFO - [80/96] Strategy=Ratio, Pivot=5, Retracement=0.705, Target=rr_ratio -> Trades=374, WR=34.49%, Expectancy=0.04R
+2026-06-12 23:40:07,584 - INFO - [90/96] Strategy=Ratio, Pivot=8, Retracement=0.705, Target=extension_0272 -> Trades=270, WR=37.04%, Expectancy=0.01R
+2026-06-12 23:40:08,728 - INFO - [96/96] Strategy=Ratio, Pivot=8, Retracement=0.786, Target=rr_ratio -> Trades=220, WR=35.45%, Expectancy=0.06R
+2026-06-12 23:40:08,730 - INFO - Optimization report written to data\backtests\fib_pullback_optimization.csv
+2026-06-12 23:40:29,914 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-12 23:40:30,506 - INFO - Portfolio: trades=532 win_rate=55.26% expectancy=0.80R total=426.12R max_dd=-6.05R
+2026-06-12 23:40:30,506 - INFO - Backtest reports written to data\backtests

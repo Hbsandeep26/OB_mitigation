@@ -1,0 +1,89 @@
+2026-06-10 01:16:02,695 - INFO - Starting Options Strategy Optimizer grid search...
+2026-06-10 01:16:02,700 - INFO - Loading historical data for NIFTY from data\historical\NIFTY_5m.csv...
+2026-06-10 01:16:02,928 - INFO - Loading historical data for SENSEX from data\historical\SENSEX_5m.csv...
+2026-06-10 01:16:03,105 - INFO - Loading historical data for RELIANCE from data\historical\RELIANCE_5m.csv...
+2026-06-10 01:16:03,316 - INFO - Running optimization grid search over 72 combinations...
+2026-06-10 01:16:03,316 - INFO - [1/72] Testing: Credit Spread | Stop: sweep_extreme | Target: 1.25R
+2026-06-10 01:16:09,095 - INFO - [2/72] Testing: Credit Spread | Stop: sweep_extreme | Target: 1.50R
+2026-06-10 01:16:14,575 - INFO - [3/72] Testing: Credit Spread | Stop: sweep_extreme | Target: 1.75R
+2026-06-10 01:16:19,808 - INFO - [4/72] Testing: Credit Spread | Stop: sweep_extreme | Target: 2.00R
+2026-06-10 01:16:24,762 - INFO - [5/72] Testing: Credit Spread | Stop: sweep_extreme | Target: 2.25R
+2026-06-10 01:16:29,810 - INFO - [6/72] Testing: Credit Spread | Stop: sweep_extreme | Target: 2.50R
+2026-06-10 01:16:34,802 - INFO - [7/72] Testing: Credit Spread | Stop: half_sweep | Target: 1.25R
+2026-06-10 01:16:39,825 - INFO - [8/72] Testing: Credit Spread | Stop: half_sweep | Target: 1.50R
+2026-06-10 01:16:44,641 - INFO - [9/72] Testing: Credit Spread | Stop: half_sweep | Target: 1.75R
+2026-06-10 01:16:49,620 - INFO - [10/72] Testing: Credit Spread | Stop: half_sweep | Target: 2.00R
+2026-06-10 01:16:54,590 - INFO - [11/72] Testing: Credit Spread | Stop: half_sweep | Target: 2.25R
+2026-06-10 01:16:59,528 - INFO - [12/72] Testing: Credit Spread | Stop: half_sweep | Target: 2.50R
+2026-06-10 01:17:04,430 - INFO - [13/72] Testing: Credit Spread | Stop: vwap_crossing | Target: 1.25R
+2026-06-10 01:17:09,587 - INFO - [14/72] Testing: Credit Spread | Stop: vwap_crossing | Target: 1.50R
+2026-06-10 01:17:15,000 - INFO - [15/72] Testing: Credit Spread | Stop: vwap_crossing | Target: 1.75R
+2026-06-10 01:17:20,078 - INFO - [16/72] Testing: Credit Spread | Stop: vwap_crossing | Target: 2.00R
+2026-06-10 01:17:24,969 - INFO - [17/72] Testing: Credit Spread | Stop: vwap_crossing | Target: 2.25R
+2026-06-10 01:17:30,009 - INFO - [18/72] Testing: Credit Spread | Stop: vwap_crossing | Target: 2.50R
+2026-06-10 01:17:34,962 - INFO - [19/72] Testing: Debit Spread | Stop: sweep_extreme | Target: 1.25R
+2026-06-10 01:17:40,013 - INFO - [20/72] Testing: Debit Spread | Stop: sweep_extreme | Target: 1.50R
+2026-06-10 01:17:44,869 - INFO - [21/72] Testing: Debit Spread | Stop: sweep_extreme | Target: 1.75R
+2026-06-10 01:17:49,745 - INFO - [22/72] Testing: Debit Spread | Stop: sweep_extreme | Target: 2.00R
+2026-06-10 01:17:54,764 - INFO - [23/72] Testing: Debit Spread | Stop: sweep_extreme | Target: 2.25R
+2026-06-10 01:17:59,738 - INFO - [24/72] Testing: Debit Spread | Stop: sweep_extreme | Target: 2.50R
+2026-06-10 01:18:04,798 - INFO - [25/72] Testing: Debit Spread | Stop: half_sweep | Target: 1.25R
+2026-06-10 01:18:09,580 - INFO - [26/72] Testing: Debit Spread | Stop: half_sweep | Target: 1.50R
+2026-06-10 01:18:14,352 - INFO - [27/72] Testing: Debit Spread | Stop: half_sweep | Target: 1.75R
+2026-06-10 01:18:19,185 - INFO - [28/72] Testing: Debit Spread | Stop: half_sweep | Target: 2.00R
+2026-06-10 01:18:24,032 - INFO - [29/72] Testing: Debit Spread | Stop: half_sweep | Target: 2.25R
+2026-06-10 01:18:28,783 - INFO - [30/72] Testing: Debit Spread | Stop: half_sweep | Target: 2.50R
+2026-06-10 01:18:33,632 - INFO - [31/72] Testing: Debit Spread | Stop: vwap_crossing | Target: 1.25R
+2026-06-10 01:18:39,378 - INFO - [32/72] Testing: Debit Spread | Stop: vwap_crossing | Target: 1.50R
+2026-06-10 01:18:44,415 - INFO - [33/72] Testing: Debit Spread | Stop: vwap_crossing | Target: 1.75R
+2026-06-10 01:18:49,368 - INFO - [34/72] Testing: Debit Spread | Stop: vwap_crossing | Target: 2.00R
+2026-06-10 01:18:54,299 - INFO - [35/72] Testing: Debit Spread | Stop: vwap_crossing | Target: 2.25R
+2026-06-10 01:18:59,225 - INFO - [36/72] Testing: Debit Spread | Stop: vwap_crossing | Target: 2.50R
+2026-06-10 01:19:04,352 - INFO - [37/72] Testing: Naked ATM Buy | Stop: sweep_extreme | Target: 1.25R
+2026-06-10 01:19:09,431 - INFO - [38/72] Testing: Naked ATM Buy | Stop: sweep_extreme | Target: 1.50R
+2026-06-10 01:19:14,393 - INFO - [39/72] Testing: Naked ATM Buy | Stop: sweep_extreme | Target: 1.75R
+2026-06-10 01:19:19,491 - INFO - [40/72] Testing: Naked ATM Buy | Stop: sweep_extreme | Target: 2.00R
+2026-06-10 01:19:24,452 - INFO - [41/72] Testing: Naked ATM Buy | Stop: sweep_extreme | Target: 2.25R
+2026-06-10 01:19:29,468 - INFO - [42/72] Testing: Naked ATM Buy | Stop: sweep_extreme | Target: 2.50R
+2026-06-10 01:19:34,644 - INFO - [43/72] Testing: Naked ATM Buy | Stop: half_sweep | Target: 1.25R
+2026-06-10 01:19:39,535 - INFO - [44/72] Testing: Naked ATM Buy | Stop: half_sweep | Target: 1.50R
+2026-06-10 01:19:44,285 - INFO - [45/72] Testing: Naked ATM Buy | Stop: half_sweep | Target: 1.75R
+2026-06-10 01:19:49,160 - INFO - [46/72] Testing: Naked ATM Buy | Stop: half_sweep | Target: 2.00R
+2026-06-10 01:19:54,097 - INFO - [47/72] Testing: Naked ATM Buy | Stop: half_sweep | Target: 2.25R
+2026-06-10 01:19:58,939 - INFO - [48/72] Testing: Naked ATM Buy | Stop: half_sweep | Target: 2.50R
+2026-06-10 01:20:03,750 - INFO - [49/72] Testing: Naked ATM Buy | Stop: vwap_crossing | Target: 1.25R
+2026-06-10 01:20:08,758 - INFO - [50/72] Testing: Naked ATM Buy | Stop: vwap_crossing | Target: 1.50R
+2026-06-10 01:20:13,630 - INFO - [51/72] Testing: Naked ATM Buy | Stop: vwap_crossing | Target: 1.75R
+2026-06-10 01:20:18,525 - INFO - [52/72] Testing: Naked ATM Buy | Stop: vwap_crossing | Target: 2.00R
+2026-06-10 01:20:23,396 - INFO - [53/72] Testing: Naked ATM Buy | Stop: vwap_crossing | Target: 2.25R
+2026-06-10 01:20:28,308 - INFO - [54/72] Testing: Naked ATM Buy | Stop: vwap_crossing | Target: 2.50R
+2026-06-10 01:20:33,252 - INFO - [55/72] Testing: Iron Butterfly | Stop: sweep_extreme | Target: 1.25R
+2026-06-10 01:20:38,239 - INFO - [56/72] Testing: Iron Butterfly | Stop: sweep_extreme | Target: 1.50R
+2026-06-10 01:20:43,157 - INFO - [57/72] Testing: Iron Butterfly | Stop: sweep_extreme | Target: 1.75R
+2026-06-10 01:20:48,170 - INFO - [58/72] Testing: Iron Butterfly | Stop: sweep_extreme | Target: 2.00R
+2026-06-10 01:20:53,181 - INFO - [59/72] Testing: Iron Butterfly | Stop: sweep_extreme | Target: 2.25R
+2026-06-10 01:20:57,979 - INFO - [60/72] Testing: Iron Butterfly | Stop: sweep_extreme | Target: 2.50R
+2026-06-10 01:21:03,244 - INFO - [61/72] Testing: Iron Butterfly | Stop: half_sweep | Target: 1.25R
+2026-06-10 01:21:08,156 - INFO - [62/72] Testing: Iron Butterfly | Stop: half_sweep | Target: 1.50R
+2026-06-10 01:21:13,048 - INFO - [63/72] Testing: Iron Butterfly | Stop: half_sweep | Target: 1.75R
+2026-06-10 01:21:27,883 - INFO - [64/72] Testing: Iron Butterfly | Stop: half_sweep | Target: 2.00R
+2026-06-10 01:21:47,765 - INFO - [65/72] Testing: Iron Butterfly | Stop: half_sweep | Target: 2.25R
+2026-06-10 01:22:07,802 - INFO - [66/72] Testing: Iron Butterfly | Stop: half_sweep | Target: 2.50R
+2026-06-10 01:22:16,485 - INFO - [67/72] Testing: Iron Butterfly | Stop: vwap_crossing | Target: 1.25R
+2026-06-10 01:22:21,804 - INFO - [68/72] Testing: Iron Butterfly | Stop: vwap_crossing | Target: 1.50R
+2026-06-10 01:22:27,092 - INFO - [69/72] Testing: Iron Butterfly | Stop: vwap_crossing | Target: 1.75R
+2026-06-10 01:22:32,280 - INFO - [70/72] Testing: Iron Butterfly | Stop: vwap_crossing | Target: 2.00R
+2026-06-10 01:22:37,527 - INFO - [71/72] Testing: Iron Butterfly | Stop: vwap_crossing | Target: 2.25R
+2026-06-10 01:22:42,600 - INFO - [72/72] Testing: Iron Butterfly | Stop: vwap_crossing | Target: 2.50R
+2026-06-10 01:22:47,786 - INFO - Successfully wrote optimization report to data\backtests\options_strategy_optimization.csv
+2026-06-10 01:22:47,786 - INFO - --- TOP 10 OPTIMIZED OPTIONS CONFIGURATIONS ---
+2026-06-10 01:22:47,787 - INFO - Rank 1: Strategy=Naked ATM Buy | Stop=vwap_crossing | Target=2.50R | WinRate=34.53% | TotalRR=112.37R | Expectancy=0.81R
+2026-06-10 01:22:47,787 - INFO - Rank 2: Strategy=Naked ATM Buy | Stop=vwap_crossing | Target=2.25R | WinRate=34.53% | TotalRR=103.18R | Expectancy=0.74R
+2026-06-10 01:22:47,787 - INFO - Rank 3: Strategy=Naked ATM Buy | Stop=vwap_crossing | Target=2.00R | WinRate=37.41% | TotalRR=100.22R | Expectancy=0.72R
+2026-06-10 01:22:47,788 - INFO - Rank 4: Strategy=Naked ATM Buy | Stop=half_sweep | Target=2.25R | WinRate=33.81% | TotalRR=97.09R | Expectancy=0.70R
+2026-06-10 01:22:47,788 - INFO - Rank 5: Strategy=Naked ATM Buy | Stop=half_sweep | Target=2.50R | WinRate=33.09% | TotalRR=96.20R | Expectancy=0.69R
+2026-06-10 01:22:47,788 - INFO - Rank 6: Strategy=Naked ATM Buy | Stop=half_sweep | Target=2.00R | WinRate=35.97% | TotalRR=90.85R | Expectancy=0.65R
+2026-06-10 01:22:47,788 - INFO - Rank 7: Strategy=Naked ATM Buy | Stop=vwap_crossing | Target=1.50R | WinRate=42.45% | TotalRR=89.44R | Expectancy=0.64R
+2026-06-10 01:22:47,788 - INFO - Rank 8: Strategy=Naked ATM Buy | Stop=vwap_crossing | Target=1.75R | WinRate=38.13% | TotalRR=87.46R | Expectancy=0.63R
+2026-06-10 01:22:47,788 - INFO - Rank 9: Strategy=Naked ATM Buy | Stop=half_sweep | Target=1.75R | WinRate=38.85% | TotalRR=85.39R | Expectancy=0.61R
+2026-06-10 01:22:47,788 - INFO - Rank 10: Strategy=Naked ATM Buy | Stop=half_sweep | Target=1.50R | WinRate=41.01% | TotalRR=79.30R | Expectancy=0.57R

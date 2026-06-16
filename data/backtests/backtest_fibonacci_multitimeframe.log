@@ -1,0 +1,20 @@
+2026-06-13 00:09:12,148 - ERROR - Missing 1m data file: data\historical\NIFTY_1m.csv. Please fetch it first using fetch_historical_data.py --symbols NIFTY --months 1 --interval 1
+2026-06-13 00:10:35,028 - INFO - Selected batch 1/1 with 1 instruments: NIFTY
+2026-06-13 00:10:35,029 - INFO - Starting Multi-Timeframe Confirmation Grid Search optimization on 1 symbols...
+2026-06-13 00:10:35,029 - INFO - [10/40] Trig=ma_crossover, SL=5m_origin, Strat=Debit Spread -> Trades=0, WR=0.00%, Expectancy=0.00R
+2026-06-13 00:10:35,030 - INFO - [20/40] Trig=price_ma_cross, SL=5m_origin, Strat=Ratio -> Trades=0, WR=0.00%, Expectancy=0.00R
+2026-06-13 00:10:35,030 - INFO - [30/40] Trig=bar_breakout, SL=1m_candle_low, Strat=Debit Spread -> Trades=0, WR=0.00%, Expectancy=0.00R
+2026-06-13 00:10:35,030 - INFO - [40/40] Trig=candlestick, SL=1m_candle_low, Strat=Ratio -> Trades=0, WR=0.00%, Expectancy=0.00R
+2026-06-13 00:10:35,032 - INFO - Multi-Timeframe grid results written to data\backtests\fib_mtf_optimization.csv
+2026-06-13 00:19:11,038 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-13 00:19:11,038 - INFO - Starting Multi-Timeframe Confirmation Grid Search optimization on 3 symbols...
+2026-06-13 00:19:12,956 - INFO - [10/60] Trig=none, SL=1m_atr_1.5, Strat=Debit Spread -> Trades=278, WR=21.58%, Expectancy=0.65R
+2026-06-13 00:19:13,914 - INFO - [20/60] Trig=ma_crossover, SL=1m_candle_low, Strat=Ratio -> Trades=126, WR=41.27%, Expectancy=0.44R
+2026-06-13 00:19:14,772 - INFO - [30/60] Trig=price_ma_cross, SL=1m_candle_low, Strat=Debit Spread -> Trades=132, WR=40.15%, Expectancy=0.53R
+2026-06-13 00:19:15,667 - INFO - [40/60] Trig=bar_breakout, SL=5m_origin, Strat=Ratio -> Trades=125, WR=51.20%, Expectancy=0.72R
+2026-06-13 00:19:16,639 - INFO - [50/60] Trig=candlestick, SL=5m_origin, Strat=Debit Spread -> Trades=100, WR=50.00%, Expectancy=0.13R
+2026-06-13 00:19:17,670 - INFO - [60/60] Trig=candlestick, SL=1m_atr_1.5, Strat=Ratio -> Trades=147, WR=30.61%, Expectancy=0.07R
+2026-06-13 00:19:17,672 - INFO - Multi-Timeframe grid results written to data\backtests\fib_mtf_optimization.csv
+2026-06-13 00:19:30,805 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-13 00:19:31,521 - INFO - Multi-Timeframe Portfolio Summary: trades=90 win_rate=62.22% expectancy=1.10R total=99.25R max_dd=-9.00R
+2026-06-13 00:19:31,522 - INFO - Reports written to data\backtests

@@ -78,6 +78,27 @@ def get_live_token():
     return _setting("LIVE_ACCESS_TOKEN", "")
 
 
+def get_active_broker():
+    """Return the selected broker adapter name."""
+    return str(_setting("BROKER", "DHAN") or "DHAN").strip().upper()
+
+
+def get_dhan_access_token():
+    """Dynamically reads the configured Dhan access token."""
+    return _setting("DHAN_ACCESS_TOKEN", "")
+
+
+def get_dhan_client_id():
+    """Dynamically reads the configured Dhan client id."""
+    return _setting("DHAN_CLIENT_ID", "")
+
+
+def get_selected_broker_token():
+    if get_active_broker() == "DHAN":
+        return get_dhan_access_token()
+    return get_live_token()
+
+
 def get_target_profit_pct():
     """Dynamically reads the profit target from the UI."""
     return _float_setting("TARGET_PROFIT_PCT", 20)
@@ -304,3 +325,24 @@ POST_EMERGENCY_MAX_SPOT_CHANGE_PCT = _float_setting("POST_EMERGENCY_MAX_SPOT_CHA
 # local-only use, but credentials are no longer hard-coded in source.
 TELEGRAM_BOT_TOKEN = "8335051930:AAFTA7WvOcIEvjgEDwA1YTenKwARNkibdKE" 
 TELEGRAM_CHAT_ID = "635369910"
+
+# --- MTF-OBLT PARAMETERS ---
+MTF_PIVOT_LEN = _int_setting("MTF_PIVOT_LEN", 5)
+MTF_DISPLACEMENT_MULTIPLIER = _float_setting("MTF_DISPLACEMENT_MULTIPLIER", 1.5)
+MTF_INVALIDATION_BUFFER = _float_setting("MTF_INVALIDATION_BUFFER", 0.25)
+MTF_MAX_LEG_AGE = _int_setting("MTF_MAX_LEG_AGE", 150)
+MTF_TARGET_RR = _float_setting("MTF_TARGET_RR", 3.0)
+MTF_STRATEGY_TYPE = _setting("MTF_STRATEGY_TYPE", "Ratio")
+MTF_TRIGGER_TYPE = _setting("MTF_TRIGGER_TYPE", "choch")
+MTF_STOP_LOSS_TYPE = _setting("MTF_STOP_LOSS_TYPE", "5m_origin")
+MTF_USE_VWAP_FILTER = _bool_setting("MTF_USE_VWAP_FILTER", True)
+MTF_MAX_TRADES_PER_DAY = _int_setting("MTF_MAX_TRADES_PER_DAY", 3)
+MTF_RISK_PER_TRADE_PCT = _float_setting("MTF_RISK_PER_TRADE_PCT", 0.005)
+MTF_DISCRETE_RISK_BUDGET = _float_setting("MTF_DISCRETE_RISK_BUDGET", 1000.0)
+MTF_SCREENER_SYMBOLS = _list_setting("MTF_SCREENER_SYMBOLS", ["NIFTY", "SENSEX", "BANKNIFTY", "RELIANCE", "HDFCBANK", "ICICIBANK", "INFY", "TCS", "SBIN"])
+
+
+def get_symbol_lot_size(symbol: str) -> int:
+    from liquidity_universe import get_option_lot_size
+    key = f"{symbol.upper().strip()}_LOT_SIZE"
+    return _int_setting(key, get_option_lot_size(symbol))

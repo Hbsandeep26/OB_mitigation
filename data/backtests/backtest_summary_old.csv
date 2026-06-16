@@ -1,0 +1,4 @@
+symbol,trades,win_rate,avg_rr,expectancy_rr,total_rr,profit_factor,max_drawdown_rr,best_rr,worst_rr
+NIFTY,53,0.717,0.4123,0.4123,21.8525,2.531,-3.0,1.0,-1.0
+SENSEX,54,0.6667,0.2838,0.2838,15.3257,1.88,-5.9159,1.0,-1.0
+RELIANCE,32,0.8125,0.6136,0.6136,19.6352,4.8925,-2.0261,1.0,-1.0

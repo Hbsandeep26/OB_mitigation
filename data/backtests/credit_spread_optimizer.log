@@ -1,0 +1,19 @@
+2026-06-10 01:30:15,999 - INFO - Starting Credit Spread Specific R:R Optimizer...
+2026-06-10 01:30:16,530 - INFO - Running optimization search over 240 Credit Spread configurations...
+2026-06-10 01:45:37,482 - INFO - Successfully wrote Credit Spread report to data\backtests\credit_spread_optimization.csv
+2026-06-10 01:45:37,482 - INFO - --- TOP 15 OPTIMIZED CREDIT SPREAD CONFIGURATIONS ---
+2026-06-10 01:45:37,483 - INFO - Rank 1: Stop=sweep_extreme | Target=0.75R (Cap=True) | Prem=70% (MaxProfit=2.33R) | WinRate=74.10% | TotalRR=194.87R | Expectancy=1.40R
+2026-06-10 01:45:37,483 - INFO - Rank 2: Stop=sweep_extreme | Target=0.75R (Cap=False) | Prem=70% (MaxProfit=2.33R) | WinRate=74.10% | TotalRR=194.87R | Expectancy=1.40R
+2026-06-10 01:45:37,483 - INFO - Rank 3: Stop=sweep_extreme | Target=1.00R (Cap=True) | Prem=70% (MaxProfit=2.33R) | WinRate=73.38% | TotalRR=187.35R | Expectancy=1.35R
+2026-06-10 01:45:37,483 - INFO - Rank 4: Stop=sweep_extreme | Target=1.00R (Cap=False) | Prem=70% (MaxProfit=2.33R) | WinRate=73.38% | TotalRR=187.35R | Expectancy=1.35R
+2026-06-10 01:45:37,483 - INFO - Rank 5: Stop=sweep_extreme | Target=1.25R (Cap=True) | Prem=70% (MaxProfit=2.33R) | WinRate=73.38% | TotalRR=187.35R | Expectancy=1.35R
+2026-06-10 01:45:37,484 - INFO - Rank 6: Stop=sweep_extreme | Target=1.25R (Cap=False) | Prem=70% (MaxProfit=2.33R) | WinRate=73.38% | TotalRR=187.35R | Expectancy=1.35R
+2026-06-10 01:45:37,484 - INFO - Rank 7: Stop=sweep_extreme | Target=1.50R (Cap=True) | Prem=70% (MaxProfit=2.33R) | WinRate=73.38% | TotalRR=187.35R | Expectancy=1.35R
+2026-06-10 01:45:37,484 - INFO - Rank 8: Stop=sweep_extreme | Target=1.50R (Cap=False) | Prem=70% (MaxProfit=2.33R) | WinRate=73.38% | TotalRR=187.35R | Expectancy=1.35R
+2026-06-10 01:45:37,484 - INFO - Rank 9: Stop=sweep_extreme | Target=1.75R (Cap=True) | Prem=70% (MaxProfit=2.33R) | WinRate=73.38% | TotalRR=187.35R | Expectancy=1.35R
+2026-06-10 01:45:37,484 - INFO - Rank 10: Stop=sweep_extreme | Target=1.75R (Cap=False) | Prem=70% (MaxProfit=2.33R) | WinRate=73.38% | TotalRR=187.35R | Expectancy=1.35R
+2026-06-10 01:45:37,484 - INFO - Rank 11: Stop=sweep_extreme | Target=2.00R (Cap=True) | Prem=70% (MaxProfit=2.33R) | WinRate=73.38% | TotalRR=187.35R | Expectancy=1.35R
+2026-06-10 01:45:37,484 - INFO - Rank 12: Stop=sweep_extreme | Target=2.00R (Cap=False) | Prem=70% (MaxProfit=2.33R) | WinRate=73.38% | TotalRR=187.35R | Expectancy=1.35R
+2026-06-10 01:45:37,484 - INFO - Rank 13: Stop=sweep_extreme | Target=2.25R (Cap=True) | Prem=70% (MaxProfit=2.33R) | WinRate=73.38% | TotalRR=187.35R | Expectancy=1.35R
+2026-06-10 01:45:37,484 - INFO - Rank 14: Stop=sweep_extreme | Target=2.25R (Cap=False) | Prem=70% (MaxProfit=2.33R) | WinRate=73.38% | TotalRR=187.35R | Expectancy=1.35R
+2026-06-10 01:45:37,484 - INFO - Rank 15: Stop=sweep_extreme | Target=2.50R (Cap=True) | Prem=70% (MaxProfit=2.33R) | WinRate=73.38% | TotalRR=187.35R | Expectancy=1.35R

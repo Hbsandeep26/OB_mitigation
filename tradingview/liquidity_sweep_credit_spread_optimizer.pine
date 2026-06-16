@@ -1,0 +1,363 @@
+//@version=5
+strategy("Liquidity Sweep Credit-Spread Optimizer [Research]",
+     overlay=true,
+     initial_capital=100000,
+     pyramiding=0,
+     commission_type=strategy.commission.cash_per_order,
+     commission_value=0,
+     process_orders_on_close=true,
+     max_labels_count=500,
+     max_lines_count=500)
+
+// Research note:
+// This script trades the underlying chart for visual timing only. The credit-spread
+// results shown in the dashboard are synthetic because TradingView underlying charts
+// do not include historical option chain, IV, Greeks, bid/ask, or fill data.
+
+// -----------------------------------------------------------------------------.
+// Inputs.
+// -----------------------------------------------------------------------------.
+preset = input.string("Balanced", "Risk preset", options=["Conservative", "Balanced", "Aggressive", "Custom"], group="Synthetic Credit Spread")
+spreadWidthPointsInput = input.float(100.0, "spreadWidthPoints", minval=1.0, step=1.0, group="Synthetic Credit Spread")
+creditPctInput = input.float(0.35, "creditPctOfWidth", minval=0.05, maxval=0.70, step=0.01, group="Synthetic Credit Spread")
+profitCaptureInput = input.float(0.60, "profitCapturePct", minval=0.10, maxval=1.00, step=0.05, group="Synthetic Credit Spread")
+stopLossCreditInput = input.float(1.25, "stopLossMultipleOfCredit", minval=0.25, maxval=3.00, step=0.05, group="Synthetic Credit Spread")
+slippagePointsInput = input.float(1.0, "slippagePoints", minval=0.0, step=0.25, group="Synthetic Credit Spread")
+commissionPerTradeInput = input.float(0.0, "commissionPerTrade points", minval=0.0, step=0.25, group="Synthetic Credit Spread")
+minWinRateInput = input.float(60.0, "minWinRate %", minval=1.0, maxval=99.0, step=1.0, group="Synthetic Credit Spread")
+maxDrawdownRInput = input.float(5.0, "maxDrawdownR", minval=0.5, step=0.5, group="Synthetic Credit Spread")
+minTrades = input.int(30, "Minimum trades for pass", minval=1, group="Synthetic Credit Spread")
+underlyingTargetRiskMultiple = input.float(0.75, "Underlying move for target, x invalidation risk", minval=0.10, maxval=5.00, step=0.05, group="Synthetic Credit Spread")
+
+regularSession = input.session("0915-1530", "Regular session", group="Session")
+openingRangeSession = input.session("0915-0945", "Opening range session", group="Session")
+entrySession = input.session("0945-1345", "Fresh entry session", group="Session")
+timeExitSession = input.session("1500-1515", "Time exit session", group="Session")
+
+swingLookback = input.int(5, "BOS swing lookback", minval=2, maxval=50, group="Signal")
+sweepBufferPct = input.float(0.0002, "Sweep buffer % of price", minval=0.0, step=0.0001, group="Signal")
+displacementAtrMultiple = input.float(1.50, "Displacement filter, ATR multiple", minval=0.0, step=0.10, group="Signal")
+volumeMultiplier = input.float(1.20, "Volume expansion multiplier", minval=0.0, step=0.05, group="Signal")
+maxAtrPct = input.float(0.018, "Max ATR % of price", minval=0.001, step=0.001, group="Signal")
+minAtrPct = input.float(0.0005, "Min ATR % of price", minval=0.0, step=0.0001, group="Signal")
+allowBullPut = input.bool(true, "Enable bull put credit setups", group="Signal")
+allowBearCall = input.bool(true, "Enable bear call credit setups", group="Signal")
+oneTradeEachSidePerDay = input.bool(true, "One trade per direction per day", group="Signal")
+
+useHeikinAshiFilters = input.bool(false, "Use Heikin Ashi for PAC/filter calculations", group="PAC / Trend")
+pacLength = input.int(34, "PAC EMA length", minval=2, group="PAC / Trend")
+fastEmaLength = input.int(89, "Fast trend EMA", minval=2, group="PAC / Trend")
+mediumEmaLength = input.int(200, "Medium trend EMA", minval=2, group="PAC / Trend")
+useHtfFilter = input.bool(true, "Use higher timeframe EMA filter", group="PAC / Trend")
+htf = input.timeframe("60", "Higher timeframe", group="PAC / Trend")
+htfFastLength = input.int(35, "HTF fast EMA", minval=2, group="PAC / Trend")
+htfSignalLength = input.int(50, "HTF signal EMA", minval=2, group="PAC / Trend")
+htfMediumLength = input.int(65, "HTF medium EMA", minval=2, group="PAC / Trend")
+
+showDashboard = input.bool(true, "Show research dashboard", group="Display")
+showLevels = input.bool(true, "Show sweep and opening range levels", group="Display")
+showPac = input.bool(true, "Show PAC", group="Display")
+
+// -----------------------------------------------------------------------------.
+// Preset selection.
+// -----------------------------------------------------------------------------.
+isConservative = preset == "Conservative"
+isBalanced = preset == "Balanced"
+isAggressive = preset == "Aggressive"
+isCustom = preset == "Custom"
+
+spreadWidthPoints = spreadWidthPointsInput
+creditPctOfWidth = isCustom ? creditPctInput : isConservative ? 0.30 : isAggressive ? 0.40 : 0.35
+profitCapturePct = isCustom ? profitCaptureInput : isConservative ? 0.50 : isAggressive ? 0.70 : 0.60
+stopLossMultipleOfCredit = isCustom ? stopLossCreditInput : isConservative ? 1.00 : isAggressive ? 1.50 : 1.25
+slippagePoints = slippagePointsInput
+commissionPerTrade = commissionPerTradeInput
+minWinRate = isCustom ? minWinRateInput : isConservative ? 65.0 : isAggressive ? 55.0 : 60.0
+maxDrawdownR = isCustom ? maxDrawdownRInput : isConservative ? 4.0 : isAggressive ? 7.0 : 5.0
+
+grossCreditPoints = spreadWidthPoints * creditPctOfWidth
+netCreditPoints = math.max(syminfo.mintick, grossCreditPoints - slippagePoints - commissionPerTrade)
+maxDefinedLossPoints = math.max(syminfo.mintick, spreadWidthPoints - netCreditPoints)
+targetProfitPoints = netCreditPoints * profitCapturePct
+stopLossPoints = math.min(maxDefinedLossPoints, netCreditPoints * stopLossMultipleOfCredit)
+targetR = targetProfitPoints / maxDefinedLossPoints
+stopR = stopLossPoints / maxDefinedLossPoints
+
+// -----------------------------------------------------------------------------.
+// Helpers.
+// -----------------------------------------------------------------------------.
+clamp(value, minValue, maxValue) =>
+    math.max(minValue, math.min(maxValue, value))
+
+formatPct(value) =>
+    str.tostring(value, "#.##") + "%"
+
+formatR(value) =>
+    str.tostring(value, "#.##") + "R"
+
+// -----------------------------------------------------------------------------.
+// Session, prior day, and opening range.
+// -----------------------------------------------------------------------------.
+inRegularSession = not na(time(timeframe.period, regularSession))
+inOpeningRange = not na(time(timeframe.period, openingRangeSession))
+inEntrySession = not na(time(timeframe.period, entrySession))
+inTimeExitSession = not na(time(timeframe.period, timeExitSession))
+newDay = ta.change(time("D")) != 0
+
+priorDayHigh = request.security(syminfo.tickerid, "D", high[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+priorDayLow = request.security(syminfo.tickerid, "D", low[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+
+var float openingRangeHigh = na
+var float openingRangeLow = na
+var bool bullSwept = false
+var bool bearSwept = false
+var float sweepLow = na
+var float sweepHigh = na
+var bool bullTradedToday = false
+var bool bearTradedToday = false
+
+if newDay
+    openingRangeHigh := na
+    openingRangeLow := na
+    bullSwept := false
+    bearSwept := false
+    sweepLow := na
+    sweepHigh := na
+    bullTradedToday := false
+    bearTradedToday := false
+
+if inOpeningRange
+    openingRangeHigh := na(openingRangeHigh) ? high : math.max(openingRangeHigh, high)
+    openingRangeLow := na(openingRangeLow) ? low : math.min(openingRangeLow, low)
+
+levelsReady = not na(priorDayHigh) and not na(priorDayLow) and not na(openingRangeHigh) and not na(openingRangeLow)
+bullSweepLevel = levelsReady ? math.min(priorDayLow, openingRangeLow) : na
+bearSweepLevel = levelsReady ? math.max(priorDayHigh, openingRangeHigh) : na
+sweepBuffer = close * sweepBufferPct
+
+if levelsReady and inRegularSession and not inOpeningRange
+    if low < bullSweepLevel - sweepBuffer
+        bullSwept := true
+        sweepLow := na(sweepLow) ? low : math.min(sweepLow, low)
+    if high > bearSweepLevel + sweepBuffer
+        bearSwept := true
+        sweepHigh := na(sweepHigh) ? high : math.max(sweepHigh, high)
+
+// -----------------------------------------------------------------------------.
+// PAC, trend, VWAP, volume, ATR, and BOS.
+// -----------------------------------------------------------------------------.
+haTicker = ticker.heikinashi(syminfo.tickerid)
+calcOpen = useHeikinAshiFilters ? request.security(haTicker, timeframe.period, open, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off) : open
+calcHigh = useHeikinAshiFilters ? request.security(haTicker, timeframe.period, high, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off) : high
+calcLow = useHeikinAshiFilters ? request.security(haTicker, timeframe.period, low, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off) : low
+calcClose = useHeikinAshiFilters ? request.security(haTicker, timeframe.period, close, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off) : close
+
+pacUpper = ta.ema(calcHigh, pacLength)
+pacCenter = ta.ema(calcClose, pacLength)
+pacLower = ta.ema(calcLow, pacLength)
+fastEma = ta.ema(calcClose, fastEmaLength)
+mediumEma = ta.ema(calcClose, mediumEmaLength)
+
+pacBullTrend = calcClose > pacUpper and fastEma > mediumEma and pacLower > mediumEma
+pacBearTrend = calcClose < pacLower and fastEma < mediumEma and pacUpper < mediumEma
+
+htfFast = request.security(syminfo.tickerid, htf, ta.ema(close, htfFastLength), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+htfSignal = request.security(syminfo.tickerid, htf, ta.ema(close, htfSignalLength), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+htfMedium = request.security(syminfo.tickerid, htf, ta.ema(close, htfMediumLength), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+htfBullTrend = not useHtfFilter or (htfFast > htfSignal and htfSignal > htfMedium)
+htfBearTrend = not useHtfFilter or (htfFast < htfSignal and htfSignal < htfMedium)
+
+vwapValue = ta.vwap(hlc3)
+atr = ta.atr(14)
+atrPct = atr / close
+atrOk = atrPct >= minAtrPct and atrPct <= maxAtrPct
+volumeBase = ta.sma(volume, 20)
+volumeOk = volumeBase <= 0 or volume >= volumeBase * volumeMultiplier
+
+swingHigh = ta.highest(calcHigh[1], swingLookback)
+swingLow = ta.lowest(calcLow[1], swingLookback)
+bullBos = levelsReady and calcClose > swingHigh and calcClose > bullSweepLevel and close > vwapValue
+bearBos = levelsReady and calcClose < swingLow and calcClose < bearSweepLevel and close < vwapValue
+
+bullImpulse = calcClose - nz(sweepLow, calcLow)
+bearImpulse = nz(sweepHigh, calcHigh) - calcClose
+displacementBullOk = atr <= 0 or bullImpulse >= atr * displacementAtrMultiple
+displacementBearOk = atr <= 0 or bearImpulse >= atr * displacementAtrMultiple
+
+bullStopCandidate = levelsReady ? math.min(nz(sweepLow, low), bullSweepLevel) - sweepBuffer : na
+bearStopCandidate = levelsReady ? math.max(nz(sweepHigh, high), bearSweepLevel) + sweepBuffer : na
+bullRisk = close - bullStopCandidate
+bearRisk = bearStopCandidate - close
+
+canBullTradeToday = not oneTradeEachSidePerDay or not bullTradedToday
+canBearTradeToday = not oneTradeEachSidePerDay or not bearTradedToday
+
+bullSignal = allowBullPut and inEntrySession and levelsReady and bullSwept and bullBos and pacBullTrend and htfBullTrend and volumeOk and atrOk and displacementBullOk and bullRisk > 0 and canBullTradeToday
+bearSignal = allowBearCall and inEntrySession and levelsReady and bearSwept and bearBos and pacBearTrend and htfBearTrend and volumeOk and atrOk and displacementBearOk and bearRisk > 0 and canBearTradeToday
+
+// -----------------------------------------------------------------------------.
+// Synthetic spread trade ledger.
+// -----------------------------------------------------------------------------.
+var bool syntheticActive = false
+var int syntheticDirection = 0
+var int entryBar = na
+var float syntheticEntry = na
+var float syntheticStop = na
+var float syntheticTarget = na
+var string syntheticName = ""
+
+var int closedTrades = 0
+var int winningTrades = 0
+var int losingTrades = 0
+var int currentLossStreak = 0
+var int maxLossStreak = 0
+var float totalR = 0.0
+var float grossProfitR = 0.0
+var float grossLossR = 0.0
+var float syntheticEquityR = 0.0
+var float syntheticPeakR = 0.0
+var float syntheticMaxDrawdownR = 0.0
+var float bestTradeR = na
+var float worstTradeR = na
+var string lastExitReason = "None"
+var float lastTradeR = na
+
+calculateExitR(direction, exitPrice, entryPrice, stopPrice, targetPrice, exitReason) =>
+    if exitReason == "TARGET"
+        targetR
+    else if exitReason == "STOP"
+        -stopR
+    else
+        favorableMove = direction == 1 ? exitPrice - entryPrice : entryPrice - exitPrice
+        adverseMove = direction == 1 ? entryPrice - exitPrice : exitPrice - entryPrice
+        targetMove = math.abs(targetPrice - entryPrice)
+        stopMove = math.abs(entryPrice - stopPrice)
+        favorableR = targetMove > 0 ? targetR * clamp(favorableMove / targetMove, 0.0, 1.0) : 0.0
+        adverseR = stopMove > 0 ? -stopR * clamp(adverseMove / stopMove, 0.0, 1.0) : 0.0
+        favorableMove >= 0 ? favorableR : adverseR
+
+if not syntheticActive and barstate.isconfirmed
+    if bullSignal
+        syntheticActive := true
+        syntheticDirection := 1
+        entryBar := bar_index
+        syntheticEntry := close
+        syntheticStop := bullStopCandidate
+        syntheticTarget := close + bullRisk * underlyingTargetRiskMultiple
+        syntheticName := "Bull Put Credit"
+        bullTradedToday := true
+        strategy.entry("Bull Put Credit", strategy.long, comment="Bull Put Credit")
+    else if bearSignal
+        syntheticActive := true
+        syntheticDirection := -1
+        entryBar := bar_index
+        syntheticEntry := close
+        syntheticStop := bearStopCandidate
+        syntheticTarget := close - bearRisk * underlyingTargetRiskMultiple
+        syntheticName := "Bear Call Credit"
+        bearTradedToday := true
+        strategy.entry("Bear Call Credit", strategy.short, comment="Bear Call Credit")
+
+canExit = syntheticActive and bar_index > entryBar
+hitTarget = canExit and (syntheticDirection == 1 ? high >= syntheticTarget : low <= syntheticTarget)
+hitStop = canExit and (syntheticDirection == 1 ? low <= syntheticStop : high >= syntheticStop)
+hitTimeExit = canExit and inTimeExitSession
+lostSession = canExit and not inRegularSession
+
+exitReason = hitStop ? "STOP" : hitTarget ? "TARGET" : hitTimeExit ? "TIME_EXIT" : lostSession ? "SESSION_EXIT" : ""
+if syntheticActive and exitReason != ""
+    exitPrice = exitReason == "TARGET" ? syntheticTarget : exitReason == "STOP" ? syntheticStop : close
+    realizedR = calculateExitR(syntheticDirection, exitPrice, syntheticEntry, syntheticStop, syntheticTarget, exitReason)
+    closedTrades += 1
+    totalR += realizedR
+    syntheticEquityR += realizedR
+    syntheticPeakR := math.max(syntheticPeakR, syntheticEquityR)
+    syntheticMaxDrawdownR := math.min(syntheticMaxDrawdownR, syntheticEquityR - syntheticPeakR)
+    grossProfitR += realizedR > 0 ? realizedR : 0.0
+    grossLossR += realizedR < 0 ? math.abs(realizedR) : 0.0
+    winningTrades += realizedR > 0 ? 1 : 0
+    losingTrades += realizedR <= 0 ? 1 : 0
+    currentLossStreak := realizedR > 0 ? 0 : currentLossStreak + 1
+    maxLossStreak := math.max(maxLossStreak, currentLossStreak)
+    bestTradeR := na(bestTradeR) ? realizedR : math.max(bestTradeR, realizedR)
+    worstTradeR := na(worstTradeR) ? realizedR : math.min(worstTradeR, realizedR)
+    lastExitReason := exitReason
+    lastTradeR := realizedR
+    if syntheticDirection == 1
+        strategy.close("Bull Put Credit", comment=exitReason)
+    else
+        strategy.close("Bear Call Credit", comment=exitReason)
+    syntheticActive := false
+    syntheticDirection := 0
+    entryBar := na
+    syntheticEntry := na
+    syntheticStop := na
+    syntheticTarget := na
+    syntheticName := ""
+
+// -----------------------------------------------------------------------------.
+// Dashboard.
+// -----------------------------------------------------------------------------.
+winRate = closedTrades > 0 ? winningTrades / closedTrades * 100.0 : 0.0
+expectancyR = closedTrades > 0 ? totalR / closedTrades : 0.0
+profitFactor = grossLossR > 0 ? grossProfitR / grossLossR : grossProfitR > 0 ? 999.0 : 0.0
+drawdownAbsR = math.abs(syntheticMaxDrawdownR)
+qualityScore = expectancyR * 100.0 + winRate - drawdownAbsR * 5.0
+passesObjective = closedTrades >= minTrades and winRate >= minWinRate and drawdownAbsR <= maxDrawdownR and expectancyR > 0
+statusText = passesObjective ? "PASS" : "RESEARCH ONLY"
+statusColor = passesObjective ? color.new(color.green, 0) : color.new(color.orange, 0)
+
+var table dashboard = table.new(position.top_right, 2, 15, border_width=1)
+if showDashboard and barstate.islast
+    table.cell(dashboard, 0, 0, "Liquidity Sweep Credit Spread", text_color=color.white, bgcolor=color.new(color.blue, 10))
+    table.cell(dashboard, 1, 0, statusText, text_color=color.white, bgcolor=statusColor)
+    table.cell(dashboard, 0, 1, "Preset")
+    table.cell(dashboard, 1, 1, preset)
+    table.cell(dashboard, 0, 2, "Credit / width")
+    table.cell(dashboard, 1, 2, formatPct(creditPctOfWidth * 100.0))
+    table.cell(dashboard, 0, 3, "Target / Stop")
+    table.cell(dashboard, 1, 3, formatR(targetR) + " / -" + formatR(stopR))
+    table.cell(dashboard, 0, 4, "Trades")
+    table.cell(dashboard, 1, 4, str.tostring(closedTrades))
+    table.cell(dashboard, 0, 5, "Win rate")
+    table.cell(dashboard, 1, 5, formatPct(winRate))
+    table.cell(dashboard, 0, 6, "Expectancy")
+    table.cell(dashboard, 1, 6, formatR(expectancyR))
+    table.cell(dashboard, 0, 7, "Total R")
+    table.cell(dashboard, 1, 7, formatR(totalR))
+    table.cell(dashboard, 0, 8, "Profit factor")
+    table.cell(dashboard, 1, 8, profitFactor >= 999.0 ? "Inf" : str.tostring(profitFactor, "#.##"))
+    table.cell(dashboard, 0, 9, "Max DD")
+    table.cell(dashboard, 1, 9, formatR(drawdownAbsR))
+    table.cell(dashboard, 0, 10, "Max loss streak")
+    table.cell(dashboard, 1, 10, str.tostring(maxLossStreak))
+    table.cell(dashboard, 0, 11, "Best / Worst")
+    table.cell(dashboard, 1, 11, formatR(nz(bestTradeR, 0.0)) + " / " + formatR(nz(worstTradeR, 0.0)))
+    table.cell(dashboard, 0, 12, "Score")
+    table.cell(dashboard, 1, 12, str.tostring(qualityScore, "#.##"))
+    table.cell(dashboard, 0, 13, "Last exit")
+    table.cell(dashboard, 1, 13, lastExitReason + " " + formatR(nz(lastTradeR, 0.0)))
+    table.cell(dashboard, 0, 14, "Validation")
+    table.cell(dashboard, 1, 14, "Synthetic only")
+
+// -----------------------------------------------------------------------------.
+// Plots and alerts.
+// -----------------------------------------------------------------------------.
+plot(showPac ? pacUpper : na, "PAC upper", color=color.new(color.gray, 30))
+plot(showPac ? pacCenter : na, "PAC center", color=color.new(color.red, 0), linewidth=2)
+plot(showPac ? pacLower : na, "PAC lower", color=color.new(color.gray, 30))
+plot(vwapValue, "VWAP", color=color.new(color.yellow, 0), linewidth=2)
+
+plot(showLevels ? priorDayHigh : na, "Prior day high", color=color.new(color.red, 55), style=plot.style_linebr)
+plot(showLevels ? priorDayLow : na, "Prior day low", color=color.new(color.green, 55), style=plot.style_linebr)
+plot(showLevels ? openingRangeHigh : na, "Opening range high", color=color.new(color.red, 20), style=plot.style_linebr)
+plot(showLevels ? openingRangeLow : na, "Opening range low", color=color.new(color.green, 20), style=plot.style_linebr)
+plot(syntheticActive ? syntheticStop : na, "Synthetic invalidation stop", color=color.new(color.red, 0), style=plot.style_linebr, linewidth=2)
+plot(syntheticActive ? syntheticTarget : na, "Synthetic target trigger", color=color.new(color.green, 0), style=plot.style_linebr, linewidth=2)
+
+plotshape(bullSignal and not syntheticActive[1], "Bull put setup", shape.triangleup, location.belowbar, color=color.new(color.lime, 0), size=size.small, text="BPCS")
+plotshape(bearSignal and not syntheticActive[1], "Bear call setup", shape.triangledown, location.abovebar, color=color.new(color.red, 0), size=size.small, text="BCCS")
+
+alertcondition(bullSignal, "Bull Put Credit Setup", "Liquidity sweep bullish reclaim: research bull put credit setup")
+alertcondition(bearSignal, "Bear Call Credit Setup", "Liquidity sweep bearish rejection: research bear call credit setup")
+alertcondition(passesObjective and barstate.islast, "Research Criteria Passing", "Selected synthetic credit-spread configuration is passing the configured research criteria")

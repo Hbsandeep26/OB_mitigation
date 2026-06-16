@@ -23,33 +23,6 @@ from notifier import send_telegram_alert
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def _nearest_chain_strike(option_chain_data, spot_price):
-    strikes = [
-        strike_data.get("strike_price")
-        for strike_data in option_chain_data
-        if strike_data.get("strike_price") is not None
-    ]
-    if not strikes:
-        return None
-    return min(strikes, key=lambda strike: abs(float(strike) - float(spot_price)))
-
-
-def _best_effort_prices(live_data, legs, entries):
-    return {
-        "sell_ce": live_data.get(legs["sell_ce"], {}).get("ltp", entries["sell_ce"]),
-        "sell_pe": live_data.get(legs["sell_pe"], {}).get("ltp", entries["sell_pe"]),
-        "buy_ce": live_data.get(legs["buy_ce"], {}).get("ltp", entries["buy_ce"]),
-        "buy_pe": live_data.get(legs["buy_pe"], {}).get("ltp", entries["buy_pe"]),
-    }
-
-
-def _best_effort_leg_prices(live_data, legs, entries):
-    return {
-        leg_name: live_data.get(token, {}).get("ltp", entries.get(leg_name, 0.0))
-        for leg_name, token in legs.items()
-    }
-
-
 def _fresh_ltp(live_data, token, leg_name):
     tick = live_data.get(token)
     if not tick or tick.get("ltp", 0) <= 0:
@@ -69,6 +42,24 @@ def _fresh_ltp(live_data, token, leg_name):
     return float(tick["ltp"])
 
 
+def _nearest_chain_strike(option_chain_data, spot_price):
+    strikes = [
+        strike_data.get("strike_price")
+        for strike_data in option_chain_data
+        if strike_data.get("strike_price") is not None
+    ]
+    if not strikes:
+        return None
+    return min(strikes, key=lambda strike: abs(float(strike) - float(spot_price)))
+
+
+def _best_effort_prices(live_data, legs, entries):
+    return {
+        leg_name: live_data.get(token, {}).get("ltp", entries.get(leg_name, 0.0))
+        for leg_name, token in legs.items()
+    }
+
+
 def _fresh_option_snapshot(legs):
     try:
         quotes = get_broker().get_fresh_option_quotes(list(legs.values()))
@@ -77,10 +68,8 @@ def _fresh_option_snapshot(legs):
         return None
 
     prices = {
-        "sell_ce": float(quotes.get(legs["sell_ce"], 0.0) or 0.0),
-        "sell_pe": float(quotes.get(legs["sell_pe"], 0.0) or 0.0),
-        "buy_ce": float(quotes.get(legs["buy_ce"], 0.0) or 0.0),
-        "buy_pe": float(quotes.get(legs["buy_pe"], 0.0) or 0.0),
+        leg_name: float(quotes.get(token, 0.0) or 0.0)
+        for leg_name, token in legs.items()
     }
     return prices if all(value > 0 for value in prices.values()) else None
 
@@ -205,6 +194,144 @@ def calculate_iron_butterfly_legs(index_symbol, spot_price, option_chain_data, b
     return legs, prices, strikes
 
 
+def calculate_ratio_spread_legs(index_symbol, spot_price, option_chain_data, direction):
+    """
+    Calculates strikes, prices, and instrument keys for a 1x2 Ratio Spread.
+    Returns: (legs_dict, entry_prices_dict, strikes_dict) or (None, None, None)
+    """
+    from backtest_orderblock_mitigation import get_strike_step
+    strike_step = get_strike_step(index_symbol)
+    
+    atm_strike = _nearest_chain_strike(option_chain_data, spot_price)
+    if atm_strike is None:
+        logging.warning("Option chain has no strikes. Cannot calculate Ratio Spread.")
+        return None, None, None
+        
+    direction = str(direction).upper().strip()
+    if direction == "BULLISH":
+        buy_strike = atm_strike
+        sell_strike = atm_strike + strike_step
+        option_type = "call_options"
+    else:
+        buy_strike = atm_strike
+        sell_strike = atm_strike - strike_step
+        option_type = "put_options"
+        
+    logging.info(
+        "Calculating Ratio Spread for %s (%s): Buy Strike=%s, Sell Strike=%s",
+        index_symbol, direction, buy_strike, sell_strike
+    )
+    
+    buy_leg_key, sell_leg_key = "", ""
+    buy_ltp, sell_ltp = 0.0, 0.0
+    
+    # Resolve FNO option segment segment
+    from broker import get_broker
+    try:
+        meta = get_broker()._index_meta(index_symbol)
+        option_segment = meta.get("option_segment", "NSE_FNO")
+    except Exception:
+        option_segment = "NSE_FNO"
+    
+    for strike_data in option_chain_data:
+        strike_val = strike_data.get("strike_price")
+        if strike_val == buy_strike:
+            opt_info = strike_data.get(option_type, {})
+            if opt_info:
+                buy_leg_key = opt_info.get("instrument_key") or get_broker().instrument_key(option_segment, opt_info.get("security_id"))
+                buy_ltp = opt_info.get("market_data", {}).get("ltp", 0.0)
+        if strike_val == sell_strike:
+            opt_info = strike_data.get(option_type, {})
+            if opt_info:
+                sell_leg_key = opt_info.get("instrument_key") or get_broker().instrument_key(option_segment, opt_info.get("security_id"))
+                sell_ltp = opt_info.get("market_data", {}).get("ltp", 0.0)
+                
+    if not buy_leg_key or not sell_leg_key or buy_ltp <= 0.0 or sell_ltp <= 0.0:
+        logging.warning("Could not locate option contracts or valid LTPs for strikes: Buy=%s, Sell=%s", buy_strike, sell_strike)
+        return None, None, None
+        
+    legs = {
+        "buy_ce" if direction == "BULLISH" else "buy_pe": buy_leg_key,
+        "sell_ce" if direction == "BULLISH" else "sell_pe": sell_leg_key
+    }
+    
+    entry_prices = {
+        "buy_ce" if direction == "BULLISH" else "buy_pe": buy_ltp,
+        "sell_ce" if direction == "BULLISH" else "sell_pe": sell_ltp
+    }
+    
+    strikes = {
+        "buy_ce" if direction == "BULLISH" else "buy_pe": buy_strike,
+        "sell_ce" if direction == "BULLISH" else "sell_pe": sell_strike
+    }
+    
+    return legs, entry_prices, strikes
+
+
+def calculate_synthetic_future_legs(index_symbol, spot_price, option_chain_data, direction):
+    """
+    Calculates strikes, prices, and instrument keys for a Synthetic Future.
+    Returns: (legs_dict, entry_prices_dict, strikes_dict) or (None, None, None)
+    """
+    atm_strike = _nearest_chain_strike(option_chain_data, spot_price)
+    if atm_strike is None:
+        logging.warning("Option chain has no strikes. Cannot calculate Synthetic Future.")
+        return None, None, None
+        
+    direction = str(direction).upper().strip()
+    logging.info(
+        "Calculating Synthetic Future for %s (%s): Strike=%s",
+        index_symbol, direction, atm_strike
+    )
+    
+    buy_leg_key, sell_leg_key = "", ""
+    buy_ltp, sell_ltp = 0.0, 0.0
+    
+    buy_option_type = "call_options" if direction == "BULLISH" else "put_options"
+    sell_option_type = "put_options" if direction == "BULLISH" else "call_options"
+    
+    from broker import get_broker
+    try:
+        meta = get_broker()._index_meta(index_symbol)
+        option_segment = meta.get("option_segment", "NSE_FNO")
+    except Exception:
+        option_segment = "NSE_FNO"
+        
+    for strike_data in option_chain_data:
+        strike_val = strike_data.get("strike_price")
+        if strike_val == atm_strike:
+            b_info = strike_data.get(buy_option_type, {})
+            if b_info:
+                buy_leg_key = b_info.get("instrument_key") or get_broker().instrument_key(option_segment, b_info.get("security_id"))
+                buy_ltp = b_info.get("market_data", {}).get("ltp", 0.0)
+            s_info = strike_data.get(sell_option_type, {})
+            if s_info:
+                sell_leg_key = s_info.get("instrument_key") or get_broker().instrument_key(option_segment, s_info.get("security_id"))
+                sell_ltp = s_info.get("market_data", {}).get("ltp", 0.0)
+            break
+            
+    if not buy_leg_key or not sell_leg_key or buy_ltp <= 0.0 or sell_ltp <= 0.0:
+        logging.warning("Could not locate option contracts or valid LTPs for ATM strike: %s", atm_strike)
+        return None, None, None
+        
+    legs = {
+        "buy_ce" if direction == "BULLISH" else "buy_pe": buy_leg_key,
+        "sell_pe" if direction == "BULLISH" else "sell_ce": sell_leg_key
+    }
+    
+    entry_prices = {
+        "buy_ce" if direction == "BULLISH" else "buy_pe": buy_ltp,
+        "sell_pe" if direction == "BULLISH" else "sell_ce": sell_ltp
+    }
+    
+    strikes = {
+        "buy_ce" if direction == "BULLISH" else "buy_pe": atm_strike,
+        "sell_pe" if direction == "BULLISH" else "sell_ce": atm_strike
+    }
+    
+    return legs, entry_prices, strikes
+
+
 def evaluate_btst_health(live_data, legs, entries):
     """
     Evaluates whether the current butterfly structure is healthy enough
@@ -261,14 +388,28 @@ def _order_sequence_from_state(state):
     return sequence
 
 
-def _net_from_order_sequence(prices, order_sequence):
+def _net_from_order_sequence(prices, order_sequence, strategy_type=None):
+    if not order_sequence:
+        if all(k in prices for k in ("sell_ce", "sell_pe", "buy_ce", "buy_pe")):
+            return (prices["sell_ce"] + prices["sell_pe"]) - (prices["buy_ce"] + prices["buy_pe"])
+        default_seq = []
+        for k in prices:
+            if k.startswith("sell_"):
+                default_seq.append((k, "SELL"))
+            elif k.startswith("buy_"):
+                default_seq.append((k, "BUY"))
+        if default_seq:
+            return _net_from_order_sequence(prices, default_seq, strategy_type)
+        return 0.0
+
     net = 0.0
     for leg_name, transaction_type in order_sequence:
         price = float(prices.get(leg_name, 0.0) or 0.0)
-        if transaction_type == "SELL":
-            net += price
-        elif transaction_type == "BUY":
-            net -= price
+        mult = 2.0 if (strategy_type == "Ratio" and leg_name.startswith("sell_")) else 1.0
+        if str(transaction_type).upper() == "SELL":
+            net += price * mult
+        elif str(transaction_type).upper() == "BUY":
+            net -= price * mult
     return net
 
 
@@ -294,6 +435,11 @@ def _max_profit_rupees(state, entry_net, order_sequence=None):
     configured = float(state.get("max_profit_rupees") or 0.0)
     if configured > 0:
         return configured
+    strategy_type = state.get("strategy_type", "")
+    if strategy_type == "Ratio":
+        from backtest_orderblock_mitigation import get_strike_step
+        width = get_strike_step(state.get("index_symbol", "NIFTY"))
+        return max(0.0, (width + entry_net) * qty)
     if order_sequence:
         width = _spread_width(state.get("strikes", {}))
         if entry_net >= 0:
@@ -558,7 +704,7 @@ def _btst_spread_risk_evaluator(live_data, legs, state):
 
 
 def _atm_drift_ratio(live_spot, strikes):
-    atm_strike = strikes.get("atm", strikes.get("sell_ce", 0.0))
+    atm_strike = strikes.get("atm") or strikes.get("sell_ce") or strikes.get("sell_pe") or strikes.get("buy_ce") or strikes.get("buy_pe") or 0.0
     if live_spot <= 0 or atm_strike <= 0:
         return 0.0
 
@@ -571,7 +717,7 @@ def _atm_drift_ratio(live_spot, strikes):
 
 
 def _atm_drift_points(live_spot, strikes):
-    atm_strike = strikes.get("atm", strikes.get("sell_ce", 0.0))
+    atm_strike = strikes.get("atm") or strikes.get("sell_ce") or strikes.get("sell_pe") or strikes.get("buy_ce") or strikes.get("buy_pe") or 0.0
     if live_spot <= 0 or atm_strike <= 0:
         return 0.0
     return abs(float(live_spot) - float(atm_strike))
@@ -614,19 +760,32 @@ def risk_management_evaluator(live_data, legs):
     if is_btst_strategy(strategy_type):
         return _btst_spread_risk_evaluator(live_data, legs, state)
 
-    live_sell_ce = _fresh_ltp(live_data, legs["sell_ce"], "sell_ce")
-    live_sell_pe = _fresh_ltp(live_data, legs["sell_pe"], "sell_pe")
-    live_buy_ce = _fresh_ltp(live_data, legs["buy_ce"], "buy_ce")
-    live_buy_pe = _fresh_ltp(live_data, legs["buy_pe"], "buy_pe")
-    current_prices = {"sell_ce": live_sell_ce, "sell_pe": live_sell_pe, "buy_ce": live_buy_ce, "buy_pe": live_buy_pe}
+    current_prices = {}
+    for leg_name, token in legs.items():
+        current_prices[leg_name] = _fresh_ltp(live_data, token, leg_name)
+
     state_manager.update_state("feed_status", "LIVE")
 
     index_symbol = state.get("index_symbol", "NIFTY")
-    spot_key = "NSE_INDEX|Nifty 50" if index_symbol == "NIFTY" else "BSE_INDEX|SENSEX"
+    legacy_spot_key = "NSE_INDEX|Nifty 50" if index_symbol == "NIFTY" else "BSE_INDEX|SENSEX"
+    if config.get_active_broker() == "DHAN":
+        from broker import get_broker
+        try:
+            meta = get_broker()._index_meta(index_symbol)
+            spot_key = get_broker().instrument_key(meta["segment"], meta["security_id"])
+        except Exception:
+            spot_key = "DHAN|IDX_I|13"
+        if spot_key not in live_data and legacy_spot_key in live_data:
+            spot_key = legacy_spot_key
+    else:
+        spot_key = legacy_spot_key
+        
     live_spot = _fresh_ltp(live_data, spot_key, f"{index_symbol}_spot")
+        
     strikes = state.get("strikes", {})
-    entry_net = float(state.get("entry_net_premium") or _entry_net(entries))
-    live_net = _live_net(current_prices)
+    order_sequence = _order_sequence_from_state(state)
+    entry_net = float(state.get("entry_net_premium") or _net_from_order_sequence(entries, order_sequence, strategy_type))
+    live_net = _net_from_order_sequence(current_prices, order_sequence, strategy_type)
     current_profit_pct = (entry_net - live_net) / entry_net if entry_net > 0 else 0.0
     drift_ratio = _atm_drift_ratio(live_spot, strikes)
     drift_points = _atm_drift_points(live_spot, strikes)
@@ -662,6 +821,34 @@ def risk_management_evaluator(live_data, legs):
     reversal_signal, reversal_prices = _check_regime_reversal(state, current_prices, live_spot=live_spot)
     if reversal_signal:
         return reversal_signal, reversal_prices
+
+    # MTF-OBLT spot-based exits (Ratio or Synthetic Future)
+    if strategy_type in ("Ratio", "Synthetic Future"):
+        metadata = state.get("metadata", {})
+        direction = metadata.get("direction")
+        entry_spot = float(metadata.get("entry_spot", 0.0))
+        stop_loss_pts = float(metadata.get("stop_loss_pts", 0.0))
+        target_pts = float(metadata.get("target_pts", 0.0))
+        
+        if direction and entry_spot > 0 and live_spot > 0:
+            if direction == "BULLISH":
+                # Stop Loss
+                if stop_loss_pts > 0 and live_spot <= entry_spot - stop_loss_pts:
+                    logging.critical(f"🔴 MTF-OBLT BULLISH STOP LOSS HIT: live_spot {live_spot:.2f} <= {entry_spot - stop_loss_pts:.2f}")
+                    return "STOP_LOSS", current_prices
+                # Target Hit
+                if target_pts > 0 and live_spot >= entry_spot + target_pts:
+                    logging.critical(f"🟢 MTF-OBLT BULLISH TARGET HIT: live_spot {live_spot:.2f} >= {entry_spot + target_pts:.2f}")
+                    return "TARGET_HIT", current_prices
+            elif direction == "BEARISH":
+                # Stop Loss
+                if stop_loss_pts > 0 and live_spot >= entry_spot + stop_loss_pts:
+                    logging.critical(f"🔴 MTF-OBLT BEARISH STOP LOSS HIT: live_spot {live_spot:.2f} >= {entry_spot + stop_loss_pts:.2f}")
+                    return "STOP_LOSS", current_prices
+                # Target Hit
+                if target_pts > 0 and live_spot <= entry_spot - target_pts:
+                    logging.critical(f"🟢 MTF-OBLT BEARISH TARGET HIT: live_spot {live_spot:.2f} <= {entry_spot - target_pts:.2f}")
+                    return "TARGET_HIT", current_prices
 
     if entry_net > 0 and live_net >= entry_net * catastrophe_multiplier:
         threshold = entry_net * catastrophe_multiplier

@@ -1,0 +1,73 @@
+strategy_type,stop_loss_type,rr_target,trades,win_rate,total_rr,expectancy_rr,max_drawdown_rr
+Naked ATM Buy,vwap_crossing,2.5,139,0.3453,112.3741,0.8084,-5.9239
+Naked ATM Buy,vwap_crossing,2.25,139,0.3453,103.182,0.7423,-5.9239
+Naked ATM Buy,vwap_crossing,2.0,139,0.3741,100.215,0.721,-5.9239
+Naked ATM Buy,half_sweep,2.25,139,0.3381,97.0898,0.6985,-5.9827
+Naked ATM Buy,half_sweep,2.5,139,0.3309,96.1996,0.6921,-5.9827
+Naked ATM Buy,half_sweep,2.0,139,0.3597,90.8547,0.6536,-5.9827
+Naked ATM Buy,vwap_crossing,1.5,139,0.4245,89.4408,0.6435,-5.9239
+Naked ATM Buy,vwap_crossing,1.75,139,0.3813,87.4599,0.6292,-5.9239
+Naked ATM Buy,half_sweep,1.75,139,0.3885,85.3902,0.6143,-5.9827
+Naked ATM Buy,half_sweep,1.5,139,0.4101,79.2986,0.5705,-5.9827
+Naked ATM Buy,vwap_crossing,1.25,139,0.4532,78.751,0.5666,-5.9239
+Naked ATM Buy,half_sweep,1.25,139,0.4532,78.3013,0.5633,-5.9827
+Naked ATM Buy,sweep_extreme,1.25,139,0.4029,58.2767,0.4193,-5.3019
+Naked ATM Buy,sweep_extreme,1.5,139,0.3669,57.4048,0.413,-4.5519
+Credit Spread,sweep_extreme,1.25,139,0.7194,56.8134,0.4087,-5.9159
+Credit Spread,sweep_extreme,1.5,139,0.7194,56.8134,0.4087,-5.9159
+Credit Spread,sweep_extreme,1.75,139,0.7194,56.8134,0.4087,-5.9159
+Credit Spread,sweep_extreme,2.0,139,0.7194,56.8134,0.4087,-5.9159
+Credit Spread,sweep_extreme,2.25,139,0.7194,56.8134,0.4087,-5.9159
+Credit Spread,sweep_extreme,2.5,139,0.7194,56.8134,0.4087,-5.9159
+Naked ATM Buy,sweep_extreme,1.75,139,0.3309,52.5008,0.3777,-6.2546
+Iron Butterfly,sweep_extreme,1.25,139,0.5899,43.4913,0.3129,-7.1858
+Debit Spread,sweep_extreme,1.75,139,0.5899,42.5878,0.3064,-7.5765
+Debit Spread,sweep_extreme,2.0,139,0.5899,40.1317,0.2887,-7.3265
+Debit Spread,sweep_extreme,1.5,139,0.5899,40.1111,0.2886,-7.471
+Debit Spread,vwap_crossing,2.5,139,0.4173,39.3367,0.283,-10.0
+Debit Spread,sweep_extreme,2.5,139,0.5899,38.9178,0.28,-6.8265
+Debit Spread,half_sweep,2.5,139,0.4029,36.8953,0.2654,-11.7352
+Debit Spread,sweep_extreme,2.25,139,0.5899,36.6941,0.264,-7.0765
+Debit Spread,sweep_extreme,1.25,139,0.5899,34.6659,0.2494,-7.971
+Naked ATM Buy,sweep_extreme,2.0,139,0.3022,33.9418,0.2442,-7.294
+Iron Butterfly,sweep_extreme,1.5,139,0.5683,31.7913,0.2287,-7.1858
+Debit Spread,vwap_crossing,2.25,139,0.4173,31.6024,0.2274,-10.0
+Debit Spread,half_sweep,2.25,139,0.4029,31.1351,0.224,-11.9852
+Debit Spread,vwap_crossing,2.0,139,0.4317,30.2933,0.2179,-10.3172
+Iron Butterfly,vwap_crossing,1.25,139,0.4892,26.4449,0.1903,-10.0
+Debit Spread,half_sweep,2.0,139,0.4029,25.4376,0.183,-12.2352
+Iron Butterfly,half_sweep,1.25,139,0.482,24.9984,0.1798,-12.5
+Debit Spread,vwap_crossing,1.5,139,0.4676,22.3521,0.1608,-10.0
+Debit Spread,half_sweep,1.75,139,0.4101,21.3275,0.1534,-11.5127
+Debit Spread,vwap_crossing,1.75,139,0.4317,20.9295,0.1506,-10.8172
+Iron Butterfly,sweep_extreme,1.75,139,0.5468,20.7913,0.1496,-11.7858
+Debit Spread,half_sweep,1.5,139,0.4245,16.4486,0.1183,-11.7627
+Iron Butterfly,vwap_crossing,1.5,139,0.4604,15.7449,0.1133,-11.0842
+Debit Spread,vwap_crossing,1.25,139,0.4964,15.7371,0.1132,-10.0
+Naked ATM Buy,sweep_extreme,2.25,139,0.295,14.9215,0.1073,-11.1183
+Naked ATM Buy,sweep_extreme,2.5,139,0.295,13.9834,0.1006,-9.9933
+Debit Spread,half_sweep,1.25,139,0.4676,13.7528,0.0989,-11.5213
+Credit Spread,vwap_crossing,1.25,139,0.5468,9.5996,0.0691,-10.0
+Credit Spread,half_sweep,1.25,139,0.5396,8.2798,0.0596,-10.5424
+Iron Butterfly,half_sweep,1.5,139,0.4388,7.8984,0.0568,-13.7243
+Credit Spread,vwap_crossing,1.5,139,0.5324,4.53,0.0326,-10.3077
+Iron Butterfly,sweep_extreme,2.0,139,0.5108,4.0913,0.0294,-12.4858
+Credit Spread,half_sweep,1.5,139,0.5324,3.6702,0.0264,-10.5424
+Iron Butterfly,vwap_crossing,1.75,139,0.4245,1.1449,0.0082,-13.0842
+Credit Spread,half_sweep,1.75,139,0.5252,0.9053,0.0065,-10.5424
+Credit Spread,half_sweep,2.0,139,0.518,-1.0947,-0.0079,-11.9904
+Credit Spread,half_sweep,2.25,139,0.518,-1.0947,-0.0079,-11.9904
+Credit Spread,half_sweep,2.5,139,0.518,-1.0947,-0.0079,-11.9904
+Iron Butterfly,half_sweep,1.75,139,0.4101,-2.8016,-0.0202,-18.1243
+Iron Butterfly,vwap_crossing,2.0,139,0.4101,-3.8551,-0.0277,-15.0842
+Credit Spread,vwap_crossing,1.75,139,0.4964,-4.5675,-0.0329,-14.3077
+Credit Spread,vwap_crossing,2.0,139,0.4964,-4.5675,-0.0329,-14.3077
+Iron Butterfly,sweep_extreme,2.25,139,0.4892,-7.6087,-0.0547,-13.8713
+Credit Spread,vwap_crossing,2.25,139,0.482,-8.5675,-0.0616,-16.3077
+Credit Spread,vwap_crossing,2.5,139,0.482,-8.5675,-0.0616,-16.3077
+Iron Butterfly,sweep_extreme,2.5,139,0.4892,-9.0087,-0.0648,-14.0976
+Iron Butterfly,half_sweep,2.0,139,0.3813,-12.8016,-0.0921,-26.6243
+Iron Butterfly,vwap_crossing,2.25,139,0.3813,-13.8551,-0.0997,-22.1551
+Iron Butterfly,half_sweep,2.25,139,0.3669,-18.5016,-0.1331,-27.3243
+Iron Butterfly,vwap_crossing,2.5,139,0.3669,-18.8551,-0.1356,-26.3551
+Iron Butterfly,half_sweep,2.5,139,0.3597,-23.8016,-0.1712,-30.6016

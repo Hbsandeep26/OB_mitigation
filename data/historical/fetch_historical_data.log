@@ -1,0 +1,531 @@
+2026-06-08 23:01:49,850 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-08 23:01:49,852 - INFO - Starting instrument 1/3: NIFTY
+2026-06-08 23:01:49,852 - INFO - [NIFTY] fetching 7 chunks from 2025-12-04 to 2026-06-08
+2026-06-08 23:01:49,852 - INFO - [NIFTY] chunk 1/7: 2025-12-04 09:15:00 -> 2026-01-03 09:15:00
+2026-06-08 23:01:49,852 - ERROR - [NIFTY] fetch failed: The requests package is required for live Dhan data fetching
+Traceback (most recent call last):
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 92, in fetch_chunk
+    import requests
+ModuleNotFoundError: No module named 'requests'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 215, in main
+    fetch_symbol(instrument, args, from_dt, to_dt, output_dir)
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 182, in fetch_symbol
+    payload = fetch_chunk(instrument, chunk_start, chunk_end, args.interval)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 94, in fetch_chunk
+    raise RuntimeError("The requests package is required for live Dhan data fetching") from err
+RuntimeError: The requests package is required for live Dhan data fetching
+2026-06-08 23:01:49,861 - INFO - Starting instrument 2/3: SENSEX
+2026-06-08 23:01:49,861 - INFO - [SENSEX] fetching 7 chunks from 2025-12-04 to 2026-06-08
+2026-06-08 23:01:49,861 - INFO - [SENSEX] chunk 1/7: 2025-12-04 09:15:00 -> 2026-01-03 09:15:00
+2026-06-08 23:01:49,861 - ERROR - [SENSEX] fetch failed: The requests package is required for live Dhan data fetching
+Traceback (most recent call last):
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 92, in fetch_chunk
+    import requests
+ModuleNotFoundError: No module named 'requests'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 215, in main
+    fetch_symbol(instrument, args, from_dt, to_dt, output_dir)
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 182, in fetch_symbol
+    payload = fetch_chunk(instrument, chunk_start, chunk_end, args.interval)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 94, in fetch_chunk
+    raise RuntimeError("The requests package is required for live Dhan data fetching") from err
+RuntimeError: The requests package is required for live Dhan data fetching
+2026-06-08 23:01:49,863 - INFO - Starting instrument 3/3: RELIANCE
+2026-06-08 23:01:49,863 - INFO - [RELIANCE] fetching 7 chunks from 2025-12-04 to 2026-06-08
+2026-06-08 23:01:49,864 - INFO - [RELIANCE] chunk 1/7: 2025-12-04 09:15:00 -> 2026-01-03 09:15:00
+2026-06-08 23:01:49,864 - ERROR - [RELIANCE] fetch failed: The requests package is required for live Dhan data fetching
+Traceback (most recent call last):
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 92, in fetch_chunk
+    import requests
+ModuleNotFoundError: No module named 'requests'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 215, in main
+    fetch_symbol(instrument, args, from_dt, to_dt, output_dir)
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 182, in fetch_symbol
+    payload = fetch_chunk(instrument, chunk_start, chunk_end, args.interval)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 94, in fetch_chunk
+    raise RuntimeError("The requests package is required for live Dhan data fetching") from err
+RuntimeError: The requests package is required for live Dhan data fetching
+2026-06-08 23:01:49,864 - ERROR - Fetch completed with failures: NIFTY, SENSEX, RELIANCE
+2026-06-08 23:19:13,798 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-08 23:19:13,798 - INFO - Starting instrument 1/3: NIFTY
+2026-06-08 23:19:13,798 - INFO - [NIFTY] fetching 7 chunks from 2025-12-04 to 2026-06-08
+2026-06-08 23:19:13,798 - INFO - [NIFTY] chunk 1/7: 2025-12-04 09:15:00 -> 2026-01-03 09:15:00
+2026-06-08 23:22:05,034 - INFO - [NIFTY] chunk 1 produced 1577 candles; accumulated=1577
+2026-06-08 23:22:05,390 - INFO - [NIFTY] chunk 2/7: 2026-01-03 09:15:01 -> 2026-02-02 09:15:01
+2026-06-08 23:24:53,944 - INFO - [NIFTY] chunk 2 produced 1432 candles; accumulated=3009
+2026-06-08 23:24:54,298 - INFO - [NIFTY] chunk 3/7: 2026-02-02 09:15:02 -> 2026-03-04 09:15:02
+2026-06-08 23:27:42,992 - INFO - [NIFTY] chunk 3 produced 1578 candles; accumulated=4587
+2026-06-08 23:27:43,347 - INFO - [NIFTY] chunk 4/7: 2026-03-04 09:15:03 -> 2026-04-03 09:15:03
+2026-06-08 23:30:32,046 - INFO - [NIFTY] chunk 4 produced 1504 candles; accumulated=6091
+2026-06-08 23:30:32,398 - INFO - [NIFTY] chunk 5/7: 2026-04-03 09:15:04 -> 2026-05-03 09:15:04
+2026-06-08 23:33:21,073 - INFO - [NIFTY] chunk 5 produced 1356 candles; accumulated=7447
+2026-06-08 23:33:21,424 - INFO - [NIFTY] chunk 6/7: 2026-05-03 09:15:05 -> 2026-06-02 09:15:05
+2026-06-08 23:36:10,343 - INFO - [NIFTY] chunk 6 produced 1510 candles; accumulated=8957
+2026-06-08 23:36:10,694 - INFO - [NIFTY] chunk 7/7: 2026-06-02 09:15:06 -> 2026-06-08 15:30:00
+2026-06-08 23:38:59,262 - INFO - [NIFTY] chunk 7 produced 376 candles; accumulated=9333
+2026-06-08 23:38:59,657 - INFO - [NIFTY] wrote 9333 unique candles to data\historical\NIFTY_5m.csv
+2026-06-08 23:38:59,664 - INFO - Starting instrument 2/3: SENSEX
+2026-06-08 23:38:59,664 - INFO - [SENSEX] fetching 7 chunks from 2025-12-04 to 2026-06-08
+2026-06-08 23:38:59,664 - INFO - [SENSEX] chunk 1/7: 2025-12-04 09:15:00 -> 2026-01-03 09:15:00
+2026-06-08 23:41:48,335 - INFO - [SENSEX] chunk 1 produced 1577 candles; accumulated=1577
+2026-06-08 23:41:48,694 - INFO - [SENSEX] chunk 2/7: 2026-01-03 09:15:01 -> 2026-02-02 09:15:01
+2026-06-08 23:44:37,381 - INFO - [SENSEX] chunk 2 produced 1432 candles; accumulated=3009
+2026-06-08 23:44:37,737 - INFO - [SENSEX] chunk 3/7: 2026-02-02 09:15:02 -> 2026-03-04 09:15:02
+2026-06-08 23:47:26,374 - INFO - [SENSEX] chunk 3 produced 1578 candles; accumulated=4587
+2026-06-08 23:47:26,727 - INFO - [SENSEX] chunk 4/7: 2026-03-04 09:15:03 -> 2026-04-03 09:15:03
+2026-06-08 23:49:12,294 - INFO - [SENSEX] chunk 4 produced 1508 candles; accumulated=6095
+2026-06-08 23:49:12,647 - INFO - [SENSEX] chunk 5/7: 2026-04-03 09:15:04 -> 2026-05-03 09:15:04
+2026-06-08 23:52:01,464 - INFO - [SENSEX] chunk 5 produced 1356 candles; accumulated=7451
+2026-06-08 23:52:01,816 - INFO - [SENSEX] chunk 6/7: 2026-05-03 09:15:05 -> 2026-06-02 09:15:05
+2026-06-08 23:53:26,361 - INFO - [SENSEX] chunk 6 produced 1510 candles; accumulated=8961
+2026-06-08 23:53:26,712 - INFO - [SENSEX] chunk 7/7: 2026-06-02 09:15:06 -> 2026-06-08 15:30:00
+2026-06-08 23:56:15,251 - INFO - [SENSEX] chunk 7 produced 376 candles; accumulated=9337
+2026-06-08 23:56:15,659 - INFO - [SENSEX] wrote 9337 unique candles to data\historical\SENSEX_5m.csv
+2026-06-08 23:56:15,660 - INFO - Starting instrument 3/3: RELIANCE
+2026-06-08 23:56:15,660 - INFO - [RELIANCE] fetching 7 chunks from 2025-12-04 to 2026-06-08
+2026-06-08 23:56:15,660 - INFO - [RELIANCE] chunk 1/7: 2025-12-04 09:15:00 -> 2026-01-03 09:15:00
+2026-06-08 23:59:04,406 - INFO - [RELIANCE] chunk 1 produced 1574 candles; accumulated=1574
+2026-06-08 23:59:04,766 - INFO - [RELIANCE] chunk 2/7: 2026-01-03 09:15:01 -> 2026-02-02 09:15:01
+2026-06-09 00:01:53,555 - INFO - [RELIANCE] chunk 2 produced 1426 candles; accumulated=3000
+2026-06-09 00:01:53,907 - INFO - [RELIANCE] chunk 3/7: 2026-02-02 09:15:02 -> 2026-03-04 09:15:02
+2026-06-09 00:04:42,542 - INFO - [RELIANCE] chunk 3 produced 1575 candles; accumulated=4575
+2026-06-09 00:04:42,895 - INFO - [RELIANCE] chunk 4/7: 2026-03-04 09:15:03 -> 2026-04-03 09:15:03
+2026-06-09 00:07:31,673 - INFO - [RELIANCE] chunk 4 produced 1499 candles; accumulated=6074
+2026-06-09 00:07:32,027 - INFO - [RELIANCE] chunk 5/7: 2026-04-03 09:15:04 -> 2026-05-03 09:15:04
+2026-06-09 00:10:20,805 - INFO - [RELIANCE] chunk 5 produced 1350 candles; accumulated=7424
+2026-06-09 00:10:21,156 - INFO - [RELIANCE] chunk 6/7: 2026-05-03 09:15:05 -> 2026-06-02 09:15:05
+2026-06-09 00:11:24,682 - INFO - [RELIANCE] chunk 6 produced 1501 candles; accumulated=8925
+2026-06-09 00:11:25,045 - INFO - [RELIANCE] chunk 7/7: 2026-06-02 09:15:06 -> 2026-06-08 15:30:00
+2026-06-09 00:11:25,383 - INFO - [RELIANCE] chunk 7 produced 299 candles; accumulated=9224
+2026-06-09 00:11:25,781 - INFO - [RELIANCE] wrote 9224 unique candles to data\historical\RELIANCE_5m.csv
+2026-06-09 00:11:25,797 - INFO - Fetch completed successfully.
+2026-06-10 22:31:25,095 - INFO - Selected batch 1/1 with 3 instruments: HDFCBANK, AXISBANK, APOLLOHOSP
+2026-06-10 22:31:25,095 - INFO - Starting instrument 1/3: HDFCBANK
+2026-06-10 22:31:25,095 - INFO - [HDFCBANK] fetching 7 chunks from 2025-12-06 to 2026-06-10
+2026-06-10 22:31:25,100 - INFO - [HDFCBANK] chunk 1/7: 2025-12-06 09:15:00 -> 2026-01-05 09:15:00
+2026-06-10 22:31:26,283 - ERROR - [HDFCBANK] fetch failed: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+Traceback (most recent call last):
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 215, in main
+    fetch_symbol(instrument, args, from_dt, to_dt, output_dir)
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 182, in fetch_symbol
+    payload = fetch_chunk(instrument, chunk_start, chunk_end, args.interval)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 111, in fetch_chunk
+    response.raise_for_status()
+  File "C:\Users\sande\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-10 22:31:26,337 - INFO - Starting instrument 2/3: AXISBANK
+2026-06-10 22:31:26,337 - INFO - [AXISBANK] fetching 7 chunks from 2025-12-06 to 2026-06-10
+2026-06-10 22:31:26,339 - INFO - [AXISBANK] chunk 1/7: 2025-12-06 09:15:00 -> 2026-01-05 09:15:00
+2026-06-10 22:31:26,620 - ERROR - [AXISBANK] fetch failed: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+Traceback (most recent call last):
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 215, in main
+    fetch_symbol(instrument, args, from_dt, to_dt, output_dir)
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 182, in fetch_symbol
+    payload = fetch_chunk(instrument, chunk_start, chunk_end, args.interval)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 111, in fetch_chunk
+    response.raise_for_status()
+  File "C:\Users\sande\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-10 22:31:26,627 - INFO - Starting instrument 3/3: APOLLOHOSP
+2026-06-10 22:31:26,627 - INFO - [APOLLOHOSP] fetching 7 chunks from 2025-12-06 to 2026-06-10
+2026-06-10 22:31:26,627 - INFO - [APOLLOHOSP] chunk 1/7: 2025-12-06 09:15:00 -> 2026-01-05 09:15:00
+2026-06-10 22:31:26,940 - ERROR - [APOLLOHOSP] fetch failed: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+Traceback (most recent call last):
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 215, in main
+    fetch_symbol(instrument, args, from_dt, to_dt, output_dir)
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 182, in fetch_symbol
+    payload = fetch_chunk(instrument, chunk_start, chunk_end, args.interval)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 111, in fetch_chunk
+    response.raise_for_status()
+  File "C:\Users\sande\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-10 22:31:26,958 - ERROR - Fetch completed with failures: HDFCBANK, AXISBANK, APOLLOHOSP
+2026-06-10 22:32:40,742 - INFO - Selected batch 1/1 with 3 instruments: HDFCBANK, AXISBANK, APOLLOHOSP
+2026-06-10 22:32:40,742 - INFO - Starting instrument 1/3: HDFCBANK
+2026-06-10 22:32:40,742 - INFO - [HDFCBANK] fetching 7 chunks from 2025-12-06 to 2026-06-10
+2026-06-10 22:32:40,744 - INFO - [HDFCBANK] chunk 1/7: 2025-12-06 09:15:00 -> 2026-01-05 09:15:00
+2026-06-10 22:32:41,694 - INFO - [HDFCBANK] chunk 1 produced 1425 candles; accumulated=1425
+2026-06-10 22:32:42,045 - INFO - [HDFCBANK] chunk 2/7: 2026-01-05 09:15:01 -> 2026-02-04 09:15:01
+2026-06-10 22:32:42,616 - INFO - [HDFCBANK] chunk 2 produced 1575 candles; accumulated=3000
+2026-06-10 22:32:42,968 - INFO - [HDFCBANK] chunk 3/7: 2026-02-04 09:15:02 -> 2026-03-06 09:15:02
+2026-06-10 22:32:43,520 - INFO - [HDFCBANK] chunk 3 produced 1575 candles; accumulated=4575
+2026-06-10 22:32:43,873 - INFO - [HDFCBANK] chunk 4/7: 2026-03-06 09:15:03 -> 2026-04-05 09:15:03
+2026-06-10 22:32:44,279 - INFO - [HDFCBANK] chunk 4 produced 1349 candles; accumulated=5924
+2026-06-10 22:32:44,634 - INFO - [HDFCBANK] chunk 5/7: 2026-04-05 09:15:04 -> 2026-05-05 09:15:04
+2026-06-10 22:32:45,099 - INFO - [HDFCBANK] chunk 5 produced 1426 candles; accumulated=7350
+2026-06-10 22:32:45,450 - INFO - [HDFCBANK] chunk 6/7: 2026-05-05 09:15:05 -> 2026-06-04 09:15:05
+2026-06-10 22:32:45,908 - INFO - [HDFCBANK] chunk 6 produced 1575 candles; accumulated=8925
+2026-06-10 22:32:46,260 - INFO - [HDFCBANK] chunk 7/7: 2026-06-04 09:15:06 -> 2026-06-10 15:30:00
+2026-06-10 22:32:46,626 - INFO - [HDFCBANK] chunk 7 produced 374 candles; accumulated=9299
+2026-06-10 22:32:47,092 - INFO - [HDFCBANK] wrote 9299 unique candles to data\historical\HDFCBANK_5m.csv
+2026-06-10 22:32:47,094 - INFO - Starting instrument 2/3: AXISBANK
+2026-06-10 22:32:47,096 - INFO - [AXISBANK] fetching 7 chunks from 2025-12-06 to 2026-06-10
+2026-06-10 22:32:47,097 - INFO - [AXISBANK] chunk 1/7: 2025-12-06 09:15:00 -> 2026-01-05 09:15:00
+2026-06-10 22:32:47,526 - INFO - [AXISBANK] chunk 1 produced 1425 candles; accumulated=1425
+2026-06-10 22:32:47,878 - INFO - [AXISBANK] chunk 2/7: 2026-01-05 09:15:01 -> 2026-02-04 09:15:01
+2026-06-10 22:32:48,360 - INFO - [AXISBANK] chunk 2 produced 1575 candles; accumulated=3000
+2026-06-10 22:32:48,715 - INFO - [AXISBANK] chunk 3/7: 2026-02-04 09:15:02 -> 2026-03-06 09:15:02
+2026-06-10 22:32:49,184 - INFO - [AXISBANK] chunk 3 produced 1575 candles; accumulated=4575
+2026-06-10 22:32:49,544 - INFO - [AXISBANK] chunk 4/7: 2026-03-06 09:15:03 -> 2026-04-05 09:15:03
+2026-06-10 22:32:50,070 - INFO - [AXISBANK] chunk 4 produced 1349 candles; accumulated=5924
+2026-06-10 22:32:50,422 - INFO - [AXISBANK] chunk 5/7: 2026-04-05 09:15:04 -> 2026-05-05 09:15:04
+2026-06-10 22:32:50,916 - INFO - [AXISBANK] chunk 5 produced 1426 candles; accumulated=7350
+2026-06-10 22:32:51,268 - INFO - [AXISBANK] chunk 6/7: 2026-05-05 09:15:05 -> 2026-06-04 09:15:05
+2026-06-10 22:32:51,731 - INFO - [AXISBANK] chunk 6 produced 1575 candles; accumulated=8925
+2026-06-10 22:32:52,083 - INFO - [AXISBANK] chunk 7/7: 2026-06-04 09:15:06 -> 2026-06-10 15:30:00
+2026-06-10 22:32:52,467 - INFO - [AXISBANK] chunk 7 produced 374 candles; accumulated=9299
+2026-06-10 22:32:52,905 - INFO - [AXISBANK] wrote 9299 unique candles to data\historical\AXISBANK_5m.csv
+2026-06-10 22:32:52,906 - INFO - Starting instrument 3/3: APOLLOHOSP
+2026-06-10 22:32:52,906 - INFO - [APOLLOHOSP] fetching 7 chunks from 2025-12-06 to 2026-06-10
+2026-06-10 22:32:52,906 - INFO - [APOLLOHOSP] chunk 1/7: 2025-12-06 09:15:00 -> 2026-01-05 09:15:00
+2026-06-10 22:32:53,406 - INFO - [APOLLOHOSP] chunk 1 produced 1425 candles; accumulated=1425
+2026-06-10 22:32:53,758 - INFO - [APOLLOHOSP] chunk 2/7: 2026-01-05 09:15:01 -> 2026-02-04 09:15:01
+2026-06-10 22:32:54,312 - INFO - [APOLLOHOSP] chunk 2 produced 1575 candles; accumulated=3000
+2026-06-10 22:32:54,663 - INFO - [APOLLOHOSP] chunk 3/7: 2026-02-04 09:15:02 -> 2026-03-06 09:15:02
+2026-06-10 22:32:55,230 - INFO - [APOLLOHOSP] chunk 3 produced 1575 candles; accumulated=4575
+2026-06-10 22:32:55,582 - INFO - [APOLLOHOSP] chunk 4/7: 2026-03-06 09:15:03 -> 2026-04-05 09:15:03
+2026-06-10 22:32:56,025 - INFO - [APOLLOHOSP] chunk 4 produced 1349 candles; accumulated=5924
+2026-06-10 22:32:56,377 - INFO - [APOLLOHOSP] chunk 5/7: 2026-04-05 09:15:04 -> 2026-05-05 09:15:04
+2026-06-10 22:32:56,842 - INFO - [APOLLOHOSP] chunk 5 produced 1426 candles; accumulated=7350
+2026-06-10 22:32:57,194 - INFO - [APOLLOHOSP] chunk 6/7: 2026-05-05 09:15:05 -> 2026-06-04 09:15:05
+2026-06-10 22:32:57,689 - INFO - [APOLLOHOSP] chunk 6 produced 1575 candles; accumulated=8925
+2026-06-10 22:32:58,040 - INFO - [APOLLOHOSP] chunk 7/7: 2026-06-04 09:15:06 -> 2026-06-10 15:30:00
+2026-06-10 22:32:58,397 - INFO - [APOLLOHOSP] chunk 7 produced 374 candles; accumulated=9299
+2026-06-10 22:32:58,872 - INFO - [APOLLOHOSP] wrote 9299 unique candles to data\historical\APOLLOHOSP_5m.csv
+2026-06-10 22:32:58,872 - INFO - Fetch completed successfully.
+2026-06-10 22:36:12,592 - INFO - Selected batch 1/1 with 4 instruments: BAJFINANCE, ADANIENT, ADANIPORTS, ASIANPAINT
+2026-06-10 22:36:12,592 - INFO - Starting instrument 1/4: BAJFINANCE
+2026-06-10 22:36:12,592 - INFO - [BAJFINANCE] fetching 7 chunks from 2025-12-06 to 2026-06-10
+2026-06-10 22:36:12,592 - INFO - [BAJFINANCE] chunk 1/7: 2025-12-06 09:15:00 -> 2026-01-05 09:15:00
+2026-06-10 22:36:13,502 - INFO - [BAJFINANCE] chunk 1 produced 1425 candles; accumulated=1425
+2026-06-10 22:36:13,856 - INFO - [BAJFINANCE] chunk 2/7: 2026-01-05 09:15:01 -> 2026-02-04 09:15:01
+2026-06-10 22:36:14,270 - INFO - [BAJFINANCE] chunk 2 produced 1575 candles; accumulated=3000
+2026-06-10 22:36:14,623 - INFO - [BAJFINANCE] chunk 3/7: 2026-02-04 09:15:02 -> 2026-03-06 09:15:02
+2026-06-10 22:36:15,111 - INFO - [BAJFINANCE] chunk 3 produced 1575 candles; accumulated=4575
+2026-06-10 22:36:15,463 - INFO - [BAJFINANCE] chunk 4/7: 2026-03-06 09:15:03 -> 2026-04-05 09:15:03
+2026-06-10 22:36:15,898 - INFO - [BAJFINANCE] chunk 4 produced 1349 candles; accumulated=5924
+2026-06-10 22:36:16,253 - INFO - [BAJFINANCE] chunk 5/7: 2026-04-05 09:15:04 -> 2026-05-05 09:15:04
+2026-06-10 22:36:16,750 - INFO - [BAJFINANCE] chunk 5 produced 1426 candles; accumulated=7350
+2026-06-10 22:36:17,101 - INFO - [BAJFINANCE] chunk 6/7: 2026-05-05 09:15:05 -> 2026-06-04 09:15:05
+2026-06-10 22:36:17,646 - INFO - [BAJFINANCE] chunk 6 produced 1575 candles; accumulated=8925
+2026-06-10 22:36:17,997 - INFO - [BAJFINANCE] chunk 7/7: 2026-06-04 09:15:06 -> 2026-06-10 15:30:00
+2026-06-10 22:36:18,326 - INFO - [BAJFINANCE] chunk 7 produced 374 candles; accumulated=9299
+2026-06-10 22:36:18,754 - INFO - [BAJFINANCE] wrote 9299 unique candles to data\historical\BAJFINANCE_5m.csv
+2026-06-10 22:36:18,754 - INFO - Starting instrument 2/4: ADANIENT
+2026-06-10 22:36:18,754 - INFO - [ADANIENT] fetching 7 chunks from 2025-12-06 to 2026-06-10
+2026-06-10 22:36:18,754 - INFO - [ADANIENT] chunk 1/7: 2025-12-06 09:15:00 -> 2026-01-05 09:15:00
+2026-06-10 22:36:19,295 - INFO - [ADANIENT] chunk 1 produced 1425 candles; accumulated=1425
+2026-06-10 22:36:19,646 - INFO - [ADANIENT] chunk 2/7: 2026-01-05 09:15:01 -> 2026-02-04 09:15:01
+2026-06-10 22:36:20,156 - INFO - [ADANIENT] chunk 2 produced 1575 candles; accumulated=3000
+2026-06-10 22:36:20,510 - INFO - [ADANIENT] chunk 3/7: 2026-02-04 09:15:02 -> 2026-03-06 09:15:02
+2026-06-10 22:36:21,159 - INFO - [ADANIENT] chunk 3 produced 1575 candles; accumulated=4575
+2026-06-10 22:36:21,512 - INFO - [ADANIENT] chunk 4/7: 2026-03-06 09:15:03 -> 2026-04-05 09:15:03
+2026-06-10 22:36:21,995 - INFO - [ADANIENT] chunk 4 produced 1349 candles; accumulated=5924
+2026-06-10 22:36:22,347 - INFO - [ADANIENT] chunk 5/7: 2026-04-05 09:15:04 -> 2026-05-05 09:15:04
+2026-06-10 22:36:22,854 - INFO - [ADANIENT] chunk 5 produced 1426 candles; accumulated=7350
+2026-06-10 22:36:23,205 - INFO - [ADANIENT] chunk 6/7: 2026-05-05 09:15:05 -> 2026-06-04 09:15:05
+2026-06-10 22:36:23,704 - INFO - [ADANIENT] chunk 6 produced 1575 candles; accumulated=8925
+2026-06-10 22:36:24,055 - INFO - [ADANIENT] chunk 7/7: 2026-06-04 09:15:06 -> 2026-06-10 15:30:00
+2026-06-10 22:36:24,522 - INFO - [ADANIENT] chunk 7 produced 374 candles; accumulated=9299
+2026-06-10 22:36:25,201 - INFO - [ADANIENT] wrote 9299 unique candles to data\historical\ADANIENT_5m.csv
+2026-06-10 22:36:25,203 - INFO - Starting instrument 3/4: ADANIPORTS
+2026-06-10 22:36:25,203 - INFO - [ADANIPORTS] fetching 7 chunks from 2025-12-06 to 2026-06-10
+2026-06-10 22:36:25,203 - INFO - [ADANIPORTS] chunk 1/7: 2025-12-06 09:15:00 -> 2026-01-05 09:15:00
+2026-06-10 22:36:25,907 - INFO - [ADANIPORTS] chunk 1 produced 1425 candles; accumulated=1425
+2026-06-10 22:36:26,262 - INFO - [ADANIPORTS] chunk 2/7: 2026-01-05 09:15:01 -> 2026-02-04 09:15:01
+2026-06-10 22:36:26,787 - INFO - [ADANIPORTS] chunk 2 produced 1575 candles; accumulated=3000
+2026-06-10 22:36:27,139 - INFO - [ADANIPORTS] chunk 3/7: 2026-02-04 09:15:02 -> 2026-03-06 09:15:02
+2026-06-10 22:36:27,696 - INFO - [ADANIPORTS] chunk 3 produced 1575 candles; accumulated=4575
+2026-06-10 22:36:28,057 - INFO - [ADANIPORTS] chunk 4/7: 2026-03-06 09:15:03 -> 2026-04-05 09:15:03
+2026-06-10 22:36:28,609 - INFO - [ADANIPORTS] chunk 4 produced 1349 candles; accumulated=5924
+2026-06-10 22:36:28,961 - INFO - [ADANIPORTS] chunk 5/7: 2026-04-05 09:15:04 -> 2026-05-05 09:15:04
+2026-06-10 22:36:29,516 - INFO - [ADANIPORTS] chunk 5 produced 1426 candles; accumulated=7350
+2026-06-10 22:36:29,869 - INFO - [ADANIPORTS] chunk 6/7: 2026-05-05 09:15:05 -> 2026-06-04 09:15:05
+2026-06-10 22:36:30,393 - INFO - [ADANIPORTS] chunk 6 produced 1575 candles; accumulated=8925
+2026-06-10 22:36:30,746 - INFO - [ADANIPORTS] chunk 7/7: 2026-06-04 09:15:06 -> 2026-06-10 15:30:00
+2026-06-10 22:36:31,190 - INFO - [ADANIPORTS] chunk 7 produced 374 candles; accumulated=9299
+2026-06-10 22:36:31,855 - INFO - [ADANIPORTS] wrote 9299 unique candles to data\historical\ADANIPORTS_5m.csv
+2026-06-10 22:36:31,862 - INFO - Starting instrument 4/4: ASIANPAINT
+2026-06-10 22:36:31,862 - INFO - [ASIANPAINT] fetching 7 chunks from 2025-12-06 to 2026-06-10
+2026-06-10 22:36:31,862 - INFO - [ASIANPAINT] chunk 1/7: 2025-12-06 09:15:00 -> 2026-01-05 09:15:00
+2026-06-10 22:36:32,480 - INFO - [ASIANPAINT] chunk 1 produced 1425 candles; accumulated=1425
+2026-06-10 22:36:32,834 - INFO - [ASIANPAINT] chunk 2/7: 2026-01-05 09:15:01 -> 2026-02-04 09:15:01
+2026-06-10 22:36:33,436 - INFO - [ASIANPAINT] chunk 2 produced 1575 candles; accumulated=3000
+2026-06-10 22:36:33,789 - INFO - [ASIANPAINT] chunk 3/7: 2026-02-04 09:15:02 -> 2026-03-06 09:15:02
+2026-06-10 22:36:34,359 - INFO - [ASIANPAINT] chunk 3 produced 1575 candles; accumulated=4575
+2026-06-10 22:36:34,719 - INFO - [ASIANPAINT] chunk 4/7: 2026-03-06 09:15:03 -> 2026-04-05 09:15:03
+2026-06-10 22:36:35,356 - INFO - [ASIANPAINT] chunk 4 produced 1349 candles; accumulated=5924
+2026-06-10 22:36:35,708 - INFO - [ASIANPAINT] chunk 5/7: 2026-04-05 09:15:04 -> 2026-05-05 09:15:04
+2026-06-10 22:36:36,266 - INFO - [ASIANPAINT] chunk 5 produced 1426 candles; accumulated=7350
+2026-06-10 22:36:36,618 - INFO - [ASIANPAINT] chunk 6/7: 2026-05-05 09:15:05 -> 2026-06-04 09:15:05
+2026-06-10 22:36:37,338 - INFO - [ASIANPAINT] chunk 6 produced 1575 candles; accumulated=8925
+2026-06-10 22:36:37,689 - INFO - [ASIANPAINT] chunk 7/7: 2026-06-04 09:15:06 -> 2026-06-10 15:30:00
+2026-06-10 22:36:38,164 - INFO - [ASIANPAINT] chunk 7 produced 374 candles; accumulated=9299
+2026-06-10 22:36:38,785 - INFO - [ASIANPAINT] wrote 9299 unique candles to data\historical\ASIANPAINT_5m.csv
+2026-06-10 22:36:38,791 - INFO - Fetch completed successfully.
+2026-06-13 00:01:22,330 - INFO - Selected batch 1/1 with 1 instruments: NIFTY
+2026-06-13 00:01:22,331 - INFO - Starting instrument 1/1: NIFTY
+2026-06-13 00:01:22,331 - INFO - [NIFTY] fetching 2 chunks from 2026-05-13 to 2026-06-13
+2026-06-13 00:01:22,331 - INFO - [NIFTY] chunk 1/2: 2026-05-13 09:15:00 -> 2026-06-12 09:15:00
+2026-06-13 00:01:54,148 - INFO - Selected batch 1/1 with 2 instruments: SENSEX, RELIANCE
+2026-06-13 00:01:54,148 - INFO - Starting instrument 1/2: SENSEX
+2026-06-13 00:01:54,149 - INFO - [SENSEX] fetching 2 chunks from 2026-05-13 to 2026-06-13
+2026-06-13 00:01:54,149 - INFO - [SENSEX] chunk 1/2: 2026-05-13 09:15:00 -> 2026-06-12 09:15:00
+2026-06-13 00:01:54,680 - ERROR - [SENSEX] fetch failed: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+Traceback (most recent call last):
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 215, in main
+    fetch_symbol(instrument, args, from_dt, to_dt, output_dir)
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 182, in fetch_symbol
+    payload = fetch_chunk(instrument, chunk_start, chunk_end, args.interval)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 111, in fetch_chunk
+    response.raise_for_status()
+  File "C:\Users\sande\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-13 00:01:54,707 - INFO - Starting instrument 2/2: RELIANCE
+2026-06-13 00:01:54,708 - INFO - [RELIANCE] fetching 2 chunks from 2026-05-13 to 2026-06-13
+2026-06-13 00:01:54,708 - INFO - [RELIANCE] chunk 1/2: 2026-05-13 09:15:00 -> 2026-06-12 09:15:00
+2026-06-13 00:01:54,901 - ERROR - [RELIANCE] fetch failed: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+Traceback (most recent call last):
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 215, in main
+    fetch_symbol(instrument, args, from_dt, to_dt, output_dir)
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 182, in fetch_symbol
+    payload = fetch_chunk(instrument, chunk_start, chunk_end, args.interval)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 111, in fetch_chunk
+    response.raise_for_status()
+  File "C:\Users\sande\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-13 00:01:54,902 - ERROR - Fetch completed with failures: SENSEX, RELIANCE
+2026-06-13 00:04:11,577 - ERROR - [NIFTY] fetch failed: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+Traceback (most recent call last):
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 215, in main
+    fetch_symbol(instrument, args, from_dt, to_dt, output_dir)
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 182, in fetch_symbol
+    payload = fetch_chunk(instrument, chunk_start, chunk_end, args.interval)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 111, in fetch_chunk
+    response.raise_for_status()
+  File "C:\Users\sande\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-13 00:04:11,580 - ERROR - Fetch completed with failures: NIFTY
+2026-06-13 00:09:21,602 - INFO - Selected batch 1/1 with 1 instruments: NIFTY
+2026-06-13 00:09:21,602 - INFO - Starting instrument 1/1: NIFTY
+2026-06-13 00:09:21,602 - INFO - [NIFTY] fetching 2 chunks from 2026-05-13 to 2026-06-13
+2026-06-13 00:09:21,602 - INFO - [NIFTY] chunk 1/2: 2026-05-13 09:15:00 -> 2026-06-12 09:15:00
+2026-06-13 00:09:50,551 - INFO - Selected batch 1/1 with 2 instruments: SENSEX, RELIANCE
+2026-06-13 00:09:50,551 - INFO - Starting instrument 1/2: SENSEX
+2026-06-13 00:09:50,552 - INFO - [SENSEX] fetching 2 chunks from 2026-05-13 to 2026-06-13
+2026-06-13 00:09:50,552 - INFO - [SENSEX] chunk 1/2: 2026-05-13 09:15:00 -> 2026-06-12 09:15:00
+2026-06-13 00:10:12,046 - ERROR - [SENSEX] fetch failed: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+Traceback (most recent call last):
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 215, in main
+    fetch_symbol(instrument, args, from_dt, to_dt, output_dir)
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 182, in fetch_symbol
+    payload = fetch_chunk(instrument, chunk_start, chunk_end, args.interval)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 111, in fetch_chunk
+    response.raise_for_status()
+  File "C:\Users\sande\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-13 00:10:12,049 - INFO - Starting instrument 2/2: RELIANCE
+2026-06-13 00:10:12,049 - INFO - [RELIANCE] fetching 2 chunks from 2026-05-13 to 2026-06-13
+2026-06-13 00:10:12,049 - INFO - [RELIANCE] chunk 1/2: 2026-05-13 09:15:00 -> 2026-06-12 09:15:00
+2026-06-13 00:10:12,234 - ERROR - [RELIANCE] fetch failed: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+Traceback (most recent call last):
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 215, in main
+    fetch_symbol(instrument, args, from_dt, to_dt, output_dir)
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 182, in fetch_symbol
+    payload = fetch_chunk(instrument, chunk_start, chunk_end, args.interval)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 111, in fetch_chunk
+    response.raise_for_status()
+  File "C:\Users\sande\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-13 00:10:12,236 - ERROR - Fetch completed with failures: SENSEX, RELIANCE
+2026-06-13 00:11:56,925 - INFO - Selected batch 1/1 with 1 instruments: NIFTY
+2026-06-13 00:11:56,925 - INFO - Starting instrument 1/1: NIFTY
+2026-06-13 00:11:56,925 - INFO - [NIFTY] fetching 2 chunks from 2026-05-13 to 2026-06-13
+2026-06-13 00:11:56,925 - INFO - [NIFTY] chunk 1/2: 2026-05-13 09:15:00 -> 2026-06-12 09:15:00
+2026-06-13 00:12:10,672 - ERROR - [NIFTY] fetch failed: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+Traceback (most recent call last):
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 215, in main
+    fetch_symbol(instrument, args, from_dt, to_dt, output_dir)
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 182, in fetch_symbol
+    payload = fetch_chunk(instrument, chunk_start, chunk_end, args.interval)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 111, in fetch_chunk
+    response.raise_for_status()
+  File "C:\Users\sande\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-13 00:12:10,675 - ERROR - Fetch completed with failures: NIFTY
+2026-06-13 00:14:45,830 - ERROR - [NIFTY] fetch failed: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+Traceback (most recent call last):
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 215, in main
+    fetch_symbol(instrument, args, from_dt, to_dt, output_dir)
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 182, in fetch_symbol
+    payload = fetch_chunk(instrument, chunk_start, chunk_end, args.interval)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\fetch_historical_data.py", line 111, in fetch_chunk
+    response.raise_for_status()
+  File "C:\Users\sande\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\site-packages\requests\models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-13 00:14:45,868 - ERROR - Fetch completed with failures: NIFTY
+2026-06-14 22:42:04,433 - INFO - Selected batch 1/1 with 1 instruments: NIFTY
+2026-06-14 22:42:04,433 - INFO - Starting instrument 1/1: NIFTY
+2026-06-14 22:42:04,433 - INFO - [NIFTY] fetching 2 chunks from 2026-05-14 to 2026-06-14
+2026-06-14 22:42:04,434 - INFO - [NIFTY] chunk 1/2: 2026-05-14 09:15:00 -> 2026-06-13 09:15:00
+2026-06-14 22:44:33,414 - INFO - [NIFTY] chunk 1 produced 7880 candles; accumulated=7880
+2026-06-14 22:44:33,765 - INFO - [NIFTY] chunk 2/2: 2026-06-13 09:15:01 -> 2026-06-14 15:30:00
+2026-06-14 22:44:35,216 - INFO - [NIFTY] chunk 2 produced 0 candles; accumulated=7880
+2026-06-14 22:44:35,660 - INFO - [NIFTY] wrote 7880 unique candles to data\historical\NIFTY_1m.csv
+2026-06-14 22:44:35,662 - INFO - Fetch completed successfully.
+2026-06-14 22:45:54,006 - INFO - Selected batch 1/1 with 2 instruments: SENSEX, RELIANCE
+2026-06-14 22:45:54,006 - INFO - Starting instrument 1/2: SENSEX
+2026-06-14 22:45:54,006 - INFO - [SENSEX] fetching 2 chunks from 2026-05-14 to 2026-06-14
+2026-06-14 22:45:54,011 - INFO - [SENSEX] chunk 1/2: 2026-05-14 09:15:00 -> 2026-06-13 09:15:00
+2026-06-14 22:46:37,584 - INFO - [SENSEX] chunk 1 produced 7880 candles; accumulated=7880
+2026-06-14 22:46:37,941 - INFO - [SENSEX] chunk 2/2: 2026-06-13 09:15:01 -> 2026-06-14 15:30:00
+2026-06-14 22:46:38,280 - INFO - [SENSEX] chunk 2 produced 0 candles; accumulated=7880
+2026-06-14 22:46:38,721 - INFO - [SENSEX] wrote 7880 unique candles to data\historical\SENSEX_1m.csv
+2026-06-14 22:46:38,727 - INFO - Starting instrument 2/2: RELIANCE
+2026-06-14 22:46:38,727 - INFO - [RELIANCE] fetching 2 chunks from 2026-05-14 to 2026-06-14
+2026-06-14 22:46:38,727 - INFO - [RELIANCE] chunk 1/2: 2026-05-14 09:15:00 -> 2026-06-13 09:15:00
+2026-06-14 22:46:39,748 - INFO - [RELIANCE] chunk 1 produced 7874 candles; accumulated=7874
+2026-06-14 22:46:40,099 - INFO - [RELIANCE] chunk 2/2: 2026-06-13 09:15:01 -> 2026-06-14 15:30:00
+2026-06-14 22:46:40,508 - INFO - [RELIANCE] chunk 2 produced 0 candles; accumulated=7874
+2026-06-14 22:46:40,931 - INFO - [RELIANCE] wrote 7874 unique candles to data\historical\RELIANCE_1m.csv
+2026-06-14 22:46:40,940 - INFO - Fetch completed successfully.
+2026-06-14 23:19:38,043 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-14 23:19:38,045 - INFO - Starting instrument 1/3: NIFTY
+2026-06-14 23:19:38,045 - INFO - [NIFTY] fetching 7 chunks from 2025-12-10 to 2026-06-14
+2026-06-14 23:19:38,045 - INFO - [NIFTY] chunk 1/7: 2025-12-10 09:15:00 -> 2026-01-09 09:15:00
+2026-06-14 23:19:39,238 - INFO - [NIFTY] chunk 1 produced 1578 candles; accumulated=1578
+2026-06-14 23:19:39,589 - INFO - [NIFTY] chunk 2/7: 2026-01-09 09:15:01 -> 2026-02-08 09:15:01
+2026-06-14 23:19:40,018 - INFO - [NIFTY] chunk 2 produced 1505 candles; accumulated=3083
+2026-06-14 23:19:40,374 - INFO - [NIFTY] chunk 3/7: 2026-02-08 09:15:02 -> 2026-03-10 09:15:02
+2026-06-14 23:19:40,807 - INFO - [NIFTY] chunk 3 produced 1505 candles; accumulated=4588
+2026-06-14 23:19:41,158 - INFO - [NIFTY] chunk 4/7: 2026-03-10 09:15:03 -> 2026-04-09 09:15:03
+2026-06-14 23:19:41,588 - INFO - [NIFTY] chunk 4 produced 1429 candles; accumulated=6017
+2026-06-14 23:19:41,939 - INFO - [NIFTY] chunk 5/7: 2026-04-09 09:15:04 -> 2026-05-09 09:15:04
+2026-06-14 23:19:42,364 - INFO - [NIFTY] chunk 5 produced 1506 candles; accumulated=7523
+2026-06-14 23:19:42,718 - INFO - [NIFTY] chunk 6/7: 2026-05-09 09:15:05 -> 2026-06-08 09:15:05
+2026-06-14 23:19:43,057 - INFO - [NIFTY] chunk 6 produced 1434 candles; accumulated=8957
+2026-06-14 23:19:43,408 - INFO - [NIFTY] chunk 7/7: 2026-06-08 09:15:06 -> 2026-06-14 15:30:00
+2026-06-14 23:19:43,768 - INFO - [NIFTY] chunk 7 produced 374 candles; accumulated=9331
+2026-06-14 23:19:44,206 - INFO - [NIFTY] wrote 9331 unique candles to data\historical\NIFTY_5m.csv
+2026-06-14 23:19:44,210 - INFO - Starting instrument 2/3: SENSEX
+2026-06-14 23:19:44,211 - INFO - [SENSEX] fetching 7 chunks from 2025-12-10 to 2026-06-14
+2026-06-14 23:19:44,211 - INFO - [SENSEX] chunk 1/7: 2025-12-10 09:15:00 -> 2026-01-09 09:15:00
+2026-06-14 23:19:44,734 - INFO - [SENSEX] chunk 1 produced 1578 candles; accumulated=1578
+2026-06-14 23:19:45,089 - INFO - [SENSEX] chunk 2/7: 2026-01-09 09:15:01 -> 2026-02-08 09:15:01
+2026-06-14 23:19:45,556 - INFO - [SENSEX] chunk 2 produced 1505 candles; accumulated=3083
+2026-06-14 23:19:45,908 - INFO - [SENSEX] chunk 3/7: 2026-02-08 09:15:02 -> 2026-03-10 09:15:02
+2026-06-14 23:19:46,400 - INFO - [SENSEX] chunk 3 produced 1505 candles; accumulated=4588
+2026-06-14 23:19:46,754 - INFO - [SENSEX] chunk 4/7: 2026-03-10 09:15:03 -> 2026-04-09 09:15:03
+2026-06-14 23:19:47,182 - INFO - [SENSEX] chunk 4 produced 1433 candles; accumulated=6021
+2026-06-14 23:19:47,534 - INFO - [SENSEX] chunk 5/7: 2026-04-09 09:15:04 -> 2026-05-09 09:15:04
+2026-06-14 23:19:47,960 - INFO - [SENSEX] chunk 5 produced 1506 candles; accumulated=7527
+2026-06-14 23:19:48,310 - INFO - [SENSEX] chunk 6/7: 2026-05-09 09:15:05 -> 2026-06-08 09:15:05
+2026-06-14 23:19:48,732 - INFO - [SENSEX] chunk 6 produced 1434 candles; accumulated=8961
+2026-06-14 23:19:49,090 - INFO - [SENSEX] chunk 7/7: 2026-06-08 09:15:06 -> 2026-06-14 15:30:00
+2026-06-14 23:19:49,412 - INFO - [SENSEX] chunk 7 produced 374 candles; accumulated=9335
+2026-06-14 23:19:49,891 - INFO - [SENSEX] wrote 9335 unique candles to data\historical\SENSEX_5m.csv
+2026-06-14 23:19:49,895 - INFO - Starting instrument 3/3: RELIANCE
+2026-06-14 23:19:49,895 - INFO - [RELIANCE] fetching 7 chunks from 2025-12-10 to 2026-06-14
+2026-06-14 23:19:49,895 - INFO - [RELIANCE] chunk 1/7: 2025-12-10 09:15:00 -> 2026-01-09 09:15:00
+2026-06-14 23:19:50,338 - INFO - [RELIANCE] chunk 1 produced 1574 candles; accumulated=1574
+2026-06-14 23:19:50,689 - INFO - [RELIANCE] chunk 2/7: 2026-01-09 09:15:01 -> 2026-02-08 09:15:01
+2026-06-14 23:19:51,108 - INFO - [RELIANCE] chunk 2 produced 1499 candles; accumulated=3073
+2026-06-14 23:19:51,462 - INFO - [RELIANCE] chunk 3/7: 2026-02-08 09:15:02 -> 2026-03-10 09:15:02
+2026-06-14 23:19:51,903 - INFO - [RELIANCE] chunk 3 produced 1501 candles; accumulated=4574
+2026-06-14 23:19:52,254 - INFO - [RELIANCE] chunk 4/7: 2026-03-10 09:15:03 -> 2026-04-09 09:15:03
+2026-06-14 23:19:52,713 - INFO - [RELIANCE] chunk 4 produced 1425 candles; accumulated=5999
+2026-06-14 23:19:53,067 - INFO - [RELIANCE] chunk 5/7: 2026-04-09 09:15:04 -> 2026-05-09 09:15:04
+2026-06-14 23:19:53,519 - INFO - [RELIANCE] chunk 5 produced 1499 candles; accumulated=7498
+2026-06-14 23:19:53,874 - INFO - [RELIANCE] chunk 6/7: 2026-05-09 09:15:05 -> 2026-06-08 09:15:05
+2026-06-14 23:19:54,322 - INFO - [RELIANCE] chunk 6 produced 1426 candles; accumulated=8924
+2026-06-14 23:19:54,679 - INFO - [RELIANCE] chunk 7/7: 2026-06-08 09:15:06 -> 2026-06-14 15:30:00
+2026-06-14 23:19:54,962 - INFO - [RELIANCE] chunk 7 produced 374 candles; accumulated=9298
+2026-06-14 23:19:55,400 - INFO - [RELIANCE] wrote 9298 unique candles to data\historical\RELIANCE_5m.csv
+2026-06-14 23:19:55,408 - INFO - Fetch completed successfully.
+2026-06-14 23:20:03,066 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-14 23:20:03,066 - INFO - Starting instrument 1/3: NIFTY
+2026-06-14 23:20:03,071 - INFO - [NIFTY] fetching 7 chunks from 2025-12-10 to 2026-06-14
+2026-06-14 23:20:03,071 - INFO - [NIFTY] chunk 1/7: 2025-12-10 09:15:00 -> 2026-01-09 09:15:00
+2026-06-14 23:20:04,120 - INFO - [NIFTY] chunk 1 produced 7878 candles; accumulated=7878
+2026-06-14 23:20:04,471 - INFO - [NIFTY] chunk 2/7: 2026-01-09 09:15:01 -> 2026-02-08 09:15:01
+2026-06-14 23:20:05,103 - INFO - [NIFTY] chunk 2 produced 7505 candles; accumulated=15383
+2026-06-14 23:20:05,455 - INFO - [NIFTY] chunk 3/7: 2026-02-08 09:15:02 -> 2026-03-10 09:15:02
+2026-06-14 23:20:06,127 - INFO - [NIFTY] chunk 3 produced 7505 candles; accumulated=22888
+2026-06-14 23:20:06,478 - INFO - [NIFTY] chunk 4/7: 2026-03-10 09:15:03 -> 2026-04-09 09:15:03
+2026-06-14 23:20:07,085 - INFO - [NIFTY] chunk 4 produced 7129 candles; accumulated=30017
+2026-06-14 23:20:07,436 - INFO - [NIFTY] chunk 5/7: 2026-04-09 09:15:04 -> 2026-05-09 09:15:04
+2026-06-14 23:20:08,197 - INFO - [NIFTY] chunk 5 produced 7514 candles; accumulated=37531
+2026-06-14 23:20:08,549 - INFO - [NIFTY] chunk 6/7: 2026-05-09 09:15:05 -> 2026-06-08 09:15:05
+2026-06-14 23:20:09,193 - INFO - [NIFTY] chunk 6 produced 7134 candles; accumulated=44665
+2026-06-14 23:20:09,545 - INFO - [NIFTY] chunk 7/7: 2026-06-08 09:15:06 -> 2026-06-14 15:30:00
+2026-06-14 23:20:10,017 - INFO - [NIFTY] chunk 7 produced 1874 candles; accumulated=46539
+2026-06-14 23:20:10,776 - INFO - [NIFTY] wrote 46539 unique candles to data\historical\NIFTY_1m.csv
+2026-06-14 23:20:10,789 - INFO - Starting instrument 2/3: SENSEX
+2026-06-14 23:20:10,790 - INFO - [SENSEX] fetching 7 chunks from 2025-12-10 to 2026-06-14
+2026-06-14 23:20:10,790 - INFO - [SENSEX] chunk 1/7: 2025-12-10 09:15:00 -> 2026-01-09 09:15:00
+2026-06-14 23:20:11,459 - INFO - [SENSEX] chunk 1 produced 7878 candles; accumulated=7878
+2026-06-14 23:20:11,813 - INFO - [SENSEX] chunk 2/7: 2026-01-09 09:15:01 -> 2026-02-08 09:15:01
+2026-06-14 23:20:12,506 - INFO - [SENSEX] chunk 2 produced 7505 candles; accumulated=15383
+2026-06-14 23:20:12,857 - INFO - [SENSEX] chunk 3/7: 2026-02-08 09:15:02 -> 2026-03-10 09:15:02
+2026-06-14 23:20:13,696 - INFO - [SENSEX] chunk 3 produced 7505 candles; accumulated=22888
+2026-06-14 23:20:14,048 - INFO - [SENSEX] chunk 4/7: 2026-03-10 09:15:03 -> 2026-04-09 09:15:03
+2026-06-14 23:20:14,919 - INFO - [SENSEX] chunk 4 produced 7268 candles; accumulated=30156
+2026-06-14 23:20:15,273 - INFO - [SENSEX] chunk 5/7: 2026-04-09 09:15:04 -> 2026-05-09 09:15:04
+2026-06-14 23:20:16,050 - INFO - [SENSEX] chunk 5 produced 7514 candles; accumulated=37670
+2026-06-14 23:20:16,404 - INFO - [SENSEX] chunk 6/7: 2026-05-09 09:15:05 -> 2026-06-08 09:15:05
+2026-06-14 23:20:24,486 - INFO - [SENSEX] chunk 6 produced 7134 candles; accumulated=44804
+2026-06-14 23:20:24,844 - INFO - [SENSEX] chunk 7/7: 2026-06-08 09:15:06 -> 2026-06-14 15:30:00
+2026-06-14 23:20:25,443 - INFO - [SENSEX] chunk 7 produced 1874 candles; accumulated=46678
+2026-06-14 23:20:26,262 - INFO - [SENSEX] wrote 46678 unique candles to data\historical\SENSEX_1m.csv
+2026-06-14 23:20:26,277 - INFO - Starting instrument 3/3: RELIANCE
+2026-06-14 23:20:26,277 - INFO - [RELIANCE] fetching 7 chunks from 2025-12-10 to 2026-06-14
+2026-06-14 23:20:26,278 - INFO - [RELIANCE] chunk 1/7: 2025-12-10 09:15:00 -> 2026-01-09 09:15:00
+2026-06-14 23:20:27,209 - INFO - [RELIANCE] chunk 1 produced 7874 candles; accumulated=7874
+2026-06-14 23:20:27,561 - INFO - [RELIANCE] chunk 2/7: 2026-01-09 09:15:01 -> 2026-02-08 09:15:01
+2026-06-14 23:20:28,363 - INFO - [RELIANCE] chunk 2 produced 7499 candles; accumulated=15373
+2026-06-14 23:20:28,715 - INFO - [RELIANCE] chunk 3/7: 2026-02-08 09:15:02 -> 2026-03-10 09:15:02
+2026-06-14 23:20:29,690 - INFO - [RELIANCE] chunk 3 produced 7501 candles; accumulated=22874
+2026-06-14 23:20:30,042 - INFO - [RELIANCE] chunk 4/7: 2026-03-10 09:15:03 -> 2026-04-09 09:15:03
+2026-06-14 23:20:31,060 - INFO - [RELIANCE] chunk 4 produced 7125 candles; accumulated=29999
+2026-06-14 23:20:31,411 - INFO - [RELIANCE] chunk 5/7: 2026-04-09 09:15:04 -> 2026-05-09 09:15:04
+2026-06-14 23:20:32,428 - INFO - [RELIANCE] chunk 5 produced 7499 candles; accumulated=37498
+2026-06-14 23:20:32,785 - INFO - [RELIANCE] chunk 6/7: 2026-05-09 09:15:05 -> 2026-06-08 09:15:05
+2026-06-14 23:20:33,786 - INFO - [RELIANCE] chunk 6 produced 7126 candles; accumulated=44624
+2026-06-14 23:20:34,141 - INFO - [RELIANCE] chunk 7/7: 2026-06-08 09:15:06 -> 2026-06-14 15:30:00
+2026-06-14 23:20:34,774 - INFO - [RELIANCE] chunk 7 produced 1874 candles; accumulated=46498
+2026-06-14 23:20:35,539 - INFO - [RELIANCE] wrote 46498 unique candles to data\historical\RELIANCE_1m.csv
+2026-06-14 23:20:35,552 - INFO - Fetch completed successfully.

@@ -1094,7 +1094,7 @@ class SafetyHardeningTests(unittest.TestCase):
         )
 
         self.assertEqual(result["status"], "APPROVED")
-        self.assertEqual(result["margin_source"], "UPSTOX_BASKET_MARGIN")
+        self.assertEqual(result["margin_source"], "LIVE_BASKET_MARGIN")
         self.assertEqual(result["lots_to_deploy"], 5)
         self.assertEqual(fake_broker.instruments[0]["quantity"], 65)
 

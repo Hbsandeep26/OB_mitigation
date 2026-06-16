@@ -30,3 +30,44 @@ def get_daily_access_token(auth_code):
     except Exception as e:
         logging.error(f"Failed to get access token: {e}")
         return None
+
+
+def generate_dhan_token_with_totp(client_id, pin, totp_secret):
+    """
+    Generates a Dhan access token programmatically using Client ID, PIN, and TOTP Secret.
+    """
+    import pyotp
+    url = "https://auth.dhan.co/app/generateAccessToken"
+    try:
+        # Strip spaces from TOTP secret key
+        clean_secret = str(totp_secret).replace(" ", "").strip()
+        totp = pyotp.TOTP(clean_secret)
+        current_totp = totp.now()
+        
+        payload = {
+            "dhanClientId": str(client_id).strip(),
+            "pin": str(pin).strip(),
+            "totp": str(current_totp)
+        }
+        headers = {
+            "Accept": "application/json"
+        }
+        logging.info("Requesting fresh Dhan Access Token using TOTP...")
+        response = requests.post(url, params=payload, headers=headers, timeout=10)
+        
+        if response.status_code != 200:
+            logging.error("Dhan TOTP auth returned status %s: %s", response.status_code, response.text)
+            return None
+            
+        data = response.json()
+        token = data.get("accessToken") or data.get("data", {}).get("accessToken")
+        if token:
+            logging.info("Successfully generated Dhan access token via TOTP.")
+            return token
+            
+        logging.error("Dhan TOTP login response missing token field: %s", data)
+        return None
+    except Exception as e:
+        logging.error("Failed to generate Dhan access token via TOTP: %s", e)
+        return None
+

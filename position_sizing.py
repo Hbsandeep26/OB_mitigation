@@ -106,7 +106,7 @@ def calculate_position_size(environment, strategy_type, current_vix, ui_virtual_
     if environment == "LIVE":
         margin_per_lot = _basket_margin_per_lot(route, lot_multiple)
         if margin_per_lot:
-            margin_source = "UPSTOX_BASKET_MARGIN"
+            margin_source = "LIVE_BASKET_MARGIN"
 
     if not margin_per_lot:
         margin_per_lot = static_margin_per_lot(strategy_type, current_vix)

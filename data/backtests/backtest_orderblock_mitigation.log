@@ -1,0 +1,82 @@
+2026-06-14 22:48:10,881 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-14 22:48:10,881 - INFO - Starting MTF Order Block & SFP Grid Search optimization on 3 symbols...
+2026-06-14 22:48:14,041 - INFO - [10/48] Trig=none, SL=1m_atr_1.5, Strat=Debit Spread -> Trades=221, WR=62.44%, Expectancy=1.17R
+2026-06-14 22:48:15,622 - INFO - [20/48] Trig=ma_crossover, SL=1m_candle_low, Strat=Ratio -> Trades=56, WR=64.29%, Expectancy=1.25R
+2026-06-14 22:48:17,153 - INFO - [30/48] Trig=sfp, SL=1m_candle_low, Strat=Debit Spread -> Trades=79, WR=48.10%, Expectancy=1.56R
+2026-06-14 22:48:18,750 - INFO - [40/48] Trig=choch, SL=5m_origin, Strat=Ratio -> Trades=101, WR=81.19%, Expectancy=1.84R
+2026-06-14 22:48:19,937 - INFO - [48/48] Trig=choch, SL=1m_atr_1.5, Strat=Ratio -> Trades=112, WR=67.86%, Expectancy=1.38R
+2026-06-14 22:48:19,939 - INFO - Grid results written to data\backtests\ob_mitigation_optimization.csv
+2026-06-14 22:48:36,719 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-14 22:48:38,001 - INFO - OB Mitigation Portfolio Summary: trades=101 win_rate=81.19% expectancy=1.84R total=186.00R max_dd=-3.00R
+2026-06-14 22:48:38,001 - INFO - Reports written to data\backtests
+2026-06-14 22:48:46,331 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-14 22:48:47,501 - INFO - OB Mitigation Portfolio Summary: trades=108 win_rate=72.22% expectancy=1.53R total=165.00R max_dd=-3.00R
+2026-06-14 22:48:47,502 - INFO - Reports written to data\backtests
+2026-06-14 22:48:56,232 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-14 22:48:57,391 - INFO - OB Mitigation Portfolio Summary: trades=172 win_rate=80.81% expectancy=1.83R total=314.50R max_dd=-5.00R
+2026-06-14 22:48:57,391 - INFO - Reports written to data\backtests
+2026-06-14 22:49:10,170 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-14 22:49:11,305 - INFO - OB Mitigation Portfolio Summary: trades=79 win_rate=48.10% expectancy=1.56R total=122.85R max_dd=-7.00R
+2026-06-14 22:49:11,305 - INFO - Reports written to data\backtests
+2026-06-14 22:59:02,337 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-14 22:59:02,342 - INFO - Starting MTF Order Block & SFP Grid Search optimization on 3 symbols...
+2026-06-14 22:59:04,964 - INFO - [10/48] Trig=none, SL=1m_atr_1.5, Strat=Debit Spread -> Trades=317, WR=46.37%, Expectancy=-0.07R
+2026-06-14 22:59:06,282 - INFO - [20/48] Trig=ma_crossover, SL=1m_candle_low, Strat=Ratio -> Trades=85, WR=44.71%, Expectancy=0.56R
+2026-06-14 22:59:07,447 - INFO - [30/48] Trig=sfp, SL=1m_candle_low, Strat=Debit Spread -> Trades=122, WR=38.52%, Expectancy=-0.23R
+2026-06-14 22:59:08,725 - INFO - [40/48] Trig=choch, SL=5m_origin, Strat=Ratio -> Trades=147, WR=56.46%, Expectancy=0.98R
+2026-06-14 22:59:09,839 - INFO - [48/48] Trig=choch, SL=1m_atr_1.5, Strat=Ratio -> Trades=153, WR=51.63%, Expectancy=0.81R
+2026-06-14 22:59:09,845 - INFO - Grid results written to data\backtests\ob_mitigation_optimization.csv
+2026-06-14 22:59:21,448 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-14 22:59:22,553 - INFO - Wrote backup file to data\backtests_temp\ob_mitigation_trades.csv due to permission error
+2026-06-14 22:59:22,558 - INFO - Wrote backup file to data\backtests_temp\ob_mitigation_summary.csv due to permission error
+2026-06-14 22:59:22,559 - INFO - OB Mitigation Portfolio Summary: trades=147 win_rate=56.46% expectancy=0.98R total=143.50R max_dd=-29.00R
+2026-06-14 22:59:22,559 - INFO - Reports written to data\backtests
+2026-06-14 23:12:44,441 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-14 23:12:44,444 - INFO - Starting MTF Order Block & SFP Grid Search optimization on 3 symbols...
+2026-06-14 23:13:33,725 - INFO - [10/48] Trig=none, SL=1m_atr_1.5, Strat=Debit Spread -> Trades=85, WR=69.41%, Expectancy=0.39R
+2026-06-14 23:14:21,988 - INFO - [20/48] Trig=ma_crossover, SL=1m_candle_low, Strat=Ratio -> Trades=51, WR=62.75%, Expectancy=1.20R
+2026-06-14 23:15:09,582 - INFO - [30/48] Trig=sfp, SL=1m_candle_low, Strat=Debit Spread -> Trades=59, WR=57.63%, Expectancy=0.15R
+2026-06-14 23:15:57,044 - INFO - [40/48] Trig=choch, SL=5m_origin, Strat=Ratio -> Trades=70, WR=67.14%, Expectancy=1.35R
+2026-06-14 23:16:33,766 - INFO - [48/48] Trig=choch, SL=1m_atr_1.5, Strat=Ratio -> Trades=70, WR=60.00%, Expectancy=1.10R
+2026-06-14 23:16:33,794 - INFO - Grid results written to data\backtests\ob_mitigation_optimization.csv
+2026-06-14 23:16:46,501 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-14 23:16:53,499 - INFO - OB Mitigation Portfolio Summary: trades=49 win_rate=75.51% expectancy=1.64R total=80.50R max_dd=-4.00R
+2026-06-14 23:16:53,499 - INFO - Reports written to data\backtests
+2026-06-14 23:27:01,399 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-14 23:27:01,403 - INFO - Starting MTF Order Block & SFP Grid Search optimization on 3 symbols...
+2026-06-14 23:33:37,137 - INFO - [10/48] Trig=none, SL=1m_atr_1.5, Strat=Debit Spread -> Trades=450, WR=77.56%, Expectancy=0.55R
+2026-06-14 23:40:29,125 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-14 23:40:29,126 - INFO - Starting MTF Order Block & SFP Grid Search optimization on 3 symbols...
+2026-06-14 23:43:38,067 - INFO - [10/48] Trig=none, SL=1m_atr_1.5, Strat=Debit Spread -> Trades=450, WR=77.56%, Expectancy=0.55R
+2026-06-14 23:46:47,663 - INFO - [20/48] Trig=ma_crossover, SL=1m_candle_low, Strat=Ratio -> Trades=253, WR=71.94%, Expectancy=1.50R
+2026-06-14 23:49:58,104 - INFO - [30/48] Trig=sfp, SL=1m_candle_low, Strat=Debit Spread -> Trades=299, WR=64.55%, Expectancy=0.29R
+2026-06-14 23:53:06,533 - INFO - [40/48] Trig=choch, SL=5m_origin, Strat=Ratio -> Trades=374, WR=84.76%, Expectancy=1.95R
+2026-06-14 23:55:37,361 - INFO - [48/48] Trig=choch, SL=1m_atr_1.5, Strat=Ratio -> Trades=396, WR=73.74%, Expectancy=1.57R
+2026-06-14 23:55:37,365 - INFO - Grid results written to data\backtests\ob_mitigation_optimization.csv
+2026-06-14 23:55:56,483 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-14 23:56:17,209 - INFO - OB Mitigation Portfolio Summary: trades=374 win_rate=84.76% expectancy=1.95R total=728.65R max_dd=-3.00R
+2026-06-14 23:56:17,209 - INFO - Reports written to data\backtests
+2026-06-15 22:03:53,280 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-15 22:03:53,281 - INFO - Starting MTF Order Block & SFP Grid Search optimization on 3 symbols...
+2026-06-15 22:06:59,680 - INFO - [10/60] Trig=none, SL=1m_candle_low, Strat=Synthetic Future -> Trades=457, WR=76.15%, Expectancy=1.27R
+2026-06-15 22:10:04,671 - INFO - [20/60] Trig=ma_crossover, SL=5m_origin, Strat=Synthetic Future -> Trades=240, WR=79.58%, Expectancy=0.19R
+2026-06-15 22:13:13,211 - INFO - [30/60] Trig=ma_crossover, SL=1m_atr_1.5, Strat=Synthetic Future -> Trades=254, WR=69.29%, Expectancy=0.68R
+2026-06-15 22:16:24,852 - INFO - [40/60] Trig=sfp, SL=1m_candle_low, Strat=Synthetic Future -> Trades=299, WR=64.55%, Expectancy=0.53R
+2026-06-15 22:19:35,977 - INFO - [50/60] Trig=choch, SL=5m_origin, Strat=Synthetic Future -> Trades=374, WR=83.69%, Expectancy=0.20R
+2026-06-15 22:22:45,898 - INFO - [60/60] Trig=choch, SL=1m_atr_1.5, Strat=Synthetic Future -> Trades=396, WR=72.98%, Expectancy=0.40R
+2026-06-15 22:22:45,912 - INFO - Grid results written to data\backtests\ob_mitigation_optimization.csv
+2026-06-15 22:23:45,028 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-15 22:24:05,621 - INFO - Wrote backup file to data\backtests_temp\ob_mitigation_trades.csv due to permission error
+2026-06-15 22:24:05,624 - INFO - OB Mitigation Portfolio Summary: trades=299 win_rate=64.55% expectancy=1.58R total=471.65R max_dd=-5.00R
+2026-06-15 22:24:05,624 - INFO - Reports written to data\backtests
+2026-06-15 22:24:55,116 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-15 22:25:15,208 - INFO - Wrote backup file to data\backtests_temp\ob_mitigation_trades.csv due to permission error
+2026-06-15 22:25:15,209 - INFO - OB Mitigation Portfolio Summary: trades=374 win_rate=84.76% expectancy=2.37R total=885.63R max_dd=-3.00R
+2026-06-15 22:25:15,210 - INFO - Reports written to data\backtests
+2026-06-15 22:25:38,407 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-15 22:25:58,493 - INFO - Wrote backup file to data\backtests_temp\ob_mitigation_trades.csv due to permission error
+2026-06-15 22:25:58,494 - INFO - OB Mitigation Portfolio Summary: trades=374 win_rate=84.76% expectancy=2.37R total=885.63R max_dd=-3.00R
+2026-06-15 22:25:58,494 - INFO - Reports written to data\backtests
+2026-06-16 21:36:38,858 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-16 21:37:14,134 - INFO - OB Mitigation Portfolio Summary: trades=374 win_rate=84.76% expectancy=2.37R total=885.63R max_dd=-3.00R
+2026-06-16 21:37:14,135 - INFO - Reports written to data\backtests

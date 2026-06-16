@@ -1,0 +1,61 @@
+trigger_type,stop_loss_type,strategy_type,trades,win_rate,expectancy_rr,total_rr,max_drawdown_rr
+ma_crossover,5m_origin,Ratio,90,0.6222,1.1028,99.25,-9.0
+price_ma_cross,5m_origin,Ratio,102,0.5686,0.902,92.0,-13.0
+none,1m_candle_low,Debit Spread,311,0.1994,0.8675,269.8055,-55.0
+candlestick,5m_origin,Ratio,100,0.55,0.8139,81.385,-11.75
+bar_breakout,5m_origin,Ratio,125,0.512,0.72,90.0,-16.75
+none,1m_atr_1.5,Debit Spread,278,0.2158,0.6538,181.7584,-52.0
+price_ma_cross,1m_candle_low,Debit Spread,132,0.4015,0.5308,70.0701,-14.0
+price_ma_cross,1m_atr_1.5,Debit Spread,150,0.34,0.5086,76.2966,-15.0
+ma_crossover,1m_candle_low,Ratio,126,0.4127,0.4444,56.0,-10.0
+ma_crossover,1m_atr_1.5,Debit Spread,131,0.3664,0.4068,53.2871,-14.0
+price_ma_cross,1m_candle_low,Ratio,132,0.4015,0.4053,53.5,-14.0
+none,5m_origin,Debit Spread,195,0.3179,0.3845,74.9805,-49.7603
+ma_crossover,1m_candle_low,Debit Spread,126,0.4127,0.3799,47.8671,-10.17
+bar_breakout,1m_atr_1.5,Debit Spread,171,0.3158,0.3171,54.2288,-19.0
+candlestick,1m_candle_low,Debit Spread,148,0.3041,0.3045,45.0604,-17.2127
+ma_crossover,1m_atr_1.5,Ratio,131,0.3664,0.2824,37.0,-14.0
+bar_breakout,1m_candle_low,Ratio,160,0.3625,0.2687,43.0,-19.0
+none,1m_candle_low,Naked ATM Buy,311,0.1994,0.2667,82.9519,-33.455
+bar_breakout,1m_candle_low,Debit Spread,160,0.3625,0.2543,40.6909,-19.0
+price_ma_cross,5m_origin,Debit Spread,102,0.5294,0.2083,21.2439,-17.0705
+candlestick,1m_atr_1.5,Debit Spread,147,0.2993,0.2013,29.5947,-19.9137
+price_ma_cross,1m_atr_1.5,Ratio,150,0.34,0.19,28.5,-15.0
+ma_crossover,5m_origin,Credit Spread,90,0.5889,0.1839,16.5516,-9.7816
+none,1m_atr_1.5,Naked ATM Buy,278,0.2158,0.1618,44.9704,-41.1064
+price_ma_cross,1m_candle_low,Naked ATM Buy,132,0.3712,0.1344,17.739,-7.1889
+candlestick,5m_origin,Debit Spread,100,0.5,0.1343,13.4277,-19.5977
+none,5m_origin,Ratio,195,0.3385,0.1279,24.9375,-49.5
+price_ma_cross,1m_atr_1.5,Naked ATM Buy,150,0.3133,0.122,18.3007,-7.9017
+bar_breakout,1m_atr_1.5,Ratio,171,0.3158,0.1053,18.0,-19.0
+candlestick,1m_candle_low,Ratio,148,0.3108,0.0878,13.0,-23.0
+candlestick,1m_atr_1.5,Ratio,147,0.3061,0.0714,10.5,-21.0
+price_ma_cross,5m_origin,Credit Spread,102,0.5294,0.0693,7.0646,-13.7425
+ma_crossover,1m_atr_1.5,Naked ATM Buy,131,0.3359,0.0642,8.4068,-7.3561
+bar_breakout,1m_atr_1.5,Naked ATM Buy,171,0.2924,0.0622,10.6378,-10.9346
+ma_crossover,1m_candle_low,Naked ATM Buy,126,0.381,0.0527,6.6386,-5.7798
+bar_breakout,1m_candle_low,Naked ATM Buy,160,0.3375,0.043,6.872,-9.7698
+candlestick,1m_candle_low,Naked ATM Buy,148,0.277,0.0416,6.1587,-11.7899
+candlestick,5m_origin,Credit Spread,100,0.51,0.0308,3.0772,-17.7274
+bar_breakout,5m_origin,Debit Spread,125,0.48,0.0305,3.8081,-21.2172
+none,5m_origin,Naked ATM Buy,195,0.3179,0.0192,3.7473,-40.8279
+candlestick,1m_atr_1.5,Naked ATM Buy,147,0.2789,0.0132,1.9454,-12.9027
+ma_crossover,5m_origin,Debit Spread,90,0.5889,0.0072,0.6472,-12.1258
+price_ma_cross,5m_origin,Naked ATM Buy,102,0.4804,-0.0097,-0.9859,-12.8335
+bar_breakout,5m_origin,Credit Spread,125,0.48,-0.0312,-3.8954,-24.6786
+candlestick,5m_origin,Naked ATM Buy,100,0.43,-0.0458,-4.583,-14.5802
+bar_breakout,5m_origin,Naked ATM Buy,125,0.44,-0.0686,-8.5703,-13.1642
+ma_crossover,5m_origin,Naked ATM Buy,90,0.5333,-0.097,-8.7256,-10.5656
+ma_crossover,1m_candle_low,Credit Spread,126,0.4127,-0.1746,-22.0,-27.0
+price_ma_cross,1m_candle_low,Credit Spread,132,0.4015,-0.197,-26.0,-30.0
+none,1m_atr_1.5,Ratio,278,0.2158,-0.2446,-68.0,-91.5
+ma_crossover,1m_atr_1.5,Credit Spread,131,0.3664,-0.2672,-35.0,-37.0
+bar_breakout,1m_candle_low,Credit Spread,160,0.3625,-0.275,-44.0,-48.0
+none,1m_candle_low,Ratio,311,0.1994,-0.3088,-96.0362,-109.5362
+price_ma_cross,1m_atr_1.5,Credit Spread,150,0.34,-0.32,-48.0,-50.0
+none,5m_origin,Credit Spread,195,0.3179,-0.3568,-69.5754,-79.5995
+bar_breakout,1m_atr_1.5,Credit Spread,171,0.3158,-0.3684,-63.0,-65.0
+candlestick,1m_candle_low,Credit Spread,148,0.3108,-0.3784,-56.0,-58.0
+candlestick,1m_atr_1.5,Credit Spread,147,0.3061,-0.3878,-57.0,-59.0
+none,1m_atr_1.5,Credit Spread,278,0.2158,-0.5683,-158.0,-160.0
+none,1m_candle_low,Credit Spread,311,0.1994,-0.6013,-187.0,-189.0

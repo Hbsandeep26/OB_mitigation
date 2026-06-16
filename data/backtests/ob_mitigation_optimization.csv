@@ -1,0 +1,61 @@
+trigger_type,stop_loss_type,strategy_type,trades,win_rate,expectancy_rr,total_rr,max_drawdown_rr
+choch,5m_origin,Ratio,374,0.8476,1.5285,571.6747,-3.0
+none,5m_origin,Ratio,434,0.8433,1.523,660.99,-4.0
+ma_crossover,5m_origin,Ratio,240,0.8042,1.3969,335.2622,-3.0
+choch,1m_candle_low,Ratio,389,0.7763,1.3199,513.4247,-6.0
+none,1m_atr_1.5,Ratio,450,0.7733,1.3133,590.99,-5.0
+none,1m_candle_low,Ratio,457,0.7615,1.2779,583.99,-5.0
+sfp,5m_origin,Ratio,280,0.7643,1.2773,357.6407,-4.0
+none,1m_candle_low,Synthetic Future,457,0.7615,1.2701,580.4227,-5.0
+choch,1m_atr_1.5,Ratio,396,0.7374,1.2032,476.465,-6.0
+ma_crossover,1m_candle_low,Ratio,253,0.7194,1.1433,289.2622,-3.0
+none,1m_atr_1.5,Synthetic Future,450,0.7733,1.1202,504.0709,-5.0
+ma_crossover,1m_atr_1.5,Ratio,254,0.7008,1.0876,276.2622,-3.0
+sfp,1m_atr_1.5,Ratio,299,0.6622,0.9837,294.1407,-5.0
+sfp,1m_candle_low,Ratio,299,0.6455,0.9336,279.1407,-5.0
+none,5m_origin,Synthetic Future,434,0.8433,0.8681,376.7387,-4.0
+choch,5m_origin,Credit Spread,374,0.8476,0.6932,259.2407,-3.0
+none,5m_origin,Credit Spread,434,0.8456,0.6912,300.0,-4.0
+none,5m_origin,Debit Spread,434,0.8456,0.6894,299.208,-4.0
+choch,5m_origin,Debit Spread,374,0.8449,0.6848,256.1197,-3.0
+ma_crossover,1m_atr_1.5,Synthetic Future,254,0.6929,0.6755,171.5685,-3.02
+ma_crossover,5m_origin,Credit Spread,240,0.8042,0.6083,146.0,-3.0
+ma_crossover,5m_origin,Debit Spread,240,0.8042,0.5973,143.3551,-3.0
+choch,1m_candle_low,Credit Spread,389,0.7763,0.5527,215.0,-6.0
+none,1m_atr_1.5,Credit Spread,450,0.7756,0.5511,248.0,-5.0
+none,1m_atr_1.5,Debit Spread,450,0.7756,0.55,247.4803,-5.0
+choch,1m_candle_low,Debit Spread,389,0.7763,0.5486,213.3874,-6.0
+sfp,1m_candle_low,Synthetic Future,299,0.6455,0.5296,158.3563,-11.2559
+sfp,5m_origin,Credit Spread,280,0.7643,0.5278,147.7836,-4.0
+none,1m_candle_low,Credit Spread,457,0.7637,0.5274,241.0,-6.0
+none,1m_candle_low,Debit Spread,457,0.7637,0.5263,240.5191,-6.0
+sfp,5m_origin,Debit Spread,280,0.7571,0.5187,145.241,-4.0
+none,1m_candle_low,Naked ATM Buy,457,0.733,0.5166,236.1049,-2.7193
+ma_crossover,1m_candle_low,Synthetic Future,253,0.7115,0.4856,122.851,-3.7333
+choch,1m_atr_1.5,Credit Spread,396,0.7374,0.4747,188.0,-6.0
+choch,1m_atr_1.5,Debit Spread,396,0.7374,0.4706,186.3396,-6.0
+sfp,1m_atr_1.5,Synthetic Future,299,0.6622,0.4608,137.7807,-11.333
+none,1m_atr_1.5,Naked ATM Buy,450,0.74,0.4462,200.8077,-2.5523
+ma_crossover,1m_candle_low,Credit Spread,253,0.7194,0.4387,111.0,-4.0
+ma_crossover,1m_candle_low,Debit Spread,253,0.7194,0.431,109.0459,-4.0
+ma_crossover,1m_atr_1.5,Credit Spread,254,0.7008,0.4016,102.0,-4.0
+choch,1m_atr_1.5,Synthetic Future,396,0.7298,0.4004,158.5494,-7.1744
+ma_crossover,1m_atr_1.5,Debit Spread,254,0.7008,0.3952,100.373,-4.0
+none,5m_origin,Naked ATM Buy,434,0.8018,0.3427,148.7446,-2.245
+choch,1m_candle_low,Synthetic Future,389,0.7686,0.3248,126.3402,-7.7909
+sfp,1m_atr_1.5,Debit Spread,299,0.6622,0.3244,97.0,-8.0
+sfp,1m_atr_1.5,Credit Spread,299,0.6622,0.3244,97.0,-8.0
+sfp,1m_candle_low,Debit Spread,299,0.6455,0.291,87.0,-8.0
+sfp,1m_candle_low,Credit Spread,299,0.6455,0.291,87.0,-8.0
+choch,5m_origin,Synthetic Future,374,0.8369,0.2019,75.5271,-6.408
+ma_crossover,5m_origin,Synthetic Future,240,0.7958,0.1859,44.6101,-3.1194
+sfp,5m_origin,Synthetic Future,280,0.7571,0.1765,49.4324,-11.9104
+choch,1m_atr_1.5,Naked ATM Buy,396,0.5202,0.0574,22.7232,-8.9802
+choch,1m_candle_low,Naked ATM Buy,389,0.5476,0.0444,17.2889,-8.6426
+choch,5m_origin,Naked ATM Buy,374,0.5749,0.0229,8.5728,-7.3005
+ma_crossover,1m_atr_1.5,Naked ATM Buy,254,0.4843,0.0081,2.0613,-7.9934
+ma_crossover,5m_origin,Naked ATM Buy,240,0.5292,-0.007,-1.6763,-7.351
+sfp,5m_origin,Naked ATM Buy,280,0.5,-0.0097,-2.73,-14.6819
+ma_crossover,1m_candle_low,Naked ATM Buy,253,0.4901,-0.0303,-7.6606,-14.2392
+sfp,1m_atr_1.5,Naked ATM Buy,299,0.4348,-0.0434,-12.9761,-22.3115
+sfp,1m_candle_low,Naked ATM Buy,299,0.4181,-0.0556,-16.6165,-25.884
