@@ -1,0 +1,673 @@
+2026-06-16 21:36:44,750 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20600', 'buy_pe': 'P19400'}
+2026-06-16 21:36:44,759 - INFO - Selected Iron Condor prices: {'sell_ce': 50.0, 'sell_pe': 50.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 21:36:44,760 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20600.0, 'buy_pe': 19400.0, 'atm': 20000.0}
+2026-06-16 21:36:44,803 - WARNING - Regime reversal check skipped: 'BadFreshQuoteBroker' object has no attribute 'get_option_chain'
+2026-06-16 21:36:44,807 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:36:44,811 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=50)...
+2026-06-16 21:36:44,812 - INFO - Selected Execution Legs: {'sell_ce': 'C150', 'sell_pe': 'P150', 'buy_ce': 'C200', 'buy_pe': 'P100'}
+2026-06-16 21:36:44,812 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 5, 'buy_pe': 5}
+2026-06-16 21:36:44,812 - INFO - Selected Strikes: {'sell_ce': 150, 'sell_pe': 150, 'buy_ce': 200, 'buy_pe': 100}
+2026-06-16 21:36:44,819 - INFO - Deploying BTST_RECENTER command-center strategy for NIFTY...
+2026-06-16 21:36:44,840 - INFO - Command-center route standby: Telemetry baseline captured; waiting for next cumulative poll
+2026-06-16 21:36:44,840 - CRITICAL - Cannot deploy BTST_RECENTER trade: command-center route failed/standby (Telemetry baseline captured; waiting for next cumulative poll).
+2026-06-16 21:36:44,881 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:36:44,885 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:36:44,887 - WARNING - Option chain is missing Condor protective wings.
+2026-06-16 21:36:44,903 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:36:44,906 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:36:44,924 - WARNING - Regime reversal check skipped: 'PanicBroker' object has no attribute 'get_option_chain'
+2026-06-16 21:36:44,929 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:36:44,940 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 21:36:44,940 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-06-16 21:36:45,091 - INFO - Confirmed fill: BUY buy_pe qty=65 avg=4.00 order_id=o2
+2026-06-16 21:36:45,243 - INFO - Confirmed fill: SELL sell_ce qty=65 avg=20.00 order_id=o3
+2026-06-16 21:36:45,393 - INFO - Confirmed fill: SELL sell_pe qty=65 avg=21.00 order_id=o4
+2026-06-16 21:36:45,555 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=5.0)...
+2026-06-16 21:36:45,555 - INFO - Selected Execution Legs: {'sell_ce': 'C100', 'sell_pe': 'P100', 'buy_ce': 'C150', 'buy_pe': 'P50'}
+2026-06-16 21:36:45,556 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 3, 'buy_pe': 3}
+2026-06-16 21:36:45,556 - INFO - Selected Strikes: {'sell_ce': 100, 'sell_pe': 100, 'buy_ce': 150, 'buy_pe': 50}
+2026-06-16 21:36:45,581 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:36:45,587 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:36:45,629 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:36:45,648 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:36:45,653 - WARNING - EOD market context unavailable: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:36:45,657 - CRITICAL - EOD decision: EOD_SQUARE_OFF (EOD_CONTEXT_UNAVAILABLE)
+2026-06-16 21:36:45,709 - CRITICAL - EOD decision: BTST_RECENTER (NEUTRAL_BTST_PREFERS_IRON_CONDOR)
+2026-06-16 21:36:45,757 - CRITICAL - EOD decision: EOD_CARRY (NEUTRAL_STILL_ALIGNED)
+2026-06-16 21:36:45,765 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 21:36:45,766 - CRITICAL - Routing exit orders to LIVE DHAN with fill confirmation.
+2026-06-16 21:36:45,766 - CRITICAL - Failed to close sell_ce. Keeping buy_ce hedge intact. Error: sell_ce: REJECTED - 
+2026-06-16 21:36:45,766 - INFO - Confirmed fill: BUY sell_pe qty=65 avg=10.00 order_id=o2
+2026-06-16 21:36:45,917 - INFO - Confirmed fill: SELL buy_pe qty=65 avg=4.00 order_id=o3
+2026-06-16 21:36:46,077 - CRITICAL - STATE RETAINED: exit execution failed. Manual recovery required.
+2026-06-16 21:36:46,215 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20600', 'buy_pe': 'P19400'}
+2026-06-16 21:36:46,215 - INFO - Selected Iron Condor prices: {'sell_ce': 50.0, 'sell_pe': 50.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 21:36:46,215 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20600.0, 'buy_pe': 19400.0, 'atm': 20000.0}
+2026-06-16 21:36:46,235 - CRITICAL - Live funds unavailable; rejecting entry: Upstox funds response has no available equity margin
+2026-06-16 21:36:46,236 - CRITICAL - Entry rejected before order placement by position sizing: {'status': 'REJECTED', 'environment': 'LIVE', 'strategy_type': 'BTST_BEAR_CALL_CREDIT', 'index_symbol': 'NIFTY', 'lot_multiple': 65, 'available_margin': 0.0, 'usable_capital': 0.0, 'max_capital_utilization': 0.8, 'margin_per_lot': 40000.0, 'margin_source': 'LIVE_BASKET_MARGIN', 'lots_to_deploy': 0, 'quantity': 0, 'capital_deployed': 0.0, 'metadata': {'source': 'LIVE_FUNDS_UNAVAILABLE', 'requires_live_funds': True, 'error': 'Upstox funds response has no available equity margin'}, 'reason': 'Live funds unavailable'}
+2026-06-16 21:36:46,236 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:36:46,268 - CRITICAL - MANUAL EXIT TRIGGERED FROM UI. Forcing Square Off.
+2026-06-16 21:36:46,268 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:36:46,269 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 21:36:46,270 - INFO - Simulated PnL for this trade: 195.00
+2026-06-16 21:36:46,278 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 21:36:46,278 - INFO - Simulated PnL for this trade: 195.00
+2026-06-16 21:36:46,334 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:36:46,337 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:36:46,354 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:36:46,357 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:36:46,361 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 21:36:46,361 - CRITICAL - Partial fill during entry: buy_ce: unexpected fill quantity 10/65
+2026-06-16 21:36:46,361 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-06-16 21:36:46,361 - INFO - Confirmed fill: SELL buy_ce qty=10 avg=5.00 order_id=o2
+2026-06-16 21:36:46,361 - INFO - Rollback confirmed for buy_ce: o2
+2026-06-16 21:36:46,391 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 21:36:46,391 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-06-16 21:36:46,542 - CRITICAL - Basket execution failed before full confirmation: buy_pe: REJECTED - 
+2026-06-16 21:36:46,542 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-06-16 21:36:46,542 - INFO - Confirmed fill: SELL buy_ce qty=65 avg=5.00 order_id=o3
+2026-06-16 21:36:46,542 - INFO - Rollback confirmed for buy_ce: o3
+2026-06-16 21:36:46,653 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:36:46,661 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:36:46,694 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:36:46,699 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:36:46,706 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/5.
+2026-06-16 21:36:46,706 - INFO - Reconnecting WebSocket after 2.0s backoff.
+2026-06-16 21:36:46,714 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/3.
+2026-06-16 21:36:46,715 - INFO - Reconnecting WebSocket after 2.0s backoff.
+2026-06-16 21:36:46,716 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 2/3.
+2026-06-16 21:36:46,716 - INFO - Reconnecting WebSocket after 4.0s backoff.
+2026-06-16 21:36:46,717 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 3/3.
+2026-06-16 21:36:46,717 - INFO - Reconnecting WebSocket after 8.0s backoff.
+2026-06-16 21:36:46,740 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:36:46,748 - WARNING - EOD market context unavailable: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:36:46,755 - CRITICAL - EOD decision: EOD_SQUARE_OFF (EOD_CONTEXT_UNAVAILABLE)
+2026-06-16 21:36:46,783 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:36:46,889 - WARNING - Regime reversal check skipped: 'StableSpotBroker' object has no attribute 'get_option_chain'
+2026-06-16 21:36:46,892 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:36:46,911 - WARNING - Regime reversal check skipped: 'StableBroker' object has no attribute 'get_option_chain'
+2026-06-16 21:36:46,914 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:36:46,918 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20500', 'buy_pe': 'P19500'}
+2026-06-16 21:36:46,918 - INFO - Selected Iron Condor prices: {'sell_ce': 100.0, 'sell_pe': 100.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 21:36:46,918 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20500.0, 'buy_pe': 19500.0, 'atm': 20000.0}
+2026-06-16 21:36:46,925 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=7.0)...
+2026-06-16 21:36:46,925 - INFO - Selected Execution Legs: {'sell_ce': 'C100', 'sell_pe': 'P100', 'buy_ce': 'C150', 'buy_pe': 'P50'}
+2026-06-16 21:36:46,925 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 2, 'buy_pe': 2}
+2026-06-16 21:36:46,925 - INFO - Selected Strikes: {'sell_ce': 100, 'sell_pe': 100, 'buy_ce': 150, 'buy_pe': 50}
+2026-06-16 21:39:27,776 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20600', 'buy_pe': 'P19400'}
+2026-06-16 21:39:27,776 - INFO - Selected Iron Condor prices: {'sell_ce': 50.0, 'sell_pe': 50.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 21:39:27,776 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20600.0, 'buy_pe': 19400.0, 'atm': 20000.0}
+2026-06-16 21:39:27,832 - WARNING - Regime reversal check skipped: 'BadFreshQuoteBroker' object has no attribute 'get_option_chain'
+2026-06-16 21:39:27,835 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:39:27,840 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=50)...
+2026-06-16 21:39:27,840 - INFO - Selected Execution Legs: {'sell_ce': 'C150', 'sell_pe': 'P150', 'buy_ce': 'C200', 'buy_pe': 'P100'}
+2026-06-16 21:39:27,840 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 5, 'buy_pe': 5}
+2026-06-16 21:39:27,840 - INFO - Selected Strikes: {'sell_ce': 150, 'sell_pe': 150, 'buy_ce': 200, 'buy_pe': 100}
+2026-06-16 21:39:27,847 - INFO - Deploying BTST_RECENTER command-center strategy for NIFTY...
+2026-06-16 21:39:27,870 - INFO - Command-center route standby: Telemetry baseline captured; waiting for next cumulative poll
+2026-06-16 21:39:27,871 - CRITICAL - Cannot deploy BTST_RECENTER trade: command-center route failed/standby (Telemetry baseline captured; waiting for next cumulative poll).
+2026-06-16 21:39:27,898 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:39:27,899 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:39:27,905 - WARNING - Option chain is missing Condor protective wings.
+2026-06-16 21:39:27,920 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:39:27,923 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:39:27,940 - WARNING - Regime reversal check skipped: 'PanicBroker' object has no attribute 'get_option_chain'
+2026-06-16 21:39:27,943 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:39:27,960 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 21:39:27,960 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-06-16 21:39:28,112 - INFO - Confirmed fill: BUY buy_pe qty=65 avg=4.00 order_id=o2
+2026-06-16 21:39:28,263 - INFO - Confirmed fill: SELL sell_ce qty=65 avg=20.00 order_id=o3
+2026-06-16 21:39:28,413 - INFO - Confirmed fill: SELL sell_pe qty=65 avg=21.00 order_id=o4
+2026-06-16 21:39:28,574 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=5.0)...
+2026-06-16 21:39:28,574 - INFO - Selected Execution Legs: {'sell_ce': 'C100', 'sell_pe': 'P100', 'buy_ce': 'C150', 'buy_pe': 'P50'}
+2026-06-16 21:39:28,574 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 3, 'buy_pe': 3}
+2026-06-16 21:39:28,574 - INFO - Selected Strikes: {'sell_ce': 100, 'sell_pe': 100, 'buy_ce': 150, 'buy_pe': 50}
+2026-06-16 21:39:28,596 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:39:28,600 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:39:28,687 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:39:28,705 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:39:28,711 - WARNING - EOD market context unavailable: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:39:28,713 - CRITICAL - EOD decision: EOD_SQUARE_OFF (EOD_CONTEXT_UNAVAILABLE)
+2026-06-16 21:39:28,755 - CRITICAL - EOD decision: BTST_RECENTER (NEUTRAL_BTST_PREFERS_IRON_CONDOR)
+2026-06-16 21:39:28,798 - CRITICAL - EOD decision: EOD_CARRY (NEUTRAL_STILL_ALIGNED)
+2026-06-16 21:39:28,805 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 21:39:28,805 - CRITICAL - Routing exit orders to LIVE DHAN with fill confirmation.
+2026-06-16 21:39:28,805 - CRITICAL - Failed to close sell_ce. Keeping buy_ce hedge intact. Error: sell_ce: REJECTED - 
+2026-06-16 21:39:28,805 - INFO - Confirmed fill: BUY sell_pe qty=65 avg=10.00 order_id=o2
+2026-06-16 21:39:28,956 - INFO - Confirmed fill: SELL buy_pe qty=65 avg=4.00 order_id=o3
+2026-06-16 21:39:29,141 - CRITICAL - STATE RETAINED: exit execution failed. Manual recovery required.
+2026-06-16 21:39:29,236 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20600', 'buy_pe': 'P19400'}
+2026-06-16 21:39:29,236 - INFO - Selected Iron Condor prices: {'sell_ce': 50.0, 'sell_pe': 50.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 21:39:29,236 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20600.0, 'buy_pe': 19400.0, 'atm': 20000.0}
+2026-06-16 21:39:29,245 - CRITICAL - Live funds unavailable; rejecting entry: Upstox funds response has no available equity margin
+2026-06-16 21:39:29,245 - CRITICAL - Entry rejected before order placement by position sizing: {'status': 'REJECTED', 'environment': 'LIVE', 'strategy_type': 'BTST_BEAR_CALL_CREDIT', 'index_symbol': 'NIFTY', 'lot_multiple': 65, 'available_margin': 0.0, 'usable_capital': 0.0, 'max_capital_utilization': 0.8, 'margin_per_lot': 40000.0, 'margin_source': 'LIVE_BASKET_MARGIN', 'lots_to_deploy': 0, 'quantity': 0, 'capital_deployed': 0.0, 'metadata': {'source': 'LIVE_FUNDS_UNAVAILABLE', 'requires_live_funds': True, 'error': 'Upstox funds response has no available equity margin'}, 'reason': 'Live funds unavailable'}
+2026-06-16 21:39:29,246 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:39:29,259 - CRITICAL - MANUAL EXIT TRIGGERED FROM UI. Forcing Square Off.
+2026-06-16 21:39:29,260 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:39:29,260 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 21:39:29,261 - INFO - Simulated PnL for this trade: 195.00
+2026-06-16 21:39:29,266 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 21:39:29,267 - INFO - Simulated PnL for this trade: 195.00
+2026-06-16 21:39:29,311 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:39:29,315 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:39:29,330 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:39:29,333 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:39:29,338 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 21:39:29,339 - CRITICAL - Partial fill during entry: buy_ce: unexpected fill quantity 10/65
+2026-06-16 21:39:29,339 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-06-16 21:39:29,339 - INFO - Confirmed fill: SELL buy_ce qty=10 avg=5.00 order_id=o2
+2026-06-16 21:39:29,339 - INFO - Rollback confirmed for buy_ce: o2
+2026-06-16 21:39:29,361 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 21:39:29,361 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-06-16 21:39:29,512 - CRITICAL - Basket execution failed before full confirmation: buy_pe: REJECTED - 
+2026-06-16 21:39:29,512 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-06-16 21:39:29,512 - INFO - Confirmed fill: SELL buy_ce qty=65 avg=5.00 order_id=o3
+2026-06-16 21:39:29,512 - INFO - Rollback confirmed for buy_ce: o3
+2026-06-16 21:39:29,550 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:39:29,557 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:39:29,581 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:39:29,585 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:39:29,589 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/5.
+2026-06-16 21:39:29,590 - INFO - Reconnecting WebSocket after 2.0s backoff.
+2026-06-16 21:39:29,594 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/3.
+2026-06-16 21:39:29,594 - INFO - Reconnecting WebSocket after 2.0s backoff.
+2026-06-16 21:39:29,595 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 2/3.
+2026-06-16 21:39:29,595 - INFO - Reconnecting WebSocket after 4.0s backoff.
+2026-06-16 21:39:29,595 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 3/3.
+2026-06-16 21:39:29,595 - INFO - Reconnecting WebSocket after 8.0s backoff.
+2026-06-16 21:39:29,609 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:39:29,613 - WARNING - EOD market context unavailable: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:39:29,618 - CRITICAL - EOD decision: EOD_SQUARE_OFF (EOD_CONTEXT_UNAVAILABLE)
+2026-06-16 21:39:29,637 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:39:29,719 - WARNING - Regime reversal check skipped: 'StableSpotBroker' object has no attribute 'get_option_chain'
+2026-06-16 21:39:29,721 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:39:29,738 - WARNING - Regime reversal check skipped: 'StableBroker' object has no attribute 'get_option_chain'
+2026-06-16 21:39:29,740 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:39:29,744 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20500', 'buy_pe': 'P19500'}
+2026-06-16 21:39:29,744 - INFO - Selected Iron Condor prices: {'sell_ce': 100.0, 'sell_pe': 100.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 21:39:29,745 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20500.0, 'buy_pe': 19500.0, 'atm': 20000.0}
+2026-06-16 21:39:29,747 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=7.0)...
+2026-06-16 21:39:29,747 - INFO - Selected Execution Legs: {'sell_ce': 'C100', 'sell_pe': 'P100', 'buy_ce': 'C150', 'buy_pe': 'P50'}
+2026-06-16 21:39:29,747 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 2, 'buy_pe': 2}
+2026-06-16 21:39:29,748 - INFO - Selected Strikes: {'sell_ce': 100, 'sell_pe': 100, 'buy_ce': 150, 'buy_pe': 50}
+2026-06-16 21:40:37,616 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20600', 'buy_pe': 'P19400'}
+2026-06-16 21:40:37,616 - INFO - Selected Iron Condor prices: {'sell_ce': 50.0, 'sell_pe': 50.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 21:40:37,623 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20600.0, 'buy_pe': 19400.0, 'atm': 20000.0}
+2026-06-16 21:40:37,673 - WARNING - Regime reversal check skipped: 'BadFreshQuoteBroker' object has no attribute 'get_option_chain'
+2026-06-16 21:40:37,677 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:40:37,682 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=50)...
+2026-06-16 21:40:37,683 - INFO - Selected Execution Legs: {'sell_ce': 'C150', 'sell_pe': 'P150', 'buy_ce': 'C200', 'buy_pe': 'P100'}
+2026-06-16 21:40:37,683 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 5, 'buy_pe': 5}
+2026-06-16 21:40:37,683 - INFO - Selected Strikes: {'sell_ce': 150, 'sell_pe': 150, 'buy_ce': 200, 'buy_pe': 100}
+2026-06-16 21:40:37,691 - INFO - Deploying BTST_RECENTER command-center strategy for NIFTY...
+2026-06-16 21:40:37,716 - INFO - Command-center route standby: Telemetry baseline captured; waiting for next cumulative poll
+2026-06-16 21:40:37,716 - CRITICAL - Cannot deploy BTST_RECENTER trade: command-center route failed/standby (Telemetry baseline captured; waiting for next cumulative poll).
+2026-06-16 21:40:37,744 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:40:37,747 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:40:37,751 - WARNING - Option chain is missing Condor protective wings.
+2026-06-16 21:40:37,769 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:40:37,771 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:40:37,787 - WARNING - Regime reversal check skipped: 'PanicBroker' object has no attribute 'get_option_chain'
+2026-06-16 21:40:37,789 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:40:37,802 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 21:40:37,802 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-06-16 21:40:37,954 - INFO - Confirmed fill: BUY buy_pe qty=65 avg=4.00 order_id=o2
+2026-06-16 21:40:38,105 - INFO - Confirmed fill: SELL sell_ce qty=65 avg=20.00 order_id=o3
+2026-06-16 21:40:38,256 - INFO - Confirmed fill: SELL sell_pe qty=65 avg=21.00 order_id=o4
+2026-06-16 21:40:38,417 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=5.0)...
+2026-06-16 21:40:38,417 - INFO - Selected Execution Legs: {'sell_ce': 'C100', 'sell_pe': 'P100', 'buy_ce': 'C150', 'buy_pe': 'P50'}
+2026-06-16 21:40:38,417 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 3, 'buy_pe': 3}
+2026-06-16 21:40:38,418 - INFO - Selected Strikes: {'sell_ce': 100, 'sell_pe': 100, 'buy_ce': 150, 'buy_pe': 50}
+2026-06-16 21:40:38,443 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:40:38,445 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:40:38,493 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:40:38,514 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:40:38,519 - WARNING - EOD market context unavailable: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:40:38,525 - CRITICAL - EOD decision: EOD_SQUARE_OFF (EOD_CONTEXT_UNAVAILABLE)
+2026-06-16 21:40:38,580 - CRITICAL - EOD decision: BTST_RECENTER (NEUTRAL_BTST_PREFERS_IRON_CONDOR)
+2026-06-16 21:40:38,635 - CRITICAL - EOD decision: EOD_CARRY (NEUTRAL_STILL_ALIGNED)
+2026-06-16 21:40:38,644 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 21:40:38,645 - CRITICAL - Routing exit orders to LIVE DHAN with fill confirmation.
+2026-06-16 21:40:38,645 - CRITICAL - Failed to close sell_ce. Keeping buy_ce hedge intact. Error: sell_ce: REJECTED - 
+2026-06-16 21:40:38,645 - INFO - Confirmed fill: BUY sell_pe qty=65 avg=10.00 order_id=o2
+2026-06-16 21:40:38,797 - INFO - Confirmed fill: SELL buy_pe qty=65 avg=4.00 order_id=o3
+2026-06-16 21:40:38,953 - CRITICAL - STATE RETAINED: exit execution failed. Manual recovery required.
+2026-06-16 21:40:39,077 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20600', 'buy_pe': 'P19400'}
+2026-06-16 21:40:39,079 - INFO - Selected Iron Condor prices: {'sell_ce': 50.0, 'sell_pe': 50.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 21:40:39,079 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20600.0, 'buy_pe': 19400.0, 'atm': 20000.0}
+2026-06-16 21:40:39,091 - CRITICAL - Live funds unavailable; rejecting entry: Upstox funds response has no available equity margin
+2026-06-16 21:40:39,092 - CRITICAL - Entry rejected before order placement by position sizing: {'status': 'REJECTED', 'environment': 'LIVE', 'strategy_type': 'BTST_BEAR_CALL_CREDIT', 'index_symbol': 'NIFTY', 'lot_multiple': 65, 'available_margin': 0.0, 'usable_capital': 0.0, 'max_capital_utilization': 0.8, 'margin_per_lot': 40000.0, 'margin_source': 'LIVE_BASKET_MARGIN', 'lots_to_deploy': 0, 'quantity': 0, 'capital_deployed': 0.0, 'metadata': {'source': 'LIVE_FUNDS_UNAVAILABLE', 'requires_live_funds': True, 'error': 'Upstox funds response has no available equity margin'}, 'reason': 'Live funds unavailable'}
+2026-06-16 21:40:39,092 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:40:39,107 - CRITICAL - MANUAL EXIT TRIGGERED FROM UI. Forcing Square Off.
+2026-06-16 21:40:39,107 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:40:39,108 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 21:40:39,108 - INFO - Simulated PnL for this trade: 195.00
+2026-06-16 21:40:39,115 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 21:40:39,116 - INFO - Simulated PnL for this trade: 195.00
+2026-06-16 21:40:39,168 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:40:39,172 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:40:39,190 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:40:39,193 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:40:39,197 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 21:40:39,197 - CRITICAL - Partial fill during entry: buy_ce: unexpected fill quantity 10/65
+2026-06-16 21:40:39,197 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-06-16 21:40:39,197 - INFO - Confirmed fill: SELL buy_ce qty=10 avg=5.00 order_id=o2
+2026-06-16 21:40:39,197 - INFO - Rollback confirmed for buy_ce: o2
+2026-06-16 21:40:39,202 - INFO - ATM_DRIFT re-entry allowed: premium change 0.00%, spot change 0.05%.
+2026-06-16 21:40:39,205 - CRITICAL - CATASTROPHE_KILL re-entry blocked: fresh entry cutoff 15:10 has passed.
+2026-06-16 21:40:39,210 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 21:40:39,210 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-06-16 21:40:39,361 - CRITICAL - Basket execution failed before full confirmation: buy_pe: REJECTED - 
+2026-06-16 21:40:39,361 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-06-16 21:40:39,361 - INFO - Confirmed fill: SELL buy_ce qty=65 avg=5.00 order_id=o3
+2026-06-16 21:40:39,361 - INFO - Rollback confirmed for buy_ce: o3
+2026-06-16 21:40:39,397 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:40:39,401 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:40:39,420 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:40:39,426 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:40:39,431 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/5.
+2026-06-16 21:40:39,431 - INFO - Reconnecting WebSocket after 2.0s backoff.
+2026-06-16 21:40:39,435 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/3.
+2026-06-16 21:40:39,435 - INFO - Reconnecting WebSocket after 2.0s backoff.
+2026-06-16 21:40:39,435 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 2/3.
+2026-06-16 21:40:39,436 - INFO - Reconnecting WebSocket after 4.0s backoff.
+2026-06-16 21:40:39,436 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 3/3.
+2026-06-16 21:40:39,436 - INFO - Reconnecting WebSocket after 8.0s backoff.
+2026-06-16 21:40:39,450 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:40:39,455 - WARNING - EOD market context unavailable: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:40:39,459 - CRITICAL - EOD decision: EOD_SQUARE_OFF (EOD_CONTEXT_UNAVAILABLE)
+2026-06-16 21:40:39,476 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:40:39,557 - WARNING - Regime reversal check skipped: 'StableSpotBroker' object has no attribute 'get_option_chain'
+2026-06-16 21:40:39,560 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:40:39,572 - WARNING - Regime reversal check skipped: 'StableBroker' object has no attribute 'get_option_chain'
+2026-06-16 21:40:39,576 - CRITICAL - SNIPER TARGET HIT at 100.00%. Exiting.
+2026-06-16 21:40:39,579 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20500', 'buy_pe': 'P19500'}
+2026-06-16 21:40:39,579 - INFO - Selected Iron Condor prices: {'sell_ce': 100.0, 'sell_pe': 100.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 21:40:39,579 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20500.0, 'buy_pe': 19500.0, 'atm': 20000.0}
+2026-06-16 21:40:39,583 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=7.0)...
+2026-06-16 21:40:39,583 - INFO - Selected Execution Legs: {'sell_ce': 'C100', 'sell_pe': 'P100', 'buy_ce': 'C150', 'buy_pe': 'P50'}
+2026-06-16 21:40:39,583 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 2, 'buy_pe': 2}
+2026-06-16 21:40:39,583 - INFO - Selected Strikes: {'sell_ce': 100, 'sell_pe': 100, 'buy_ce': 150, 'buy_pe': 50}
+2026-06-16 21:43:06,484 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20600', 'buy_pe': 'P19400'}
+2026-06-16 21:43:06,486 - INFO - Selected Iron Condor prices: {'sell_ce': 50.0, 'sell_pe': 50.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 21:43:06,486 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20600.0, 'buy_pe': 19400.0, 'atm': 20000.0}
+2026-06-16 21:43:06,536 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=50)...
+2026-06-16 21:43:06,536 - INFO - Selected Execution Legs: {'sell_ce': 'C150', 'sell_pe': 'P150', 'buy_ce': 'C200', 'buy_pe': 'P100'}
+2026-06-16 21:43:06,536 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 5, 'buy_pe': 5}
+2026-06-16 21:43:06,536 - INFO - Selected Strikes: {'sell_ce': 150, 'sell_pe': 150, 'buy_ce': 200, 'buy_pe': 100}
+2026-06-16 21:43:06,548 - INFO - Deploying BTST_RECENTER command-center strategy for NIFTY...
+2026-06-16 21:43:06,573 - INFO - Command-center route standby: Telemetry baseline captured; waiting for next cumulative poll
+2026-06-16 21:43:06,573 - CRITICAL - Cannot deploy BTST_RECENTER trade: command-center route failed/standby (Telemetry baseline captured; waiting for next cumulative poll).
+2026-06-16 21:43:06,607 - WARNING - Option chain is missing Condor protective wings.
+2026-06-16 21:43:06,654 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 21:43:06,654 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-06-16 21:43:06,805 - INFO - Confirmed fill: BUY buy_pe qty=65 avg=4.00 order_id=o2
+2026-06-16 21:43:06,956 - INFO - Confirmed fill: SELL sell_ce qty=65 avg=20.00 order_id=o3
+2026-06-16 21:43:07,108 - INFO - Confirmed fill: SELL sell_pe qty=65 avg=21.00 order_id=o4
+2026-06-16 21:43:07,268 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=5.0)...
+2026-06-16 21:43:07,269 - INFO - Selected Execution Legs: {'sell_ce': 'C100', 'sell_pe': 'P100', 'buy_ce': 'C150', 'buy_pe': 'P50'}
+2026-06-16 21:43:07,269 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 3, 'buy_pe': 3}
+2026-06-16 21:43:07,269 - INFO - Selected Strikes: {'sell_ce': 100, 'sell_pe': 100, 'buy_ce': 150, 'buy_pe': 50}
+2026-06-16 21:43:07,346 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:43:07,430 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 21:43:07,430 - CRITICAL - Routing exit orders to LIVE DHAN with fill confirmation.
+2026-06-16 21:43:07,431 - CRITICAL - Failed to close sell_ce. Keeping buy_ce hedge intact. Error: sell_ce: REJECTED - 
+2026-06-16 21:43:07,431 - INFO - Confirmed fill: BUY sell_pe qty=65 avg=10.00 order_id=o2
+2026-06-16 21:43:07,582 - INFO - Confirmed fill: SELL buy_pe qty=65 avg=4.00 order_id=o3
+2026-06-16 21:43:07,736 - CRITICAL - STATE RETAINED: exit execution failed. Manual recovery required.
+2026-06-16 21:43:07,838 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20600', 'buy_pe': 'P19400'}
+2026-06-16 21:43:07,838 - INFO - Selected Iron Condor prices: {'sell_ce': 50.0, 'sell_pe': 50.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 21:43:07,838 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20600.0, 'buy_pe': 19400.0, 'atm': 20000.0}
+2026-06-16 21:43:07,851 - CRITICAL - Live funds unavailable; rejecting entry: Upstox funds response has no available equity margin
+2026-06-16 21:43:07,851 - CRITICAL - Entry rejected before order placement by position sizing: {'status': 'REJECTED', 'environment': 'LIVE', 'strategy_type': 'BTST_BEAR_CALL_CREDIT', 'index_symbol': 'NIFTY', 'lot_multiple': 65, 'available_margin': 0.0, 'usable_capital': 0.0, 'max_capital_utilization': 0.8, 'margin_per_lot': 40000.0, 'margin_source': 'LIVE_BASKET_MARGIN', 'lots_to_deploy': 0, 'quantity': 0, 'capital_deployed': 0.0, 'metadata': {'source': 'LIVE_FUNDS_UNAVAILABLE', 'requires_live_funds': True, 'error': 'Upstox funds response has no available equity margin'}, 'reason': 'Live funds unavailable'}
+2026-06-16 21:43:07,851 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:43:07,868 - CRITICAL - MANUAL EXIT TRIGGERED FROM UI. Forcing Square Off.
+2026-06-16 21:43:07,868 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:43:07,868 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 21:43:07,869 - INFO - Simulated PnL for this trade: 195.00
+2026-06-16 21:43:07,875 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 21:43:07,876 - INFO - Simulated PnL for this trade: 195.00
+2026-06-16 21:43:07,947 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 21:43:07,948 - CRITICAL - Partial fill during entry: buy_ce: unexpected fill quantity 10/65
+2026-06-16 21:43:07,948 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-06-16 21:43:07,949 - INFO - Confirmed fill: SELL buy_ce qty=10 avg=5.00 order_id=o2
+2026-06-16 21:43:07,949 - INFO - Rollback confirmed for buy_ce: o2
+2026-06-16 21:43:07,952 - INFO - ATM_DRIFT re-entry allowed: premium change 0.00%, spot change 0.05%.
+2026-06-16 21:43:07,954 - CRITICAL - CATASTROPHE_KILL re-entry blocked: fresh entry cutoff 15:10 has passed.
+2026-06-16 21:43:07,958 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 21:43:07,958 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-06-16 21:43:08,108 - CRITICAL - Basket execution failed before full confirmation: buy_pe: REJECTED - 
+2026-06-16 21:43:08,108 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-06-16 21:43:08,108 - INFO - Confirmed fill: SELL buy_ce qty=65 avg=5.00 order_id=o3
+2026-06-16 21:43:08,108 - INFO - Rollback confirmed for buy_ce: o3
+2026-06-16 21:43:08,172 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/5.
+2026-06-16 21:43:08,172 - INFO - Reconnecting WebSocket after 2.0s backoff.
+2026-06-16 21:43:08,176 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/3.
+2026-06-16 21:43:08,177 - INFO - Reconnecting WebSocket after 2.0s backoff.
+2026-06-16 21:43:08,177 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 2/3.
+2026-06-16 21:43:08,177 - INFO - Reconnecting WebSocket after 4.0s backoff.
+2026-06-16 21:43:08,177 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 3/3.
+2026-06-16 21:43:08,178 - INFO - Reconnecting WebSocket after 8.0s backoff.
+2026-06-16 21:43:08,329 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20500', 'buy_pe': 'P19500'}
+2026-06-16 21:43:08,329 - INFO - Selected Iron Condor prices: {'sell_ce': 100.0, 'sell_pe': 100.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 21:43:08,329 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20500.0, 'buy_pe': 19500.0, 'atm': 20000.0}
+2026-06-16 21:43:08,334 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=7.0)...
+2026-06-16 21:43:08,334 - INFO - Selected Execution Legs: {'sell_ce': 'C100', 'sell_pe': 'P100', 'buy_ce': 'C150', 'buy_pe': 'P50'}
+2026-06-16 21:43:08,335 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 2, 'buy_pe': 2}
+2026-06-16 21:43:08,335 - INFO - Selected Strikes: {'sell_ce': 100, 'sell_pe': 100, 'buy_ce': 150, 'buy_pe': 50}
+2026-06-16 21:44:26,146 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20600', 'buy_pe': 'P19400'}
+2026-06-16 21:44:26,146 - INFO - Selected Iron Condor prices: {'sell_ce': 50.0, 'sell_pe': 50.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 21:44:26,147 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20600.0, 'buy_pe': 19400.0, 'atm': 20000.0}
+2026-06-16 21:44:26,202 - WARNING - Regime reversal check skipped: 'BadFreshQuoteBroker' object has no attribute 'get_option_chain'
+2026-06-16 21:44:26,206 - CRITICAL - ATM DRIFT EJECTOR: 0.42x >= 0.20x.
+2026-06-16 21:44:26,206 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 21:44:26,207 - INFO - Simulated PnL for this trade: 234.00
+2026-06-16 21:44:26,212 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=50)...
+2026-06-16 21:44:26,213 - INFO - Selected Execution Legs: {'sell_ce': 'C150', 'sell_pe': 'P150', 'buy_ce': 'C200', 'buy_pe': 'P100'}
+2026-06-16 21:44:26,213 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 5, 'buy_pe': 5}
+2026-06-16 21:44:26,213 - INFO - Selected Strikes: {'sell_ce': 150, 'sell_pe': 150, 'buy_ce': 200, 'buy_pe': 100}
+2026-06-16 21:44:26,227 - INFO - Deploying BTST_RECENTER command-center strategy for NIFTY...
+2026-06-16 21:44:26,269 - INFO - Command-center route standby: Telemetry baseline captured; waiting for next cumulative poll
+2026-06-16 21:44:26,269 - CRITICAL - Cannot deploy BTST_RECENTER trade: command-center route failed/standby (Telemetry baseline captured; waiting for next cumulative poll).
+2026-06-16 21:44:26,306 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:44:26,310 - CRITICAL - CATASTROPHE KILL: live net 36.00 >= 31.50.
+2026-06-16 21:44:26,318 - WARNING - Option chain is missing Condor protective wings.
+2026-06-16 21:44:26,341 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:44:26,354 - CRITICAL - ATM DRIFT EJECTOR: 0.50 pts >= 0.40 pts.
+2026-06-16 21:44:26,367 - WARNING - Regime reversal check skipped: 'PanicBroker' object has no attribute 'get_option_chain'
+2026-06-16 21:44:26,372 - CRITICAL - CATASTROPHE KILL: live net 38.00 >= 31.50.
+2026-06-16 21:44:26,383 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 21:44:26,383 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-06-16 21:44:26,534 - INFO - Confirmed fill: BUY buy_pe qty=65 avg=4.00 order_id=o2
+2026-06-16 21:44:26,686 - INFO - Confirmed fill: SELL sell_ce qty=65 avg=20.00 order_id=o3
+2026-06-16 21:44:26,837 - INFO - Confirmed fill: SELL sell_pe qty=65 avg=21.00 order_id=o4
+2026-06-16 21:44:27,002 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=5.0)...
+2026-06-16 21:44:27,003 - INFO - Selected Execution Legs: {'sell_ce': 'C100', 'sell_pe': 'P100', 'buy_ce': 'C150', 'buy_pe': 'P50'}
+2026-06-16 21:44:27,003 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 3, 'buy_pe': 3}
+2026-06-16 21:44:27,003 - INFO - Selected Strikes: {'sell_ce': 100, 'sell_pe': 100, 'buy_ce': 150, 'buy_pe': 50}
+2026-06-16 21:44:27,047 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:44:27,054 - CRITICAL - ATM DRIFT EJECTOR: 0.35x >= 0.20x.
+2026-06-16 21:44:27,122 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:44:27,159 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:44:27,172 - WARNING - EOD market context unavailable: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:44:27,181 - CRITICAL - EOD decision: EOD_SQUARE_OFF (EOD_CONTEXT_UNAVAILABLE)
+2026-06-16 21:44:27,253 - CRITICAL - EOD decision: BTST_RECENTER (NEUTRAL_BTST_PREFERS_IRON_CONDOR)
+2026-06-16 21:44:27,313 - CRITICAL - EOD decision: EOD_CARRY (NEUTRAL_STILL_ALIGNED)
+2026-06-16 21:44:27,324 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 21:44:27,325 - CRITICAL - Routing exit orders to LIVE DHAN with fill confirmation.
+2026-06-16 21:44:27,325 - CRITICAL - Failed to close sell_ce. Keeping buy_ce hedge intact. Error: sell_ce: REJECTED - 
+2026-06-16 21:44:27,326 - INFO - Confirmed fill: BUY sell_pe qty=65 avg=10.00 order_id=o2
+2026-06-16 21:44:27,476 - INFO - Confirmed fill: SELL buy_pe qty=65 avg=4.00 order_id=o3
+2026-06-16 21:44:27,633 - CRITICAL - STATE RETAINED: exit execution failed. Manual recovery required.
+2026-06-16 21:44:27,729 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20600', 'buy_pe': 'P19400'}
+2026-06-16 21:44:27,731 - INFO - Selected Iron Condor prices: {'sell_ce': 50.0, 'sell_pe': 50.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 21:44:27,731 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20600.0, 'buy_pe': 19400.0, 'atm': 20000.0}
+2026-06-16 21:44:27,743 - CRITICAL - Live funds unavailable; rejecting entry: Upstox funds response has no available equity margin
+2026-06-16 21:44:27,743 - CRITICAL - Entry rejected before order placement by position sizing: {'status': 'REJECTED', 'environment': 'LIVE', 'strategy_type': 'BTST_BEAR_CALL_CREDIT', 'index_symbol': 'NIFTY', 'lot_multiple': 65, 'available_margin': 0.0, 'usable_capital': 0.0, 'max_capital_utilization': 0.8, 'margin_per_lot': 40000.0, 'margin_source': 'LIVE_BASKET_MARGIN', 'lots_to_deploy': 0, 'quantity': 0, 'capital_deployed': 0.0, 'metadata': {'source': 'LIVE_FUNDS_UNAVAILABLE', 'requires_live_funds': True, 'error': 'Upstox funds response has no available equity margin'}, 'reason': 'Live funds unavailable'}
+2026-06-16 21:44:27,743 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:44:27,766 - CRITICAL - MANUAL EXIT TRIGGERED FROM UI. Forcing Square Off.
+2026-06-16 21:44:27,767 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:44:27,767 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 21:44:27,769 - INFO - Simulated PnL for this trade: 195.00
+2026-06-16 21:44:27,774 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 21:44:27,775 - INFO - Simulated PnL for this trade: 195.00
+2026-06-16 21:44:27,829 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:44:27,849 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:44:27,858 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 21:44:27,858 - CRITICAL - Partial fill during entry: buy_ce: unexpected fill quantity 10/65
+2026-06-16 21:44:27,859 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-06-16 21:44:27,859 - INFO - Confirmed fill: SELL buy_ce qty=10 avg=5.00 order_id=o2
+2026-06-16 21:44:27,859 - INFO - Rollback confirmed for buy_ce: o2
+2026-06-16 21:44:27,862 - INFO - ATM_DRIFT re-entry allowed: premium change 0.00%, spot change 0.05%.
+2026-06-16 21:44:27,865 - CRITICAL - CATASTROPHE_KILL re-entry blocked: fresh entry cutoff 15:10 has passed.
+2026-06-16 21:44:27,869 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 21:44:27,869 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-06-16 21:44:28,020 - CRITICAL - Basket execution failed before full confirmation: buy_pe: REJECTED - 
+2026-06-16 21:44:28,020 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-06-16 21:44:28,020 - INFO - Confirmed fill: SELL buy_ce qty=65 avg=5.00 order_id=o3
+2026-06-16 21:44:28,020 - INFO - Rollback confirmed for buy_ce: o3
+2026-06-16 21:44:28,065 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:44:28,068 - CRITICAL - SNIPER TARGET HIT at 12.00%. Exiting.
+2026-06-16 21:44:28,086 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:44:28,089 - CRITICAL - SNIPER TARGET HIT at 12.00%. Exiting.
+2026-06-16 21:44:28,093 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/5.
+2026-06-16 21:44:28,094 - INFO - Reconnecting WebSocket after 2.0s backoff.
+2026-06-16 21:44:28,097 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/3.
+2026-06-16 21:44:28,098 - INFO - Reconnecting WebSocket after 2.0s backoff.
+2026-06-16 21:44:28,098 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 2/3.
+2026-06-16 21:44:28,098 - INFO - Reconnecting WebSocket after 4.0s backoff.
+2026-06-16 21:44:28,098 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 3/3.
+2026-06-16 21:44:28,098 - INFO - Reconnecting WebSocket after 8.0s backoff.
+2026-06-16 21:44:28,150 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 21:44:28,238 - WARNING - Regime reversal check skipped: 'StableSpotBroker' object has no attribute 'get_option_chain'
+2026-06-16 21:44:28,243 - CRITICAL - Ignoring unconfirmed ATM drift: stream 0.42x / 21.00 pts, broker 0.00x / 0.00 pts.
+2026-06-16 21:44:28,278 - WARNING - Regime reversal check skipped: 'StableBroker' object has no attribute 'get_option_chain'
+2026-06-16 21:44:28,284 - CRITICAL - Ignoring unconfirmed catastrophe: stream net 36.00 >= 31.50, broker net 30.00.
+2026-06-16 21:44:28,296 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20500', 'buy_pe': 'P19500'}
+2026-06-16 21:44:28,296 - INFO - Selected Iron Condor prices: {'sell_ce': 100.0, 'sell_pe': 100.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 21:44:28,296 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20500.0, 'buy_pe': 19500.0, 'atm': 20000.0}
+2026-06-16 21:44:28,304 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=7.0)...
+2026-06-16 21:44:28,305 - INFO - Selected Execution Legs: {'sell_ce': 'C100', 'sell_pe': 'P100', 'buy_ce': 'C150', 'buy_pe': 'P50'}
+2026-06-16 21:44:28,305 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 2, 'buy_pe': 2}
+2026-06-16 21:44:28,305 - INFO - Selected Strikes: {'sell_ce': 100, 'sell_pe': 100, 'buy_ce': 150, 'buy_pe': 50}
+Traceback (most recent call last):
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1320, in <module>
+    exit_reason, exit_prices = monitor_with_reconnects(legs, rec_symbol)
+^^^^^^^^^
+KeyboardInterrupt
+6-06-16 22:43:33,666 - INFO -   ATM Drift Ejector: 0.20x
+2026-06-16 22:43:33,666 - INFO -   Catastrophe Kill: 1.30x entry net premium
+2026-06-16 22:43:33,666 - INFO -   Opening Range Gap Filter: ON (0.8% threshold, 15min settle)
+2026-06-16 22:43:33,666 - INFO -   Entry Standby Gate: fresh entries start at 09:45
+2026-06-16 22:43:33,666 - INFO -   Expiry Day Strategy: 0-DTE chains skipped; next weekly expiry used
+2026-06-16 22:43:33,666 - INFO -   Weekend Guard: ON
+2026-06-16 22:43:33,673 - INFO - Scheduling MTF-OBLT live scanner running every 1 minute.
+2026-06-16 22:43:33,673 - INFO - Waiting for scheduled events...
+2026-06-16 22:46:35,413 - ERROR - Scanner failed for symbol NIFTY: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-16 22:47:05,791 - ERROR - Scanner failed for symbol SENSEX: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-16 22:47:06,033 - ERROR - Scanner failed for symbol BANKNIFTY: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-16 22:47:06,236 - ERROR - Scanner failed for symbol RELIANCE: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-16 22:47:06,429 - ERROR - Scanner failed for symbol HDFCBANK: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-16 22:47:06,616 - ERROR - Scanner failed for symbol ICICIBANK: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-16 22:47:06,831 - ERROR - Scanner failed for symbol INFY: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-16 22:47:07,030 - ERROR - Scanner failed for symbol TCS: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-16 22:47:07,217 - ERROR - Scanner failed for symbol SBIN: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-16 22:47:37,039 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20600', 'buy_pe': 'P19400'}
+2026-06-16 22:47:37,039 - INFO - Selected Iron Condor prices: {'sell_ce': 50.0, 'sell_pe': 50.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 22:47:37,039 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20600.0, 'buy_pe': 19400.0, 'atm': 20000.0}
+2026-06-16 22:47:37,070 - WARNING - Regime reversal check skipped: 'BadFreshQuoteBroker' object has no attribute 'get_option_chain'
+2026-06-16 22:47:37,071 - CRITICAL - ATM DRIFT EJECTOR: 0.42x >= 0.20x.
+2026-06-16 22:47:37,072 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 22:47:37,072 - INFO - Simulated PnL for this trade: 234.00
+2026-06-16 22:47:37,073 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=50)...
+2026-06-16 22:47:37,073 - INFO - Selected Execution Legs: {'sell_ce': 'C150', 'sell_pe': 'P150', 'buy_ce': 'C200', 'buy_pe': 'P100'}
+2026-06-16 22:47:37,073 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 5, 'buy_pe': 5}
+2026-06-16 22:47:37,073 - INFO - Selected Strikes: {'sell_ce': 150, 'sell_pe': 150, 'buy_ce': 200, 'buy_pe': 100}
+2026-06-16 22:47:37,079 - INFO - Deploying BTST_RECENTER command-center strategy for NIFTY...
+2026-06-16 22:47:37,095 - INFO - Command-center route standby: Telemetry baseline captured; waiting for next cumulative poll
+2026-06-16 22:47:37,095 - CRITICAL - Cannot deploy BTST_RECENTER trade: command-center route failed/standby (Telemetry baseline captured; waiting for next cumulative poll).
+2026-06-16 22:47:37,116 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 22:47:37,117 - CRITICAL - CATASTROPHE KILL: live net 36.00 >= 31.50.
+2026-06-16 22:47:37,118 - WARNING - Option chain is missing Condor protective wings.
+2026-06-16 22:47:37,180 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 22:47:37,185 - CRITICAL - ATM DRIFT EJECTOR: 0.50 pts >= 0.40 pts.
+2026-06-16 22:47:37,194 - WARNING - Regime reversal check skipped: 'PanicBroker' object has no attribute 'get_option_chain'
+2026-06-16 22:47:37,197 - CRITICAL - CATASTROPHE KILL: live net 38.00 >= 31.50.
+2026-06-16 22:47:37,206 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 22:47:37,206 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-06-16 22:47:37,357 - INFO - Confirmed fill: BUY buy_pe qty=65 avg=4.00 order_id=o2
+2026-06-16 22:47:37,507 - INFO - Confirmed fill: SELL sell_ce qty=65 avg=20.00 order_id=o3
+2026-06-16 22:47:37,658 - INFO - Confirmed fill: SELL sell_pe qty=65 avg=21.00 order_id=o4
+2026-06-16 22:47:37,816 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=5.0)...
+2026-06-16 22:47:37,816 - INFO - Selected Execution Legs: {'sell_ce': 'C100', 'sell_pe': 'P100', 'buy_ce': 'C150', 'buy_pe': 'P50'}
+2026-06-16 22:47:37,816 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 3, 'buy_pe': 3}
+2026-06-16 22:47:37,816 - INFO - Selected Strikes: {'sell_ce': 100, 'sell_pe': 100, 'buy_ce': 150, 'buy_pe': 50}
+2026-06-16 22:47:37,828 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 22:47:37,830 - CRITICAL - ATM DRIFT EJECTOR: 0.35x >= 0.20x.
+2026-06-16 22:47:37,841 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 22:47:37,855 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 22:47:37,857 - WARNING - EOD market context unavailable: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 22:47:37,860 - CRITICAL - EOD decision: EOD_SQUARE_OFF (EOD_CONTEXT_UNAVAILABLE)
+2026-06-16 22:47:37,946 - CRITICAL - EOD decision: BTST_RECENTER (NEUTRAL_BTST_PREFERS_IRON_CONDOR)
+2026-06-16 22:47:37,975 - CRITICAL - EOD decision: EOD_CARRY (NEUTRAL_STILL_ALIGNED)
+2026-06-16 22:47:37,980 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 22:47:37,981 - CRITICAL - Routing exit orders to LIVE DHAN with fill confirmation.
+2026-06-16 22:47:37,981 - CRITICAL - Failed to close sell_ce. Keeping buy_ce hedge intact. Error: sell_ce: REJECTED - 
+2026-06-16 22:47:37,981 - INFO - Confirmed fill: BUY sell_pe qty=65 avg=10.00 order_id=o2
+2026-06-16 22:47:38,131 - INFO - Confirmed fill: SELL buy_pe qty=65 avg=4.00 order_id=o3
+2026-06-16 22:47:38,284 - CRITICAL - STATE RETAINED: exit execution failed. Manual recovery required.
+2026-06-16 22:47:38,346 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20600', 'buy_pe': 'P19400'}
+2026-06-16 22:47:38,346 - INFO - Selected Iron Condor prices: {'sell_ce': 50.0, 'sell_pe': 50.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 22:47:38,346 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20600.0, 'buy_pe': 19400.0, 'atm': 20000.0}
+2026-06-16 22:47:38,352 - CRITICAL - Live funds unavailable; rejecting entry: Upstox funds response has no available equity margin
+2026-06-16 22:47:38,352 - CRITICAL - Entry rejected before order placement by position sizing: {'status': 'REJECTED', 'environment': 'LIVE', 'strategy_type': 'BTST_BEAR_CALL_CREDIT', 'index_symbol': 'NIFTY', 'lot_multiple': 65, 'available_margin': 0.0, 'usable_capital': 0.0, 'max_capital_utilization': 0.8, 'margin_per_lot': 40000.0, 'margin_source': 'LIVE_BASKET_MARGIN', 'lots_to_deploy': 0, 'quantity': 0, 'capital_deployed': 0.0, 'metadata': {'source': 'LIVE_FUNDS_UNAVAILABLE', 'requires_live_funds': True, 'error': 'Upstox funds response has no available equity margin'}, 'reason': 'Live funds unavailable'}
+2026-06-16 22:47:38,352 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 22:47:38,418 - CRITICAL - MANUAL EXIT TRIGGERED FROM UI. Forcing Square Off.
+2026-06-16 22:47:38,419 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 22:47:38,419 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 22:47:38,420 - INFO - Simulated PnL for this trade: 195.00
+2026-06-16 22:47:38,423 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 22:47:38,423 - INFO - Simulated PnL for this trade: 195.00
+2026-06-16 22:47:38,509 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 22:47:38,523 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 22:47:38,528 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 22:47:38,528 - CRITICAL - Partial fill during entry: buy_ce: unexpected fill quantity 10/65
+2026-06-16 22:47:38,528 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-06-16 22:47:38,528 - INFO - Confirmed fill: SELL buy_ce qty=10 avg=5.00 order_id=o2
+2026-06-16 22:47:38,528 - INFO - Rollback confirmed for buy_ce: o2
+2026-06-16 22:47:38,530 - INFO - ATM_DRIFT re-entry allowed: premium change 0.00%, spot change 0.05%.
+2026-06-16 22:47:38,531 - CRITICAL - CATASTROPHE_KILL re-entry blocked: fresh entry cutoff 15:10 has passed.
+2026-06-16 22:47:38,533 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 22:47:38,533 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-06-16 22:47:38,684 - CRITICAL - Basket execution failed before full confirmation: buy_pe: REJECTED - 
+2026-06-16 22:47:38,684 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-06-16 22:47:38,684 - INFO - Confirmed fill: SELL buy_ce qty=65 avg=5.00 order_id=o3
+2026-06-16 22:47:38,684 - INFO - Rollback confirmed for buy_ce: o3
+2026-06-16 22:47:38,719 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 22:47:38,721 - CRITICAL - SNIPER TARGET HIT at 12.00%. Exiting.
+2026-06-16 22:47:38,732 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 22:47:38,733 - CRITICAL - SNIPER TARGET HIT at 12.00%. Exiting.
+2026-06-16 22:47:38,736 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/5.
+2026-06-16 22:47:38,736 - INFO - Reconnecting WebSocket after 2.0s backoff.
+2026-06-16 22:47:38,738 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/3.
+2026-06-16 22:47:38,738 - INFO - Reconnecting WebSocket after 2.0s backoff.
+2026-06-16 22:47:38,738 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 2/3.
+2026-06-16 22:47:38,738 - INFO - Reconnecting WebSocket after 4.0s backoff.
+2026-06-16 22:47:38,738 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 3/3.
+2026-06-16 22:47:38,738 - INFO - Reconnecting WebSocket after 8.0s backoff.
+2026-06-16 22:47:38,752 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 22:47:38,860 - WARNING - Regime reversal check skipped: 'StableSpotBroker' object has no attribute 'get_option_chain'
+2026-06-16 22:47:38,861 - CRITICAL - Ignoring unconfirmed ATM drift: stream 0.42x / 21.00 pts, broker 0.00x / 0.00 pts.
+2026-06-16 22:47:38,873 - WARNING - Regime reversal check skipped: 'StableBroker' object has no attribute 'get_option_chain'
+2026-06-16 22:47:38,874 - CRITICAL - Ignoring unconfirmed catastrophe: stream net 36.00 >= 31.50, broker net 30.00.
+2026-06-16 22:47:38,879 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20500', 'buy_pe': 'P19500'}
+2026-06-16 22:47:38,879 - INFO - Selected Iron Condor prices: {'sell_ce': 100.0, 'sell_pe': 100.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 22:47:38,879 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20500.0, 'buy_pe': 19500.0, 'atm': 20000.0}
+2026-06-16 22:47:38,882 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=7.0)...
+2026-06-16 22:47:38,882 - INFO - Selected Execution Legs: {'sell_ce': 'C100', 'sell_pe': 'P100', 'buy_ce': 'C150', 'buy_pe': 'P50'}
+2026-06-16 22:47:38,882 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 2, 'buy_pe': 2}
+2026-06-16 22:47:38,882 - INFO - Selected Strikes: {'sell_ce': 100, 'sell_pe': 100, 'buy_ce': 150, 'buy_pe': 50}
+2026-06-16 22:50:07,944 - ERROR - Scanner failed for symbol NIFTY: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-16 22:50:53,323 - ERROR - Scanner failed for symbol SENSEX: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-16 22:51:38,698 - ERROR - Scanner failed for symbol BANKNIFTY: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-16 22:52:24,126 - ERROR - Scanner failed for symbol RELIANCE: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-16 22:54:24,711 - ERROR - Scanner failed for symbol HDFCBANK: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-16 22:54:24,996 - ERROR - Scanner failed for symbol ICICIBANK: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-16 22:54:25,216 - ERROR - Scanner failed for symbol INFY: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-16 22:54:25,456 - ERROR - Scanner failed for symbol TCS: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-16 22:54:25,689 - ERROR - Scanner failed for symbol SBIN: 401 Client Error:  for url: https://api.dhan.co/v2/charts/intraday
+2026-06-16 23:00:40,335 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20600', 'buy_pe': 'P19400'}
+2026-06-16 23:00:40,336 - INFO - Selected Iron Condor prices: {'sell_ce': 50.0, 'sell_pe': 50.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 23:00:40,336 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20600.0, 'buy_pe': 19400.0, 'atm': 20000.0}
+2026-06-16 23:00:40,365 - WARNING - Regime reversal check skipped: 'BadFreshQuoteBroker' object has no attribute 'get_option_chain'
+2026-06-16 23:00:40,367 - CRITICAL - ATM DRIFT EJECTOR: 0.42x >= 0.20x.
+2026-06-16 23:00:40,367 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 23:00:40,368 - INFO - Simulated PnL for this trade: 234.00
+2026-06-16 23:00:40,370 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=50)...
+2026-06-16 23:00:40,370 - INFO - Selected Execution Legs: {'sell_ce': 'C150', 'sell_pe': 'P150', 'buy_ce': 'C200', 'buy_pe': 'P100'}
+2026-06-16 23:00:40,370 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 5, 'buy_pe': 5}
+2026-06-16 23:00:40,370 - INFO - Selected Strikes: {'sell_ce': 150, 'sell_pe': 150, 'buy_ce': 200, 'buy_pe': 100}
+2026-06-16 23:00:40,375 - INFO - Deploying BTST_RECENTER command-center strategy for NIFTY...
+2026-06-16 23:00:40,395 - INFO - Command-center route standby: Telemetry baseline captured; waiting for next cumulative poll
+2026-06-16 23:00:40,395 - CRITICAL - Cannot deploy BTST_RECENTER trade: command-center route failed/standby (Telemetry baseline captured; waiting for next cumulative poll).
+2026-06-16 23:00:40,409 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 23:00:40,463 - CRITICAL - CATASTROPHE KILL: live net 36.00 >= 31.50.
+2026-06-16 23:00:40,465 - WARNING - Option chain is missing Condor protective wings.
+2026-06-16 23:00:40,474 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 23:00:40,480 - CRITICAL - ATM DRIFT EJECTOR: 0.50 pts >= 0.40 pts.
+2026-06-16 23:00:40,488 - WARNING - Regime reversal check skipped: 'PanicBroker' object has no attribute 'get_option_chain'
+2026-06-16 23:00:40,491 - CRITICAL - CATASTROPHE KILL: live net 38.00 >= 31.50.
+2026-06-16 23:00:40,499 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 23:00:40,499 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-06-16 23:00:40,650 - INFO - Confirmed fill: BUY buy_pe qty=65 avg=4.00 order_id=o2
+2026-06-16 23:00:40,800 - INFO - Confirmed fill: SELL sell_ce qty=65 avg=20.00 order_id=o3
+2026-06-16 23:00:40,951 - INFO - Confirmed fill: SELL sell_pe qty=65 avg=21.00 order_id=o4
+2026-06-16 23:00:41,111 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=5.0)...
+2026-06-16 23:00:41,111 - INFO - Selected Execution Legs: {'sell_ce': 'C100', 'sell_pe': 'P100', 'buy_ce': 'C150', 'buy_pe': 'P50'}
+2026-06-16 23:00:41,111 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 3, 'buy_pe': 3}
+2026-06-16 23:00:41,111 - INFO - Selected Strikes: {'sell_ce': 100, 'sell_pe': 100, 'buy_ce': 150, 'buy_pe': 50}
+2026-06-16 23:00:41,124 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 23:00:41,127 - CRITICAL - ATM DRIFT EJECTOR: 0.35x >= 0.20x.
+2026-06-16 23:00:41,136 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 23:00:41,196 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 23:00:41,200 - WARNING - EOD market context unavailable: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 23:00:41,202 - CRITICAL - EOD decision: EOD_SQUARE_OFF (EOD_CONTEXT_UNAVAILABLE)
+2026-06-16 23:00:41,229 - CRITICAL - EOD decision: BTST_RECENTER (NEUTRAL_BTST_PREFERS_IRON_CONDOR)
+2026-06-16 23:00:41,255 - CRITICAL - EOD decision: EOD_CARRY (NEUTRAL_STILL_ALIGNED)
+2026-06-16 23:00:41,259 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 23:00:41,260 - CRITICAL - Routing exit orders to LIVE DHAN with fill confirmation.
+2026-06-16 23:00:41,260 - CRITICAL - Failed to close sell_ce. Keeping buy_ce hedge intact. Error: sell_ce: REJECTED - 
+2026-06-16 23:00:41,260 - INFO - Confirmed fill: BUY sell_pe qty=65 avg=10.00 order_id=o2
+2026-06-16 23:00:41,410 - INFO - Confirmed fill: SELL buy_pe qty=65 avg=4.00 order_id=o3
+2026-06-16 23:00:41,565 - CRITICAL - STATE RETAINED: exit execution failed. Manual recovery required.
+2026-06-16 23:00:41,629 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20600', 'buy_pe': 'P19400'}
+2026-06-16 23:00:41,630 - INFO - Selected Iron Condor prices: {'sell_ce': 50.0, 'sell_pe': 50.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 23:00:41,630 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20600.0, 'buy_pe': 19400.0, 'atm': 20000.0}
+2026-06-16 23:00:41,637 - CRITICAL - Live funds unavailable; rejecting entry: Upstox funds response has no available equity margin
+2026-06-16 23:00:41,637 - CRITICAL - Entry rejected before order placement by position sizing: {'status': 'REJECTED', 'environment': 'LIVE', 'strategy_type': 'BTST_BEAR_CALL_CREDIT', 'index_symbol': 'NIFTY', 'lot_multiple': 65, 'available_margin': 0.0, 'usable_capital': 0.0, 'max_capital_utilization': 0.8, 'margin_per_lot': 40000.0, 'margin_source': 'LIVE_BASKET_MARGIN', 'lots_to_deploy': 0, 'quantity': 0, 'capital_deployed': 0.0, 'metadata': {'source': 'LIVE_FUNDS_UNAVAILABLE', 'requires_live_funds': True, 'error': 'Upstox funds response has no available equity margin'}, 'reason': 'Live funds unavailable'}
+2026-06-16 23:00:41,637 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 23:00:41,650 - CRITICAL - MANUAL EXIT TRIGGERED FROM UI. Forcing Square Off.
+2026-06-16 23:00:41,651 - ERROR - Failed to send Telegram alert: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 23:00:41,651 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 23:00:41,652 - INFO - Simulated PnL for this trade: 195.00
+2026-06-16 23:00:41,658 - CRITICAL - TRIGGERING SQUARE OFF SEQUENCE!
+2026-06-16 23:00:41,659 - INFO - Simulated PnL for this trade: 195.00
+2026-06-16 23:00:41,697 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 23:00:41,709 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 23:00:41,715 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 23:00:41,715 - CRITICAL - Partial fill during entry: buy_ce: unexpected fill quantity 10/65
+2026-06-16 23:00:41,715 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-06-16 23:00:41,715 - INFO - Confirmed fill: SELL buy_ce qty=10 avg=5.00 order_id=o2
+2026-06-16 23:00:41,715 - INFO - Rollback confirmed for buy_ce: o2
+2026-06-16 23:00:41,717 - INFO - ATM_DRIFT re-entry allowed: premium change 0.00%, spot change 0.05%.
+2026-06-16 23:00:41,719 - CRITICAL - CATASTROPHE_KILL re-entry blocked: fresh entry cutoff 15:10 has passed.
+2026-06-16 23:00:41,721 - CRITICAL - LIVE MODE: routing orders to DHAN with fill confirmation.
+2026-06-16 23:00:41,721 - INFO - Confirmed fill: BUY buy_ce qty=65 avg=5.00 order_id=o1
+2026-06-16 23:00:41,872 - CRITICAL - Basket execution failed before full confirmation: buy_pe: REJECTED - 
+2026-06-16 23:00:41,872 - CRITICAL - Entry failed mid-flight. Rolling back only confirmed fills.
+2026-06-16 23:00:41,872 - INFO - Confirmed fill: SELL buy_ce qty=65 avg=5.00 order_id=o3
+2026-06-16 23:00:41,872 - INFO - Rollback confirmed for buy_ce: o3
+2026-06-16 23:00:41,943 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 23:00:41,945 - CRITICAL - SNIPER TARGET HIT at 12.00%. Exiting.
+2026-06-16 23:00:41,958 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 23:00:41,960 - CRITICAL - SNIPER TARGET HIT at 12.00%. Exiting.
+2026-06-16 23:00:41,962 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/5.
+2026-06-16 23:00:41,963 - INFO - Reconnecting WebSocket after 2.0s backoff.
+2026-06-16 23:00:41,965 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 1/3.
+2026-06-16 23:00:41,965 - INFO - Reconnecting WebSocket after 2.0s backoff.
+2026-06-16 23:00:41,965 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 2/3.
+2026-06-16 23:00:41,965 - INFO - Reconnecting WebSocket after 4.0s backoff.
+2026-06-16 23:00:41,965 - CRITICAL - WebSocket died for NIFTY; reconnect attempt 3/3.
+2026-06-16 23:00:41,965 - INFO - Reconnecting WebSocket after 8.0s backoff.
+2026-06-16 23:00:41,980 - WARNING - Regime reversal check skipped: 'NoneType' object has no attribute 'raise_for_status'
+2026-06-16 23:00:42,043 - WARNING - Regime reversal check skipped: 'StableSpotBroker' object has no attribute 'get_option_chain'
+2026-06-16 23:00:42,044 - CRITICAL - Ignoring unconfirmed ATM drift: stream 0.42x / 21.00 pts, broker 0.00x / 0.00 pts.
+2026-06-16 23:00:42,057 - WARNING - Regime reversal check skipped: 'StableBroker' object has no attribute 'get_option_chain'
+2026-06-16 23:00:42,059 - CRITICAL - Ignoring unconfirmed catastrophe: stream net 36.00 >= 31.50, broker net 30.00.
+2026-06-16 23:00:42,063 - INFO - Selected Iron Condor legs: {'sell_ce': 'C20300', 'sell_pe': 'P19700', 'buy_ce': 'C20500', 'buy_pe': 'P19500'}
+2026-06-16 23:00:42,063 - INFO - Selected Iron Condor prices: {'sell_ce': 100.0, 'sell_pe': 100.0, 'buy_ce': 5.0, 'buy_pe': 5.0}
+2026-06-16 23:00:42,063 - INFO - Selected Iron Condor strikes: {'sell_ce': 20300.0, 'sell_pe': 19700.0, 'buy_ce': 20500.0, 'buy_pe': 19500.0, 'atm': 20000.0}
+2026-06-16 23:00:42,066 - INFO - Calculating Iron Butterfly strikes & prices (Wing Delta=7.0)...
+2026-06-16 23:00:42,067 - INFO - Selected Execution Legs: {'sell_ce': 'C100', 'sell_pe': 'P100', 'buy_ce': 'C150', 'buy_pe': 'P50'}
+2026-06-16 23:00:42,067 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 2, 'buy_pe': 2}
+2026-06-16 23:00:42,067 - INFO - Selected Strikes: {'sell_ce': 100, 'sell_pe': 100, 'buy_ce': 150, 'buy_pe': 50}

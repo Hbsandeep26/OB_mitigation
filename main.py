@@ -814,7 +814,8 @@ def scan_market_and_execute_trades():
     for symbol in symbols:
         symbol = symbol.strip().upper()
         try:
-            # 5m candles
+            # 5m candles (spaced to prevent rate limit 429)
+            time.sleep(2.0)
             candles_5m = data_feed.get_broker().get_intraday_candles(symbol, minutes=5, from_date=from_date_5m)
             if not candles_5m:
                 logging.debug("No 5m candles returned for %s", symbol)
@@ -826,7 +827,8 @@ def scan_market_and_execute_trades():
             df_5m["time"] = df_5m["dt"].dt.strftime("%H:%M")
             df_5m["atr14"] = (df_5m["high"] - df_5m["low"]).rolling(14).mean().fillna(1.0)
             
-            # 1m candles for today
+            # 1m candles for today (spaced to prevent rate limit 429)
+            time.sleep(2.0)
             from_date_1m = now.replace(hour=9, minute=15, second=0, microsecond=0)
             candles_1m = data_feed.get_broker().get_intraday_candles(symbol, minutes=1, from_date=from_date_1m)
             if not candles_1m:
@@ -941,7 +943,10 @@ def scan_market_and_execute_trades():
     
     if best_candidate and not (active_state and active_state.get("active")):
         logging.critical("🎯 SCANNER FOUND CONFIRMED SETUP: %s", best_candidate)
-        deploy_mtf_oblt_trade(best_candidate)
+        try:
+            deploy_mtf_oblt_trade(best_candidate)
+        except Exception as deploy_err:
+            logging.error("Failed to deploy MTF-OBLT trade: %s", deploy_err)
 
 
 def deploy_mtf_oblt_trade(candidate):
@@ -1029,10 +1034,19 @@ def deploy_mtf_oblt_trade(candidate):
     )
     
     if success:
-        logging.critical("Successfully deployed MTF-OBLT trade on %s! Starting risk monitor...", symbol)
-        exit_reason, exit_prices = monitor_with_reconnects(legs, symbol)
-        logging.critical("Trade exited. Exit reason: %s", exit_reason)
-        execution.square_off_all(exit_prices, exit_reason=exit_reason)
+        logging.critical("Successfully deployed MTF-OBLT trade on %s! Starting background risk monitor...", symbol)
+        import threading
+        
+        def run_monitor():
+            try:
+                exit_reason, exit_prices = monitor_with_reconnects(legs, symbol)
+                logging.critical("Background trade exited. Exit reason: %s", exit_reason)
+                execution.square_off_all(exit_prices, exit_reason=exit_reason)
+            except Exception as monitor_err:
+                logging.error("Exception in background risk monitor thread: %s", monitor_err)
+                
+        monitor_thread = threading.Thread(target=run_monitor, name=f"risk-monitor-{symbol}", daemon=True)
+        monitor_thread.start()
 
 
 def trigger_manual_entry():
