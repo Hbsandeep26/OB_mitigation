@@ -863,6 +863,7 @@ def scan_market_and_execute_trades():
             stop_5m = float(merged.iloc[last_idx]["stop_loss_5m"])
             target_5m = float(merged.iloc[last_idx]["take_profit_5m"])
             vwap = float(merged.iloc[last_idx]["vwap"])
+            zone_time = str(merged.iloc[last_idx]["ob_time"]) if "ob_time" in merged.columns else ""
             
             low_price = float(merged.iloc[last_idx]["low"])
             high_price = float(merged.iloc[last_idx]["high"])
@@ -903,6 +904,8 @@ def scan_market_and_execute_trades():
                 "symbol": symbol,
                 "price": curr_price,
                 "trend": "BULLISH" if trend_5m == 1 else "BEARISH" if trend_5m == -1 else "NEUTRAL",
+                "zone_tf": "5m",
+                "zone_time": zone_time,
                 "zone_entry": zone_entry,
                 "stop_loss": stop_5m,
                 "target": target_5m,
@@ -1225,10 +1228,39 @@ def post_emergency_reentry_allowed(
     return True
 
 
+def is_dhan_token_valid(token):
+    if not token or len(token.split('.')) < 2:
+        return False
+    try:
+        import base64
+        import json
+        import time
+        
+        payload_b64 = token.split('.')[1]
+        padding = len(payload_b64) % 4
+        if padding > 0:
+            payload_b64 += "=" * (4 - padding)
+            
+        payload_json = base64.b64decode(payload_b64).decode('utf-8')
+        payload = json.loads(payload_json)
+        
+        exp = payload.get("exp")
+        if exp:
+            return float(exp) > time.time() + 1800
+    except Exception:
+        pass
+    return False
+
+
 def auto_authenticate_dhan():
     if config.get_active_broker() != "DHAN":
         return
     
+    current_token = config.get_dhan_access_token()
+    if is_dhan_token_valid(current_token):
+        logging.info("Dhan TOTP auto-auth: Current saved access token is still valid. Skipping token generation.")
+        return
+        
     client_id = config.get_dhan_client_id()
     pin = config._setting("DHAN_PIN", "")
     totp_secret = config._setting("DHAN_TOTP_SECRET", "")

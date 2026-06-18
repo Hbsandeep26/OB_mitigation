@@ -353,6 +353,7 @@ def run_5m_ob_tracker(df_5m: pd.DataFrame, params: BacktestParams) -> pd.DataFra
     zone_entry_col = [0.0] * len(df_5m)
     stop_loss_col = [0.0] * len(df_5m)
     take_profit_col = [0.0] * len(df_5m)
+    ob_time_col = [""] * len(df_5m)
     
     trend = 0
     ob_low, ob_high = 0.0, 0.0
@@ -360,6 +361,7 @@ def run_5m_ob_tracker(df_5m: pd.DataFrame, params: BacktestParams) -> pd.DataFra
     stop_loss = 0.0
     take_profit = 0.0
     leg_age = 0
+    ob_time = ""
     
     highs = df_5m["high"].values
     lows = df_5m["low"].values
@@ -374,11 +376,13 @@ def run_5m_ob_tracker(df_5m: pd.DataFrame, params: BacktestParams) -> pd.DataFra
             if trend == 1:
                 if close_price < ob_low or leg_age > params.max_leg_age:
                     trend = 0
+                    ob_time = ""
                 else:
                     leg_age += 1
             elif trend == -1:
                 if close_price > ob_high or leg_age > params.max_leg_age:
                     trend = 0
+                    ob_time = ""
                 else:
                     leg_age += 1
                     
@@ -412,6 +416,7 @@ def run_5m_ob_tracker(df_5m: pd.DataFrame, params: BacktestParams) -> pd.DataFra
                 
                 ob_low = lows[ob_idx]
                 ob_high = highs[ob_idx]
+                ob_time = str(df_5m["time"].values[ob_idx])
                 
                 # Confluence zone overlaps Golden Zone and OB
                 golden_low = impulse_high_val - 0.786 * leg_size
@@ -447,6 +452,7 @@ def run_5m_ob_tracker(df_5m: pd.DataFrame, params: BacktestParams) -> pd.DataFra
                 
                 ob_low = lows[ob_idx]
                 ob_high = highs[ob_idx]
+                ob_time = str(df_5m["time"].values[ob_idx])
                 
                 golden_low = impulse_low_val + 0.618 * leg_size
                 golden_high = impulse_low_val + 0.786 * leg_size
@@ -464,6 +470,7 @@ def run_5m_ob_tracker(df_5m: pd.DataFrame, params: BacktestParams) -> pd.DataFra
         zone_entry_col[i] = zone_entry_price
         stop_loss_col[i] = stop_loss
         take_profit_col[i] = take_profit
+        ob_time_col[i] = ob_time
         
     df_state = pd.DataFrame({
         "dt": df_5m["dt"],
@@ -472,7 +479,8 @@ def run_5m_ob_tracker(df_5m: pd.DataFrame, params: BacktestParams) -> pd.DataFra
         "ob_high": ob_high_col,
         "zone_entry_price": zone_entry_col,
         "stop_loss_5m": stop_loss_col,
-        "take_profit_5m": take_profit_col
+        "take_profit_5m": take_profit_col,
+        "ob_time": ob_time_col
     })
     return df_state
 
