@@ -822,7 +822,7 @@ def scan_market_and_execute_trades():
                 continue
                 
             df_5m = pd.DataFrame(candles_5m, columns=["datetime", "open", "high", "low", "close", "volume", "oi"])
-            df_5m["dt"] = pd.to_datetime(df_5m["datetime"])
+            df_5m["dt"] = pd.to_datetime(df_5m["datetime"], unit="s").dt.tz_localize("UTC").dt.tz_convert("Asia/Kolkata").dt.tz_localize(None)
             df_5m["date"] = df_5m["dt"].dt.date.astype(str)
             df_5m["time"] = df_5m["dt"].dt.strftime("%H:%M")
             df_5m["atr14"] = (df_5m["high"] - df_5m["low"]).rolling(14).mean().fillna(1.0)
@@ -835,7 +835,7 @@ def scan_market_and_execute_trades():
                 logging.debug("No 1m candles returned for %s", symbol)
                 continue
             df_1m = pd.DataFrame(candles_1m, columns=["datetime", "open", "high", "low", "close", "volume", "oi"])
-            df_1m["dt"] = pd.to_datetime(df_1m["datetime"])
+            df_1m["dt"] = pd.to_datetime(df_1m["datetime"], unit="s").dt.tz_localize("UTC").dt.tz_convert("Asia/Kolkata").dt.tz_localize(None)
             df_1m["date"] = df_1m["dt"].dt.date.astype(str)
             df_1m["time"] = df_1m["dt"].dt.strftime("%H:%M")
             
@@ -870,15 +870,63 @@ def scan_market_and_execute_trades():
             
             pullback_pending = False
             pending_direction = None
-            if trend_5m == 1:
-                if low_price <= zone_entry and curr_price >= ob_low:
-                    pullback_pending = True
-                    pending_direction = "BULLISH"
-            elif trend_5m == -1:
-                if high_price >= zone_entry and curr_price <= ob_high:
-                    pullback_pending = True
-                    pending_direction = "BEARISH"
-                    
+            
+            # Find the last exit time for this symbol today to avoid old pullbacks
+            last_exit_time = None
+            csv_path = os.path.join(BASE_DIR, "sandbox_trade_logs.csv")
+            if os.path.exists(csv_path):
+                try:
+                    df_ledger = pd.read_csv(csv_path)
+                    if not df_ledger.empty and "Timestamp" in df_ledger.columns and "Index" in df_ledger.columns and "Action" in df_ledger.columns:
+                        df_ledger["Timestamp_dt"] = pd.to_datetime(df_ledger["Timestamp"], errors="coerce")
+                        today_str = now.strftime("%Y-%m-%d")
+                        symbol_exits = df_ledger[
+                            (df_ledger["Timestamp_dt"].dt.date.astype(str) == today_str) &
+                            (df_ledger["Index"].astype(str).str.upper() == symbol) &
+                            (df_ledger["Action"] == "EXIT")
+                        ]
+                        if not symbol_exits.empty:
+                            last_exit_time = symbol_exits["Timestamp_dt"].max()
+                except Exception as e:
+                    logging.error("Failed to parse ledger for last exit of %s: %s", symbol, e)
+
+            # Historical simulation of pullback within the current active OB trend cycle
+            if trend_5m != 0 and zone_time != "":
+                # Filter merged to only include rows belonging to the current OB cycle
+                df_cycle = merged[(merged["ob_time"] == zone_time) & (merged["trend"] == trend_5m)]
+                if last_exit_time is not None:
+                    # Filter to candles after the last exit
+                    df_cycle = df_cycle[df_cycle["dt"] > last_exit_time]
+                
+                # Check if there is an active trade for this symbol to disable new setups
+                is_symbol_active = active_state and active_state.get("active") and str(active_state.get("symbol")).upper() == symbol
+                
+                if not is_symbol_active and not df_cycle.empty:
+                    for _, row in df_cycle.iterrows():
+                        # A. Check invalidation first if already pending
+                        if pullback_pending:
+                            close_val = float(row["close"])
+                            if pending_direction == "BULLISH":
+                                if close_val < ob_low:
+                                    pullback_pending = False
+                            else:  # BEARISH
+                                if close_val > ob_high:
+                                    pullback_pending = False
+                        
+                        # B. Check for pullback touch to activate pending state
+                        if not pullback_pending:
+                            low_val = float(row["low"])
+                            high_val = float(row["high"])
+                            close_val = float(row["close"])
+                            if trend_5m == 1:
+                                if low_val <= zone_entry and close_val >= ob_low:
+                                    pullback_pending = True
+                                    pending_direction = "BULLISH"
+                            elif trend_5m == -1:
+                                if high_val >= zone_entry and close_val <= ob_high:
+                                    pullback_pending = True
+                                    pending_direction = "BEARISH"
+                                    
             trigger_active = False
             score = 70
             
@@ -904,7 +952,6 @@ def scan_market_and_execute_trades():
                 "symbol": symbol,
                 "price": curr_price,
                 "trend": "BULLISH" if trend_5m == 1 else "BEARISH" if trend_5m == -1 else "NEUTRAL",
-                "zone_tf": "5m",
                 "zone_time": zone_time,
                 "zone_entry": zone_entry,
                 "stop_loss": stop_5m,
