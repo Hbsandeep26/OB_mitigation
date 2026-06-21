@@ -16,6 +16,7 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 
 import pandas as pd
+import config
 
 from liquidity_universe import batch_universe, select_universe
 
@@ -297,6 +298,124 @@ def calculate_realized_rr(
     return 0.0
 
 
+def validate_mtf_signal(
+    symbol: str,
+    time_str: str,
+    score: float,
+    trend: int,
+    curr_price: float,
+    stop_loss: float,
+    target: float,
+    atr_1m: float,
+    pd_low: float,
+    pd_high: float,
+    ob_low: float,
+    ob_high: float,
+    zone_entry: float,
+    is_live: bool = False,
+    signal_dt = None,
+    now = None,
+    fresh_spot: float = None,
+) -> tuple[bool, str, float]:
+    """MTF strategy signal-quality validation gate."""
+    import config
+    from datetime import datetime, timedelta
+    import math
+
+    # 1. Symbol Universe Check
+    valid_symbols = [s.upper().strip() for s in config.MTF_VALIDATED_SYMBOLS]
+    if symbol.upper().strip() not in valid_symbols:
+        return False, f"Symbol {symbol} not in validated universe", 0.0
+
+    # 2. Time Window Check
+    start_time = config.MTF_ENTRY_START
+    cutoff_time = config.MTF_ENTRY_CUTOFF
+    if not (start_time <= time_str <= cutoff_time):
+        return False, f"Time {time_str} outside window {start_time}-{cutoff_time}", 0.0
+
+    # 3. Score Gate
+    min_score = config.MTF_MIN_SCORE
+    if score < min_score:
+        return False, f"Score {score} < {min_score}", 0.0
+
+    # 4. Age Check (Live only)
+    if is_live:
+        if signal_dt is None:
+            return False, "Missing signal timestamp for live age check", 0.0
+        if now is None:
+            now = datetime.now()
+        dt_close = signal_dt + timedelta(minutes=1)
+        if now < dt_close:
+            return False, f"Candle not fully closed yet (closes at {dt_close}, current {now})", 0.0
+        age_seconds = (now - dt_close).total_seconds()
+        max_age = config.MTF_MAX_SIGNAL_AGE_SECONDS
+        if age_seconds > max_age:
+            return False, f"Candle is stale: age {age_seconds:.1f}s > {max_age}s", 0.0
+
+    # 5. Fresh spot and direction check
+    eval_spot = fresh_spot if fresh_spot is not None else curr_price
+    direction = "BULLISH" if trend == 1 else "BEARISH" if trend == -1 else "NEUTRAL"
+    if direction == "NEUTRAL":
+        return False, "Neutral trend (no setup direction)", 0.0
+
+    if direction == "BULLISH":
+        if eval_spot < ob_low or eval_spot <= stop_loss:
+            return False, f"Price {eval_spot:.2f} violates bullish direction (ob_low {ob_low:.2f}, stop {stop_loss:.2f})", 0.0
+    else: # BEARISH
+        if eval_spot > ob_high or eval_spot >= stop_loss:
+            return False, f"Price {eval_spot:.2f} violates bearish direction (ob_high {ob_high:.2f}, stop {stop_loss:.2f})", 0.0
+
+    # 6. Entry Drift Check
+    drift = abs(eval_spot - curr_price)
+    atr_val = atr_1m if (atr_1m is not None and not math.isnan(atr_1m)) else 1.0
+    max_drift = config.MTF_MAX_ENTRY_DRIFT_ATR * atr_val
+    if drift > max_drift:
+        return False, f"Drift {drift:.2f} > max allowed drift {max_drift:.2f} (0.25 * ATR {atr_val:.2f})", 0.0
+
+    # 7. Target Reached or Near Check
+    if direction == "BULLISH":
+        total_dist = target - zone_entry
+        if total_dist > 0:
+            pct_remaining = (target - eval_spot) / total_dist
+            if eval_spot >= target or pct_remaining <= 0.10:
+                return False, f"Target already reached or near: remaining {pct_remaining*100:.1f}% <= 10%", 0.0
+        else:
+            if eval_spot >= target:
+                return False, "Target already reached", 0.0
+    else: # BEARISH
+        total_dist = zone_entry - target
+        if total_dist > 0:
+            pct_remaining = (eval_spot - target) / total_dist
+            if eval_spot <= target or pct_remaining <= 0.10:
+                return False, f"Target already reached or near: remaining {pct_remaining*100:.1f}% <= 10%", 0.0
+        else:
+            if eval_spot <= target:
+                return False, "Target already reached", 0.0
+
+    # 8. Remaining RR check (with slippage)
+    slippage_bps = config.MTF_SLIPPAGE_BUFFER_BPS
+    slippage = eval_spot * (slippage_bps / 10000.0)
+    
+    if direction == "BULLISH":
+        slippage_entry = eval_spot + slippage
+        risk = slippage_entry - stop_loss
+        reward = target - slippage_entry
+    else:
+        slippage_entry = eval_spot - slippage
+        risk = stop_loss - slippage_entry
+        reward = slippage_entry - target
+
+    if risk <= 0:
+        return False, f"Risk {risk:.2f} is non-positive after slippage", 0.0
+
+    remaining_rr = reward / risk
+    min_rr = config.MTF_MIN_LIVE_RR
+    if remaining_rr < min_rr:
+        return False, f"Remaining RR {remaining_rr:.2f}R < min RR {min_rr}R", remaining_rr
+
+    return True, "", remaining_rr
+
+
 def calculate_pivots(df: pd.DataFrame, L: int) -> tuple[list[float | None], list[int | None], list[float | None], list[int | None]]:
     """Calculate pivots with a confirmation delay of L bars."""
     highs = df["high"].values
@@ -563,6 +682,16 @@ def backtest_ob_mitigation(symbol: str, df_5m: pd.DataFrame, df_1m: pd.DataFrame
     pending_ob_low = None
     pending_ob_high = None
     trades_today = 0
+    reject_counts = {
+        "symbol_universe": 0,
+        "time_window": 0,
+        "score_gate": 0,
+        "direction_violation": 0,
+        "entry_drift": 0,
+        "target_reached": 0,
+        "risk_limit": 0,
+        "remaining_rr": 0,
+    }
     
     highs = merged["high"].values
     lows = merged["low"].values
@@ -590,14 +719,15 @@ def backtest_ob_mitigation(symbol: str, df_5m: pd.DataFrame, df_1m: pd.DataFrame
     
     bull_triggers = merged["bull_trigger"].values
     bear_triggers = merged["bear_trigger"].values
+    dates = merged["date"].astype(str).values
     
     strike_step = get_strike_step(symbol)
     n = len(merged)
     
     for i in range(20, n):
         # Reset trades_today and pending state on date transition
-        curr_date = str(merged.iloc[i]["date"])
-        if i > 20 and str(merged.iloc[i-1]["date"]) != curr_date:
+        curr_date = dates[i]
+        if i > 20 and dates[i-1] != curr_date:
             trades_today = 0
             pending_pullback = False
             pending_direction = None
@@ -652,7 +782,7 @@ def backtest_ob_mitigation(symbol: str, df_5m: pd.DataFrame, df_1m: pd.DataFrame
                 total_bars = 375
                 
                 realized_rr_target = params.target_rr
-                if params.target_type == "extreme" and params.strategy_type != "Ratio":
+                if params.target_type == "extreme":
                     underlying_risk = abs(trade_entry_price - trade_stop)
                     underlying_reward = abs(trade_target - trade_entry_price)
                     realized_rr_target = underlying_reward / underlying_risk if underlying_risk > 0 else 1.0
@@ -847,36 +977,78 @@ def backtest_ob_mitigation(symbol: str, df_5m: pd.DataFrame, df_1m: pd.DataFrame
                         if pending_direction == "BULLISH":
                             if bull_triggers[i]:
                                 if not params.use_vwap_filter or close_price > vwaps[i]:
+                                    # Calculate stop loss at bar i
+                                    if params.stop_loss_type == "5m_origin":
+                                        stop_val = pending_stop_5m
+                                    elif params.stop_loss_type == "1m_candle_low":
+                                        min_low = min(lows[max(0, i-1):i+1])
+                                        fallback_atr = strike_step / 10.0
+                                        atr_val = atr14[i] if not math.isnan(atr14[i]) else fallback_atr
+                                        stop_val = min_low - 0.5 * atr_val
+                                        stop_val = max(stop_val, pending_stop_5m)
+                                    else: # "1m_atr_1.5"
+                                        fallback_atr = strike_step / 10.0
+                                        atr_val = atr14[i] if not math.isnan(atr14[i]) else fallback_atr
+                                        stop_val = close_price - 1.5 * atr_val
+                                        stop_val = max(stop_val, pending_stop_5m)
+                                        
+                                    min_stop_pts = 15.0 if symbol == "NIFTY" else (30.0 if symbol == "SENSEX" else (3.0 if symbol == "RELIANCE" else 5.0))
+                                    if close_price - stop_val < min_stop_pts:
+                                        stop_val = close_price - min_stop_pts
+                                        
+                                    if i + 1 >= len(merged):
+                                        continue
+                                        
+                                    is_valid, reject_reason, remaining_rr = validate_mtf_signal(
+                                        symbol=symbol,
+                                        time_str=time_str,
+                                        score=score_val,
+                                        trend=1,
+                                        curr_price=close_price,
+                                        stop_loss=stop_val,
+                                        target=pending_target_5m,
+                                        atr_1m=atr14[i],
+                                        pd_low=pd_low,
+                                        pd_high=pd_high,
+                                        ob_low=pending_ob_low,
+                                        ob_high=ob_highs_5m[i],
+                                        zone_entry=pending_zone_entry,
+                                        is_live=False,
+                                        fresh_spot=opens[i+1],
+                                    )
+                                    
+                                    if not is_valid:
+                                        if "universe" in reject_reason:
+                                            reject_counts["symbol_universe"] += 1
+                                        elif "Time" in reject_reason:
+                                            reject_counts["time_window"] += 1
+                                        elif "Score" in reject_reason:
+                                            reject_counts["score_gate"] += 1
+                                        elif "violates" in reject_reason:
+                                            reject_counts["direction_violation"] += 1
+                                        elif "Drift" in reject_reason:
+                                            reject_counts["entry_drift"] += 1
+                                        elif "Target" in reject_reason or "reached" in reject_reason:
+                                            reject_counts["target_reached"] += 1
+                                        elif "Risk" in reject_reason:
+                                            reject_counts["risk_limit"] += 1
+                                        elif "RR" in reject_reason:
+                                            reject_counts["remaining_rr"] += 1
+                                        continue
+                                        
+                                    slippage_bps = config.MTF_SLIPPAGE_BUFFER_BPS
+                                    slippage = opens[i+1] * (slippage_bps / 10000.0)
+                                    
                                     trade_active = True
-                                    trade_entry_idx = i
+                                    trade_entry_idx = i + 1
                                     trade_direction = "BULLISH"
                                     trade_target = pending_target_5m
                                     trade_score = score_val
                                     trade_notes = list(notes)
                                     trades_today += 1
+                                    trade_entry_price = opens[i+1] + slippage
                                     
-                                    if params.trigger_type == "none":
-                                        trade_entry_price = min(opens[i], pending_zone_entry)
-                                    else:
-                                        trade_entry_price = close_price
-                                    
-                                    # Stop Loss logic
-                                    if params.stop_loss_type == "5m_origin":
-                                        trade_stop = pending_stop_5m
-                                    elif params.stop_loss_type == "1m_candle_low":
-                                        min_low = min(lows[max(0, i-1):i+1])
-                                        fallback_atr = strike_step / 10.0
-                                        atr_val = atr14[i] if not math.isnan(atr14[i]) else fallback_atr
-                                        trade_stop = min_low - 0.5 * atr_val
-                                        trade_stop = max(trade_stop, pending_stop_5m)
-                                    else: # "1m_atr_1.5"
-                                        fallback_atr = strike_step / 10.0
-                                        atr_val = atr14[i] if not math.isnan(atr14[i]) else fallback_atr
-                                        trade_stop = trade_entry_price - 1.5 * atr_val
-                                        trade_stop = max(trade_stop, pending_stop_5m)
-                                    
-                                    # Enforce minimum stop-loss distance in points for realistic live trading
-                                    min_stop_pts = 15.0 if symbol == "NIFTY" else (30.0 if symbol == "SENSEX" else (3.0 if symbol == "RELIANCE" else 5.0))
+                                    trade_stop = stop_val
                                     if trade_entry_price - trade_stop < min_stop_pts:
                                         trade_stop = trade_entry_price - min_stop_pts
                                         
@@ -887,36 +1059,78 @@ def backtest_ob_mitigation(symbol: str, df_5m: pd.DataFrame, df_1m: pd.DataFrame
                         else: # BEARISH
                             if bear_triggers[i]:
                                 if not params.use_vwap_filter or close_price < vwaps[i]:
+                                    # Calculate stop loss at bar i
+                                    if params.stop_loss_type == "5m_origin":
+                                        stop_val = pending_stop_5m
+                                    elif params.stop_loss_type == "1m_candle_low":
+                                        max_high = max(highs[max(0, i-1):i+1])
+                                        fallback_atr = strike_step / 10.0
+                                        atr_val = atr14[i] if not math.isnan(atr14[i]) else fallback_atr
+                                        stop_val = max_high + 0.5 * atr_val
+                                        stop_val = min(stop_val, pending_stop_5m)
+                                    else: # "1m_atr_1.5"
+                                        fallback_atr = strike_step / 10.0
+                                        atr_val = atr14[i] if not math.isnan(atr14[i]) else fallback_atr
+                                        stop_val = close_price + 1.5 * atr_val
+                                        stop_val = min(stop_val, pending_stop_5m)
+                                        
+                                    min_stop_pts = 15.0 if symbol == "NIFTY" else (30.0 if symbol == "SENSEX" else (3.0 if symbol == "RELIANCE" else 5.0))
+                                    if stop_val - close_price < min_stop_pts:
+                                        stop_val = close_price + min_stop_pts
+                                        
+                                    if i + 1 >= len(merged):
+                                        continue
+                                        
+                                    is_valid, reject_reason, remaining_rr = validate_mtf_signal(
+                                        symbol=symbol,
+                                        time_str=time_str,
+                                        score=score_val,
+                                        trend=-1,
+                                        curr_price=close_price,
+                                        stop_loss=stop_val,
+                                        target=pending_target_5m,
+                                        atr_1m=atr14[i],
+                                        pd_low=pd_low,
+                                        pd_high=pd_high,
+                                        ob_low=ob_lows_5m[i],
+                                        ob_high=pending_ob_high,
+                                        zone_entry=pending_zone_entry,
+                                        is_live=False,
+                                        fresh_spot=opens[i+1],
+                                    )
+                                    
+                                    if not is_valid:
+                                        if "universe" in reject_reason:
+                                            reject_counts["symbol_universe"] += 1
+                                        elif "Time" in reject_reason:
+                                            reject_counts["time_window"] += 1
+                                        elif "Score" in reject_reason:
+                                            reject_counts["score_gate"] += 1
+                                        elif "violates" in reject_reason:
+                                            reject_counts["direction_violation"] += 1
+                                        elif "Drift" in reject_reason:
+                                            reject_counts["entry_drift"] += 1
+                                        elif "Target" in reject_reason or "reached" in reject_reason:
+                                            reject_counts["target_reached"] += 1
+                                        elif "Risk" in reject_reason:
+                                            reject_counts["risk_limit"] += 1
+                                        elif "RR" in reject_reason:
+                                            reject_counts["remaining_rr"] += 1
+                                        continue
+                                        
+                                    slippage_bps = config.MTF_SLIPPAGE_BUFFER_BPS
+                                    slippage = opens[i+1] * (slippage_bps / 10000.0)
+                                    
                                     trade_active = True
-                                    trade_entry_idx = i
+                                    trade_entry_idx = i + 1
                                     trade_direction = "BEARISH"
                                     trade_target = pending_target_5m
                                     trade_score = score_val
                                     trade_notes = list(notes)
                                     trades_today += 1
+                                    trade_entry_price = opens[i+1] - slippage
                                     
-                                    if params.trigger_type == "none":
-                                        trade_entry_price = max(opens[i], pending_zone_entry)
-                                    else:
-                                        trade_entry_price = close_price
-                                    
-                                    # Stop Loss logic
-                                    if params.stop_loss_type == "5m_origin":
-                                        trade_stop = pending_stop_5m
-                                    elif params.stop_loss_type == "1m_candle_low":
-                                        max_high = max(highs[max(0, i-1):i+1])
-                                        fallback_atr = strike_step / 10.0
-                                        atr_val = atr14[i] if not math.isnan(atr14[i]) else fallback_atr
-                                        trade_stop = max_high + 0.5 * atr_val
-                                        trade_stop = min(trade_stop, pending_stop_5m)
-                                    else: # "1m_atr_1.5"
-                                        fallback_atr = strike_step / 10.0
-                                        atr_val = atr14[i] if not math.isnan(atr14[i]) else fallback_atr
-                                        trade_stop = trade_entry_price + 1.5 * atr_val
-                                        trade_stop = min(trade_stop, pending_stop_5m)
-                                    
-                                    # Enforce minimum stop-loss distance in points for realistic live trading
-                                    min_stop_pts = 15.0 if symbol == "NIFTY" else (30.0 if symbol == "SENSEX" else (3.0 if symbol == "RELIANCE" else 5.0))
+                                    trade_stop = stop_val
                                     if trade_stop - trade_entry_price < min_stop_pts:
                                         trade_stop = trade_entry_price + min_stop_pts
                                         
@@ -924,6 +1138,16 @@ def backtest_ob_mitigation(symbol: str, df_5m: pd.DataFrame, df_1m: pd.DataFrame
                                         trade_active = False
                                         trades_today -= 1
  
+    logging.info(
+        "[%s] Rejected signals summary: time_window=%d, score_gate=%d, entry_drift=%d, target_reached=%d, remaining_rr=%d, direction_violation=%d",
+        symbol,
+        reject_counts["time_window"],
+        reject_counts["score_gate"],
+        reject_counts["entry_drift"],
+        reject_counts["target_reached"],
+        reject_counts["remaining_rr"],
+        reject_counts["direction_violation"],
+    )
     return trades
 
 

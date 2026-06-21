@@ -485,3 +485,12 @@
 2026-06-12 23:36:22,627 - INFO - Successfully wrote backup file to data\backtests_temp\backtest_trades.csv
 2026-06-12 23:36:22,628 - INFO - Portfolio: trades=139 win_rate=74.82% expectancy=6.93R total=962.78R max_dd=-3.00R
 2026-06-12 23:36:22,629 - INFO - Backtest reports written to data\backtests
+2026-06-21 23:14:35,223 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-21 23:14:35,224 - INFO - [1/3] Backtesting NIFTY from data\historical\NIFTY_5m.csv
+2026-06-21 23:14:36,274 - INFO - [NIFTY] trades=52 win_rate=71.15% expectancy=6.58R total=342.20R
+2026-06-21 23:14:36,274 - INFO - [2/3] Backtesting SENSEX from data\historical\SENSEX_5m.csv
+2026-06-21 23:14:37,328 - INFO - [SENSEX] trades=53 win_rate=66.04% expectancy=5.91R total=313.48R
+2026-06-21 23:14:37,328 - INFO - [3/3] Backtesting RELIANCE from data\historical\RELIANCE_5m.csv
+2026-06-21 23:14:38,518 - INFO - [RELIANCE] trades=32 win_rate=87.50% expectancy=8.37R total=267.77R
+2026-06-21 23:14:38,528 - INFO - Portfolio: trades=137 win_rate=72.99% expectancy=6.74R total=923.45R max_dd=-3.00R
+2026-06-21 23:14:38,528 - INFO - Backtest reports written to data\backtests

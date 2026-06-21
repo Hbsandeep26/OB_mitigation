@@ -1,0 +1,189 @@
+Created At: 2026-06-21T17:44:45Z
+Completed At: 2026-06-21T17:44:45Z
+File Path: `file:///C:/Users/sande/Antigravity_upstox_selling/Dhan_Algo/main.py`
+Total Lines: 1734
+Total Bytes: 72580
+Showing lines 770 to 950
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+770:         return config._setting("NIFTY_EXPIRY")
+771:     elif symbol == "SENSEX":
+772:         return config._setting("SENSEX_EXPIRY")
+773:     elif symbol == "BANKNIFTY":
+774:         return config._setting("BANKNIFTY_EXPIRY") or config._setting("NIFTY_EXPIRY")
+775:     else:
+776:         return get_stock_expiry_date(now)
+777: 
+778: 
+779: def _credit_sweep_route(symbol, direction, spot_price, option_chain):
+780:     import credit_sweep
+781:     from btst_vix_router import (
+782:         STRATEGY_BTST_BEAR_CALL_CREDIT,
+783:         STRATEGY_BTST_BULL_PUT_CREDIT,
+784:         calculate_matrix_spread_legs,
+785:     )
+786: 
+787:     strategy_type = STRATEGY_BTST_BULL_PUT_CREDIT if direction == "BULLISH" else STRATEGY_BTST_BEAR_CALL_CREDIT
+788:     route = calculate_matrix_spread_legs(symbol, spot_price, option_chain, strategy_type)
+789:     if route and not route.no_trade_reason:
+790:         route.strategy_type = credit_sweep.strategy_type_for_direction(direction)
+791:         route.carry_overnight = False
+792:         route.metadata.update({"paper_only": True, "source": "CREDIT_SWEEP"})
+793:     return route
+794: 
+795: 
+796: def _update_credit_sweep_paper_position(now=None):
+797:     import credit_sweep
+798:     import data_feed
+799: 
+800:     now = now or datetime.now()
+801:     payload = credit_sweep.load_credit_sweep_state()
+802:     position = payload.get("position") or {}
+803:     if not (payload.get("active") and position):
+804:         return payload
+805: 
+806:     symbol = str(position.get("symbol", "")).upper()
+807:     fresh_spot = get_spot_price(symbol)
+808:     if not fresh_spot:
+809:         position["reject_reason"] = "Could not refresh spot for paper MTM"
+810:         payload["position"] = position
+811:         credit_sweep.save_credit_sweep_state(payload)
+812:         return payload
+813: 
+814:     current_prices = None
+815:     legs = position.get("legs") or {}
+816:     if legs:
+817:         try:
+818:             quotes = data_feed.get_fresh_option_quotes(list(legs.values()))
+819:             if quotes:
+820:                 current_prices = {
+821:                     leg_name: float(quotes.get(token, 0.0) or 0.0)
+822:                     for leg_name, token in legs.items()
+823:                 }
+824:                 if not all(value > 0 for value in current_prices.values()):
+825:                     current_prices = None
+826:         except Exception as err:
+827:             logging.warning("Credit Sweep paper quote refresh failed: %s", err)
+828: 
+829:     mark = credit_sweep.paper_mark_to_market(position, fresh_spot, current_prices=current_prices)
+830:     position.update(mark)
+831:     if current_prices:
+832:         position["last_live_prices"] = current_prices
+833: 
+834:     exit_reason = credit_sweep.paper_exit_reason(position, fresh_spot, now=now)
+835:     if exit_reason:
+836:         closed = credit_sweep.record_paper_exit(position, mark, exit_reason)
+837:         history = payload.get("paper_trades", [])
+838:         history.append(closed)
+839:         payload.update({"active": False, "position": closed, "paper_trades": history})
+840:         logging.critical("Credit Sweep paper trade closed: %s %s (%s)", symbol, exit_reason, mark)
+841:     else:
+842:         payload.update({"active": True, "position": position})
+843: 
+844:     credit_sweep.save_credit_sweep_state(payload)
+845:     return payload
+846: 
+847: 
+848: def scan_credit_sweep_and_paper_trades():
+849:     import credit_sweep
+850:     import data_feed
+851: 
+852:     now = datetime.now()
+853:     payload = _update_credit_sweep_paper_position(now)
+854:     scanner_rows = []
+855:     best_candidate = None
+856:     best_score = -1
+857: 
+858:     if not config.CREDIT_SWEEP_ENABLED:
+859:         payload["scanner"] = [{"status": "DISABLED", "reject_reason": "Credit Sweep disabled", "updated_at": now.strftime("%H:%M:%S")}]
+860:         credit_sweep.save_credit_sweep_state(payload)
+861:         return
+862: 
+863:     active_paper = bool(payload.get("active") and payload.get("position", {}).get("active", True))
+864:     from_date = now - timedelta(days=7)
+865: 
+866:     for symbol in config.CREDIT_SWEEP_SYMBOLS:
+867:         symbol = str(symbol).strip().upper()
+868:         try:
+869:             candles = data_feed.get_broker().get_intraday_candles(symbol, minutes=5, from_date=from_date)
+870:             df = credit_sweep.normalize_candles(candles)
+871:             today = now.strftime("%Y-%m-%d")
+872:             day = df[df["date"] == today].copy() if not df.empty else df
+873:             levels = credit_sweep.prior_day_levels(df, today) if not df.empty else None
+874:             signal = credit_sweep.evaluate_credit_sweep_signal(symbol, day, levels, now=now, interval_minutes=5)
+875:             row = signal.to_row({"updated_at": now.strftime("%H:%M:%S")})
+876: 
+877:             if signal.confirmed:
+878:                 if active_paper:
+879:                     row.update({"status": "REJECTED", "reject_reason": "Credit Sweep paper trade already active"})
+880:                 elif credit_sweep.has_credit_sweep_entry_today(symbol, now=now):
+881:                     row.update({"status": "REJECTED", "reject_reason": "Credit Sweep already entered this symbol today"})
+882:                 else:
+883:                     fresh_spot = get_spot_price(symbol)
+884:                     distance_ok, distance_reason = credit_sweep.validate_live_price_distance(signal, fresh_spot or 0.0)
+885:                     row["fresh_spot"] = round(float(fresh_spot or 0.0), 4)
+886:                     if not distance_ok:
+887:                         row.update({"status": "REJECTED", "reject_reason": distance_reason})
+888:                     else:
+889:                         expiry_date = get_symbol_expiry_date(symbol, now)
+890:                         chain = data_feed.get_broker().get_option_chain(symbol, expiry_date)
+891:                         route = _credit_sweep_route(symbol, signal.direction, fresh_spot, chain)
+892:                         route_ok, route_reason, metrics = credit_sweep.validate_credit_spread_route(route)
+893:                         row.update({
+894:                             "expiry": expiry_date,
+895:                             "strategy_type": getattr(route, "strategy_type", "") if route else "",
+896:                             "net_credit": metrics.get("net_credit", 0.0),
+897:                             "spread_width": metrics.get("spread_width", 0.0),
+898:                             "defined_loss": metrics.get("defined_loss", 0.0),
+899:                             "planned_legs": getattr(route, "strikes", {}) if route else {},
+900:                         })
+901:                         if route_ok:
+902:                             if signal.score > best_score:
+903:                                 best_score = signal.score
+904:                                 best_candidate = {
+905:                                     "signal": signal,
+906:                                     "route": route,
+907:                                     "metrics": metrics,
+908:                                     "fresh_spot": fresh_spot,
+909:                                 }
+910:                         else:
+911:                             row.update({"status": "REJECTED", "reject_reason": route_reason})
+912: 
+913:             scanner_rows.append(row)
+914:         except Exception as err:
+915:             logging.error("Credit Sweep scanner failed for %s: %s", symbol, err)
+916:             scanner_rows.append({
+917:                 "symbol": symbol,
+918:                 "status": "ERROR",
+919:                 "reject_reason": str(err),
+920:                 "updated_at": now.strftime("%H:%M:%S"),
+921:             })
+922: 
+923:     if best_candidate and not active_paper:
+924:         signal = best_candidate["signal"]
+925:         position = credit_sweep.record_paper_entry(
+926:             signal,
+927:             best_candidate["route"],
+928:             best_candidate["metrics"],
+929:             best_candidate["fresh_spot"],
+930:         )
+931:         payload.update({"active": True, "position": position})
+932:         logging.critical("Credit Sweep paper setup deployed: %s", position)
+933:         for row in scanner_rows:
+934:             if row.get("symbol") == signal.symbol:
+935:                 row["status"] = "PAPER_ENTRY"
+936:                 row["reject_reason"] = "Paper trade created"
+937: 
+938:     payload["scanner"] = scanner_rows
+939:     credit_sweep.save_credit_sweep_state(payload)
+940: 
+941: 
+942: def scan_market_and_execute_trades():
+943:     import json
+944:     import os
+945:     import pandas as pd
+946:     import math
+947:     import backtest_orderblock_mitigation as btom
+948:     import data_feed
+949:     import strategy
+950:     import execution
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

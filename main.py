@@ -776,6 +776,230 @@ def get_symbol_expiry_date(symbol, now=None):
         return get_stock_expiry_date(now)
 
 
+def _credit_sweep_route(symbol, direction, spot_price, option_chain):
+    import credit_sweep
+    from btst_vix_router import (
+        STRATEGY_BTST_BEAR_CALL_CREDIT,
+        STRATEGY_BTST_BULL_PUT_CREDIT,
+        calculate_matrix_spread_legs,
+    )
+
+    strategy_type = STRATEGY_BTST_BULL_PUT_CREDIT if direction == "BULLISH" else STRATEGY_BTST_BEAR_CALL_CREDIT
+    route = calculate_matrix_spread_legs(symbol, spot_price, option_chain, strategy_type)
+    if route and not route.no_trade_reason:
+        route.strategy_type = credit_sweep.strategy_type_for_direction(direction)
+        route.carry_overnight = False
+        route.metadata.update({"paper_only": bool(config.CREDIT_SWEEP_PAPER_ONLY), "source": "CREDIT_SWEEP"})
+    return route
+
+
+def _update_credit_sweep_paper_position(now=None):
+    import credit_sweep
+    import data_feed
+
+    now = now or datetime.now()
+    payload = credit_sweep.load_credit_sweep_state()
+    position = payload.get("position") or {}
+    if not (payload.get("active") and position):
+        return payload
+
+    symbol = str(position.get("symbol", "")).upper()
+    fresh_spot = get_spot_price(symbol)
+    if not fresh_spot:
+        position["reject_reason"] = "Could not refresh spot for paper MTM"
+        payload["position"] = position
+        credit_sweep.save_credit_sweep_state(payload)
+        return payload
+
+    current_prices = None
+    legs = position.get("legs") or {}
+    if legs:
+        try:
+            quotes = data_feed.get_fresh_option_quotes(list(legs.values()))
+            if quotes:
+                current_prices = {
+                    leg_name: float(quotes.get(token, 0.0) or 0.0)
+                    for leg_name, token in legs.items()
+                }
+                if not all(value > 0 for value in current_prices.values()):
+                    current_prices = None
+        except Exception as err:
+            logging.warning("Credit Sweep paper quote refresh failed: %s", err)
+
+    mark = credit_sweep.paper_mark_to_market(position, fresh_spot, current_prices=current_prices)
+    position.update(mark)
+    if current_prices:
+        position["last_live_prices"] = current_prices
+
+    exit_reason = credit_sweep.paper_exit_reason(position, fresh_spot, now=now)
+    if exit_reason:
+        closed = credit_sweep.record_paper_exit(position, mark, exit_reason)
+        history = payload.get("paper_trades", [])
+        history.append(closed)
+        payload.update({"active": False, "position": closed, "paper_trades": history})
+        logging.critical("Credit Sweep paper trade closed: %s %s (%s)", symbol, exit_reason, mark)
+    else:
+        payload.update({"active": True, "position": position})
+
+    credit_sweep.save_credit_sweep_state(payload)
+    return payload
+
+
+def scan_credit_sweep_and_paper_trades():
+    import credit_sweep
+    import data_feed
+
+    now = datetime.now()
+    payload = _update_credit_sweep_paper_position(now)
+    scanner_rows = []
+    best_candidate = None
+    best_score = -1
+
+    if not config.CREDIT_SWEEP_ENABLED:
+        payload["scanner"] = [{"status": "DISABLED", "reject_reason": "Credit Sweep disabled", "updated_at": now.strftime("%H:%M:%S")}]
+        credit_sweep.save_credit_sweep_state(payload)
+        return
+
+    active_paper = bool(payload.get("active") and payload.get("position", {}).get("active", True))
+    from_date = now - timedelta(days=7)
+
+    for symbol in config.CREDIT_SWEEP_SYMBOLS:
+        symbol = str(symbol).strip().upper()
+        try:
+            candles = data_feed.get_broker().get_intraday_candles(symbol, minutes=5, from_date=from_date)
+            df = credit_sweep.normalize_candles(candles)
+            today = now.strftime("%Y-%m-%d")
+            day = df[df["date"] == today].copy() if not df.empty else df
+            levels = credit_sweep.prior_day_levels(df, today) if not df.empty else None
+            signal = credit_sweep.evaluate_credit_sweep_signal(symbol, day, levels, now=now, interval_minutes=5)
+            row = signal.to_row({"updated_at": now.strftime("%H:%M:%S")})
+
+            if signal.confirmed:
+                if active_paper:
+                    row.update({"status": "REJECTED", "reject_reason": "Credit Sweep paper trade already active"})
+                elif credit_sweep.has_credit_sweep_entry_today(symbol, now=now):
+                    row.update({"status": "REJECTED", "reject_reason": "Credit Sweep already entered this symbol today"})
+                else:
+                    fresh_spot = get_spot_price(symbol)
+                    distance_ok, distance_reason = credit_sweep.validate_live_price_distance(signal, fresh_spot or 0.0)
+                    row["fresh_spot"] = round(float(fresh_spot or 0.0), 4)
+                    if not distance_ok:
+                        row.update({"status": "REJECTED", "reject_reason": distance_reason})
+                    else:
+                        expiry_date = get_symbol_expiry_date(symbol, now)
+                        chain = data_feed.get_broker().get_option_chain(symbol, expiry_date)
+                        route = _credit_sweep_route(symbol, signal.direction, fresh_spot, chain)
+                        route_ok, route_reason, metrics = credit_sweep.validate_credit_spread_route(route)
+                        row.update({
+                            "expiry": expiry_date,
+                            "strategy_type": getattr(route, "strategy_type", "") if route else "",
+                            "net_credit": metrics.get("net_credit", 0.0),
+                            "spread_width": metrics.get("spread_width", 0.0),
+                            "defined_loss": metrics.get("defined_loss", 0.0),
+                            "planned_legs": getattr(route, "strikes", {}) if route else {},
+                        })
+                        if route_ok:
+                            if signal.score > best_score:
+                                best_score = signal.score
+                                best_candidate = {
+                                    "signal": signal,
+                                    "route": route,
+                                    "metrics": metrics,
+                                    "fresh_spot": fresh_spot,
+                                }
+                        else:
+                            row.update({"status": "REJECTED", "reject_reason": route_reason})
+
+            scanner_rows.append(row)
+        except Exception as err:
+            logging.error("Credit Sweep scanner failed for %s: %s", symbol, err)
+            scanner_rows.append({
+                "symbol": symbol,
+                "status": "ERROR",
+                "reject_reason": str(err),
+                "updated_at": now.strftime("%H:%M:%S"),
+            })
+
+    active_state = state_manager.load_state()
+    active_live = bool(active_state and active_state.get("active"))
+
+    if best_candidate:
+        signal = best_candidate["signal"]
+        if config.CREDIT_SWEEP_PAPER_ONLY:
+            if not active_paper:
+                position = credit_sweep.record_paper_entry(
+                    signal,
+                    best_candidate["route"],
+                    best_candidate["metrics"],
+                    best_candidate["fresh_spot"],
+                )
+                payload.update({"active": True, "position": position})
+                logging.critical("Credit Sweep paper setup deployed: %s", position)
+                for row in scanner_rows:
+                    if row.get("symbol") == signal.symbol:
+                        row["status"] = "PAPER_ENTRY"
+                        row["reject_reason"] = "Paper trade created"
+        else:
+            if not active_live:
+                import math
+                import execution
+                lot_size = config.get_symbol_lot_size(signal.symbol)
+                risk_per_lot = (best_candidate["metrics"]["spread_width"] - best_candidate["metrics"]["net_credit"]) * lot_size
+                lots = 1
+                if config.CREDIT_SWEEP_RISK_BUDGET > 0:
+                    lots = math.floor(config.CREDIT_SWEEP_RISK_BUDGET / risk_per_lot)
+                    if lots < 1:
+                        lots = 1
+                trade_quantity = lots * lot_size
+                
+                metadata = {
+                    "setup_score": signal.score,
+                    "direction": signal.direction,
+                    "stop_loss_pts": abs(best_candidate["fresh_spot"] - signal.stop_price),
+                    "target_pts": abs(signal.target_price - best_candidate["fresh_spot"]),
+                    "entry_spot": best_candidate["fresh_spot"],
+                    "source": "CREDIT_SWEEP",
+                    "paper_only": False,
+                }
+                
+                logging.critical("Executing LIVE Credit Sweep entry for %s (%s) with %s lots (qty=%s)", signal.symbol, signal.direction, lots, trade_quantity)
+                success = execution.place_option_spread_basket(
+                    legs=best_candidate["route"].legs,
+                    index_symbol=signal.symbol,
+                    entry_prices=best_candidate["route"].entry_prices,
+                    strikes=best_candidate["route"].strikes,
+                    order_sequence=best_candidate["route"].order_sequence,
+                    strategy_type=credit_sweep.strategy_type_for_direction(signal.direction),
+                    spot_price=best_candidate["fresh_spot"],
+                    carry_overnight=False,
+                    metadata=metadata,
+                    quantity=trade_quantity,
+                    sizing={"lots_to_deploy": lots, "lot_multiple": lot_size, "capital_deployed": lots * risk_per_lot}
+                )
+                if success:
+                    logging.critical("Successfully deployed LIVE Credit Sweep trade on %s! Starting background risk monitor...", signal.symbol)
+                    import threading
+                    
+                    def run_monitor():
+                        try:
+                            exit_reason, exit_prices = monitor_with_reconnects(best_candidate["route"].legs, signal.symbol)
+                            logging.critical("LIVE Credit Sweep trade on %s exited due to %s. Squaring off basket...", signal.symbol, exit_reason)
+                            execution.square_off_all(exit_prices, exit_reason=exit_reason)
+                        except Exception as e:
+                            logging.error("LIVE Credit Sweep monitor exception: %s", e)
+                            
+                    threading.Thread(target=run_monitor, daemon=True).start()
+                    
+                    for row in scanner_rows:
+                        if row.get("symbol") == signal.symbol:
+                            row["status"] = "LIVE_ENTRY"
+                            row["reject_reason"] = "Live trade deployed"
+
+    payload["scanner"] = scanner_rows
+    credit_sweep.save_credit_sweep_state(payload)
+
+
+
 def scan_market_and_execute_trades():
     import json
     import os
@@ -827,6 +1051,13 @@ def scan_market_and_execute_trades():
             df_5m["time"] = df_5m["dt"].dt.strftime("%H:%M")
             df_5m["atr14"] = (df_5m["high"] - df_5m["low"]).rolling(14).mean().fillna(1.0)
             
+            # Calculate daily levels from df_5m (shifted by 1 day)
+            daily_levels = df_5m.groupby("date").agg(
+                pd_high=("high", "max"),
+                pd_low=("low", "min"),
+                pd_close=("close", "last")
+            ).shift(1)
+            
             # 1m candles for today (spaced to prevent rate limit 429)
             time.sleep(2.0)
             from_date_1m = now.replace(hour=9, minute=15, second=0, microsecond=0)
@@ -838,6 +1069,9 @@ def scan_market_and_execute_trades():
             df_1m["dt"] = pd.to_datetime(df_1m["datetime"], unit="s").dt.tz_localize("UTC").dt.tz_convert("Asia/Kolkata").dt.tz_localize(None)
             df_1m["date"] = df_1m["dt"].dt.date.astype(str)
             df_1m["time"] = df_1m["dt"].dt.strftime("%H:%M")
+            
+            # Merge daily levels into df_1m
+            df_1m = df_1m.merge(daily_levels, on="date", how="left")
             
             typical = (df_1m["high"] + df_1m["low"] + df_1m["close"]) / 3.0
             df_1m["pv"] = typical * df_1m["volume"].clip(lower=1.0)
@@ -854,7 +1088,14 @@ def scan_market_and_execute_trades():
             if len(merged) < 2:
                 continue
                 
+            # Closed candle check (ensure candle is fully closed; revert to -2 if -1 is still forming)
             last_idx = -1
+            dt_val = merged.iloc[last_idx]["dt"]
+            dt_close = dt_val + timedelta(minutes=1)
+            if now < dt_close:
+                if len(merged) >= 2:
+                    last_idx = -2
+                    
             curr_price = float(merged.iloc[last_idx]["close"])
             trend_5m = int(merged.iloc[last_idx]["trend"])
             ob_low = float(merged.iloc[last_idx]["ob_low"])
@@ -930,7 +1171,19 @@ def scan_market_and_execute_trades():
             trigger_active = False
             score = 70
             
+            # Daily levels for confluence scoring
+            pd_low = float(merged.iloc[last_idx]["pd_low"]) if "pd_low" in merged.columns else float('nan')
+            pd_high = float(merged.iloc[last_idx]["pd_high"]) if "pd_high" in merged.columns else float('nan')
+            
             if pullback_pending:
+                # 1. Daily Level Confluence Scoring
+                if pending_direction == "BULLISH":
+                    if not pd.isna(pd_low) and low_price <= pd_low:
+                        score += 10
+                else:
+                    if not pd.isna(pd_high) and high_price >= pd_high:
+                        score += 10
+                        
                 if pending_direction == "BULLISH":
                     if merged.iloc[last_idx]["bull_trigger"]:
                         if not params.use_vwap_filter or curr_price > vwap:
@@ -948,6 +1201,42 @@ def scan_market_and_execute_trades():
                             if merged.iloc[last_idx]["volume"] >= merged.iloc[last_idx]["volume_median20"] * 1.15:
                                 score += 10
                                 
+            # Signal quality gate validation and age calculation
+            dt_val_actual = merged.iloc[last_idx]["dt"]
+            dt_close_actual = dt_val_actual + timedelta(minutes=1)
+            signal_age = max(0.0, (now - dt_close_actual).total_seconds())
+            
+            is_valid = False
+            reject_reason = ""
+            remaining_rr = 0.0
+            
+            if trigger_active:
+                fresh_spot = get_spot_price(symbol)
+                if fresh_spot:
+                    is_valid, reject_reason, remaining_rr = btom.validate_mtf_signal(
+                        symbol=symbol,
+                        time_str=merged.iloc[last_idx]["time"],
+                        score=score,
+                        trend=trend_5m,
+                        curr_price=curr_price,
+                        stop_loss=stop_5m,
+                        target=target_5m,
+                        atr_1m=merged.iloc[last_idx]["atr14"],
+                        pd_low=pd_low,
+                        pd_high=pd_high,
+                        ob_low=ob_low,
+                        ob_high=ob_high,
+                        zone_entry=zone_entry,
+                        is_live=True,
+                        signal_dt=dt_val_actual,
+                        now=now,
+                        fresh_spot=fresh_spot,
+                    )
+                else:
+                    reject_reason = "No fresh spot price available"
+            else:
+                reject_reason = "No trigger confirmed" if pullback_pending else "No pending pullback"
+
             screener_results.append({
                 "symbol": symbol,
                 "price": curr_price,
@@ -957,12 +1246,15 @@ def scan_market_and_execute_trades():
                 "stop_loss": stop_5m,
                 "target": target_5m,
                 "pullback": "PENDING" if pullback_pending else "NONE",
-                "trigger": "CONFIRMED" if trigger_active else "NONE",
+                "trigger": "CONFIRMED" if (trigger_active and is_valid) else "REJECTED" if (trigger_active and not is_valid) else "NONE",
                 "score": score if pullback_pending else 0,
+                "live_rr": round(remaining_rr, 2) if trigger_active else 0.0,
+                "signal_age": int(signal_age),
+                "reject_reason": reject_reason if (trigger_active and not is_valid) else "NONE" if (trigger_active and is_valid) else "",
                 "updated_at": now.strftime("%H:%M:%S")
             })
             
-            if trigger_active and not (active_state and active_state.get("active")):
+            if trigger_active and is_valid and not (active_state and active_state.get("active")):
                 trades_today = 0
                 csv_path = os.path.join(BASE_DIR, "sandbox_trade_logs.csv")
                 if os.path.exists(csv_path):
@@ -983,7 +1275,15 @@ def scan_market_and_execute_trades():
                             "entry_price": curr_price,
                             "stop_loss": stop_5m,
                             "target": target_5m,
-                            "score": score
+                            "score": score,
+                            "time_str": merged.iloc[last_idx]["time"],
+                            "atr_1m": merged.iloc[last_idx]["atr14"],
+                            "pd_low": pd_low,
+                            "pd_high": pd_high,
+                            "ob_low": ob_low,
+                            "ob_high": ob_high,
+                            "zone_entry": zone_entry,
+                            "signal_dt": dt_val_actual,
                         }
         except Exception as e:
             logging.error("Scanner failed for symbol %s: %s", symbol, e)
@@ -1007,6 +1307,7 @@ def deploy_mtf_oblt_trade(candidate):
     import config
     import math
     from backtest_orderblock_mitigation import get_strike_step, get_margin_per_lot
+    import backtest_orderblock_mitigation as btom
     
     symbol = candidate["symbol"]
     direction = candidate["direction"]
@@ -1014,6 +1315,39 @@ def deploy_mtf_oblt_trade(candidate):
     stop_loss = candidate["stop_loss"]
     target = candidate["target"]
     score = candidate["score"]
+    
+    # Fetch fresh spot price from broker immediately before building legs
+    fresh_spot = get_spot_price(symbol)
+    if not fresh_spot:
+        logging.error("Failed to recheck fresh spot price immediately before building option legs for %s", symbol)
+        return
+        
+    is_valid, reject_reason, remaining_rr = btom.validate_mtf_signal(
+        symbol=symbol,
+        time_str=candidate["time_str"],
+        score=score,
+        trend=1 if direction == "BULLISH" else -1,
+        curr_price=entry_price,
+        stop_loss=stop_loss,
+        target=target,
+        atr_1m=candidate["atr_1m"],
+        pd_low=candidate["pd_low"],
+        pd_high=candidate["pd_high"],
+        ob_low=candidate["ob_low"],
+        ob_high=candidate["ob_high"],
+        zone_entry=candidate["zone_entry"],
+        is_live=True,
+        signal_dt=candidate["signal_dt"],
+        now=datetime.now(),
+        fresh_spot=fresh_spot,
+    )
+    
+    if not is_valid:
+        logging.critical("❌ Pre-execution recheck failed for %s: %s (fresh spot: %.2f)", symbol, reject_reason, fresh_spot)
+        return
+        
+    # Use the immediate fresh spot for legs builder
+    entry_price = fresh_spot
     
     expiry_date = get_symbol_expiry_date(symbol)
     chain = data_feed.get_broker().get_option_chain(symbol, expiry_date)
@@ -1293,7 +1627,7 @@ def is_dhan_token_valid(token):
         
         exp = payload.get("exp")
         if exp:
-            return float(exp) > time.time() + 1800
+            return float(exp) > time.time() + 43200
     except Exception:
         pass
     return False

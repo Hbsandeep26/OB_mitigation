@@ -1,0 +1,5 @@
+import config
+print("MTF_VALIDATED_SYMBOLS:", config.MTF_VALIDATED_SYMBOLS)
+print("MTF_MIN_SCORE:", config.MTF_MIN_SCORE)
+print("MTF_MIN_LIVE_RR:", config.MTF_MIN_LIVE_RR)
+print("MTF_SLIPPAGE_BUFFER_BPS:", config.MTF_SLIPPAGE_BUFFER_BPS)

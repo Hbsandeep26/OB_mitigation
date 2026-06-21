@@ -1,0 +1,209 @@
+Created At: 2026-06-21T15:49:04Z
+Completed At: 2026-06-21T15:49:04Z
+File Path: `file:///c:/Users/sande/Antigravity_upstox_selling/Dhan_Algo/main.py`
+Total Lines: 1457
+Total Bytes: 59886
+Showing lines 900 to 1100
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+900:                 
+901:                 # Check if there is an active trade for this symbol to disable new setups
+902:                 is_symbol_active = active_state and active_state.get("active") and str(active_state.get("symbol")).upper() == symbol
+903:                 
+904:                 if not is_symbol_active and not df_cycle.empty:
+905:                     for _, row in df_cycle.iterrows():
+906:                         # A. Check invalidation first if already pending
+907:                         if pullback_pending:
+908:                             close_val = float(row["close"])
+909:                             if pending_direction == "BULLISH":
+910:                                 if close_val < ob_low:
+911:                                     pullback_pending = False
+912:                             else:  # BEARISH
+913:                                 if close_val > ob_high:
+914:                                     pullback_pending = False
+915:                         
+916:                         # B. Check for pullback touch to activate pending state
+917:                         if not pullback_pending:
+918:                             low_val = float(row["low"])
+919:                             high_val = float(row["high"])
+920:                             close_val = float(row["close"])
+921:                             if trend_5m == 1:
+922:                                 if low_val <= zone_entry and close_val >= ob_low:
+923:                                     pullback_pending = True
+924:                                     pending_direction = "BULLISH"
+925:                             elif trend_5m == -1:
+926:                                 if high_val >= zone_entry and close_val <= ob_high:
+927:                                     pullback_pending = True
+928:                                     pending_direction = "BEARISH"
+929:                                     
+930:             trigger_active = False
+931:             score = 70
+932:             
+933:             if pullback_pending:
+934:                 if pending_direction == "BULLISH":
+935:                     if merged.iloc[last_idx]["bull_trigger"]:
+936:                         if not params.use_vwap_filter or curr_price > vwap:
+937:                             trigger_active = True
+938:                             if curr_price > vwap:
+939:                                 score += 10
+940:                             if merged.iloc[last_idx]["volume"] >= merged.iloc[last_idx]["volume_median20"] * 1.15:
+941:                                 score += 10
+942:                 else:
+943:                     if merged.iloc[last_idx]["bear_trigger"]:
+944:                         if not params.use_vwap_filter or curr_price < vwap:
+945:                             trigger_active = True
+946:                             if curr_price < vwap:
+947:                                 score += 10
+948:                             if merged.iloc[last_idx]["volume"] >= merged.iloc[last_idx]["volume_median20"] * 1.15:
+949:                                 score += 10
+950:                                 
+951:             screener_results.append({
+952:                 "symbol": symbol,
+953:                 "price": curr_price,
+954:                 "trend": "BULLISH" if trend_5m == 1 else "BEARISH" if trend_5m == -1 else "NEUTRAL",
+955:                 "zone_time": zone_time,
+956:                 "zone_entry": zone_entry,
+957:                 "stop_loss": stop_5m,
+958:                 "target": target_5m,
+959:                 "pullback": "PENDING" if pullback_pending else "NONE",
+960:                 "trigger": "CONFIRMED" if trigger_active else "NONE",
+961:                 "score": score if pullback_pending else 0,
+962:                 "updated_at": now.strftime("%H:%M:%S")
+963:             })
+964:             
+965:             if trigger_active and not (active_state and active_state.get("active")):
+966:                 trades_today = 0
+967:                 csv_path = os.path.join(BASE_DIR, "sandbox_trade_logs.csv")
+968:                 if os.path.exists(csv_path):
+969:                     try:
+970:                         df_ledger = pd.read_csv(csv_path)
+971:                         df_ledger["Date"] = pd.to_datetime(df_ledger["Timestamp"]).dt.date.astype(str)
+972:                         today_str = now.strftime("%Y-%m-%d")
+973:                         trades_today = len(df_ledger[(df_ledger["Date"] == today_str) & (df_ledger["Action"] == "ENTRY")])
+974:                     except Exception:
+975:                         pass
+976:                         
+977:                 if trades_today < params.max_trades_per_day:
+978:                     if score > best_score:
+979:                         best_score = score
+980:                         best_candidate = {
+981:                             "symbol": symbol,
+982:                             "direction": pending_direction,
+983:                             "entry_price": curr_price,
+984:                             "stop_loss": stop_5m,
+985:                             "target": target_5m,
+986:                             "score": score
+987:                         }
+988:         except Exception as e:
+989:             logging.error("Scanner failed for symbol %s: %s", symbol, e)
+990:             
+991:     screener_file = os.path.join(BASE_DIR, "screener_state.json")
+992:     state_manager._atomic_write(screener_file, screener_results)
+993:     
+994:     if best_candidate and not (active_state and active_state.get("active")):
+995:         logging.critical("🎯 SCANNER FOUND CONFIRMED SETUP: %s", best_candidate)
+996:         try:
+997:             deploy_mtf_oblt_trade(best_candidate)
+998:         except Exception as deploy_err:
+999:             logging.error("Failed to deploy MTF-OBLT trade: %s", deploy_err)
+1000: 
+1001: 
+1002: def deploy_mtf_oblt_trade(candidate):
+1003:     import data_feed
+1004:     import strategy
+1005:     import execution
+1006:     import state_manager
+1007:     import config
+1008:     import math
+1009:     from backtest_orderblock_mitigation import get_strike_step, get_margin_per_lot
+1010:     
+1011:     symbol = candidate["symbol"]
+1012:     direction = candidate["direction"]
+1013:     entry_price = candidate["entry_price"]
+1014:     stop_loss = candidate["stop_loss"]
+1015:     target = candidate["target"]
+1016:     score = candidate["score"]
+1017:     
+1018:     expiry_date = get_symbol_expiry_date(symbol)
+1019:     chain = data_feed.get_broker().get_option_chain(symbol, expiry_date)
+1020:     if not chain:
+1021:         logging.error("Failed to fetch option chain for %s on %s", symbol, expiry_date)
+1022:         return
+1023:         
+1024:     strategy_type = config.MTF_STRATEGY_TYPE
+1025:     if strategy_type == "Ratio":
+1026:         legs, entry_prices, strikes = strategy.calculate_ratio_spread_legs(symbol, entry_price, chain, direction)
+1027:         order_sequence = [
+1028:             ("buy_ce" if direction == "BULLISH" else "buy_pe", "BUY"),
+1029:             ("sell_ce" if direction == "BULLISH" else "sell_pe", "SELL")
+1030:         ]
+1031:     elif strategy_type == "Synthetic Future":
+1032:         legs, entry_prices, strikes = strategy.calculate_synthetic_future_legs(symbol, entry_price, chain, direction)
+1033:         order_sequence = [
+1034:             ("buy_ce" if direction == "BULLISH" else "buy_pe", "BUY"),
+1035:             ("sell_pe" if direction == "BULLISH" else "sell_ce", "SELL")
+1036:         ]
+1037:     else:
+1038:         logging.error("Unsupported live strategy type for MTF-OBLT: %s", strategy_type)
+1039:         return
+1040:         
+1041:     if not legs:
+1042:         logging.error("Failed to build option legs for %s", symbol)
+1043:         return
+1044:         
+1045:     lot_size = config.get_symbol_lot_size(symbol)
+1046:     margin_per_lot = get_margin_per_lot(symbol, entry_price)
+1047:     
+1048:     strike_step = get_strike_step(symbol)
+1049:     risk_per_lot = 0.20 * strike_step * lot_size if strategy_type == "Ratio" else abs(entry_price - stop_loss) * lot_size
+1050:     
+1051:     capital = float(config._setting("VIRTUAL_CAPITAL", 200000.0))
+1052:     risk_budget = float(config._setting("MTF_DISCRETE_RISK_BUDGET", 1000.0))
+1053:     
+1054:     lots_by_risk = math.floor(risk_budget / risk_per_lot) if risk_per_lot > 0 else 1
+1055:     lots_by_margin = math.floor(capital / margin_per_lot) if margin_per_lot > 0 else 1
+1056:     
+1057:     lots = min(lots_by_risk, lots_by_margin)
+1058:     if lots < 1:
+1059:         lots = 1
+1060:         
+1061:     trade_quantity = lots * lot_size
+1062:     
+1063:     metadata = {
+1064:         "setup_score": score,
+1065:         "direction": direction,
+1066:         "stop_loss_pts": abs(entry_price - stop_loss),
+1067:         "target_pts": abs(target - entry_price),
+1068:         "entry_spot": entry_price,
+1069:     }
+1070:     
+1071:     logging.critical("Executing live MTF-OBLT entry for %s (%s) with %s lots (qty=%s)", symbol, direction, lots, trade_quantity)
+1072:     success = execution.place_option_spread_basket(
+1073:         legs=legs,
+1074:         index_symbol=symbol,
+1075:         entry_prices=entry_prices,
+1076:         strikes=strikes,
+1077:         order_sequence=order_sequence,
+1078:         strategy_type=strategy_type,
+1079:         spot_price=entry_price,
+1080:         carry_overnight=False,
+1081:         metadata=metadata,
+1082:         quantity=trade_quantity,
+1083:         sizing={"lots_to_deploy": lots, "lot_multiple": lot_size, "capital_deployed": lots * margin_per_lot}
+1084:     )
+1085:     
+1086:     if success:
+1087:         logging.critical("Successfully deployed MTF-OBLT trade on %s! Starting background risk monitor...", symbol)
+1088:         import threading
+1089:         
+1090:         def run_monitor():
+1091:             try:
+1092:                 exit_reason, exit_prices = monitor_with_reconnects(legs, symbol)
+1093:                 logging.critical("Background trade exited. Exit reason: %s", exit_reason)
+1094:                 execution.square_off_all(exit_prices, exit_reason=exit_reason)
+1095:             except Exception as monitor_err:
+1096:                 logging.error("Exception in background risk monitor thread: %s", monitor_err)
+1097:                 
+1098:         monitor_thread = threading.Thread(target=run_monitor, name=f"risk-monitor-{symbol}", daemon=True)
+1099:         monitor_thread.start()
+1100: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,209 @@
+Created At: 2026-06-21T15:49:01Z
+Completed At: 2026-06-21T15:49:02Z
+File Path: `file:///c:/Users/sande/Antigravity_upstox_selling/Dhan_Algo/main.py`
+Total Lines: 1457
+Total Bytes: 59886
+Showing lines 700 to 900
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+700:         index_symbol,
+701:         expiry_date,
+702:         spot,
+703:         route,
+704:         reason=reason,
+705:         carry_overnight=True,
+706:     )
+707: 
+708: 
+709: def scheduled_btst_momentum_check():
+710:     if state_manager.load_state() and state_manager.load_state().get("active"):
+711:         logging.info("Scheduled BTST momentum check skipped because an active position exists.")
+712:         return False
+713: 
+714:     nifty_expiry, sensex_expiry = current_expiries()
+715:     index_symbol, expiry_date, _, _ = session_for_time(datetime.now(), nifty_expiry, sensex_expiry)
+716:     return deploy_adaptive_btst_trade(index_symbol, expiry_date, reason="SCHEDULED_1525")
+717: 
+718: 
+719: def sync_open_position_after_reconnect(active_state):
+720:     active_legs = (active_state or {}).get("legs", {})
+721:     if not active_legs:
+722:         return active_legs
+723:     quotes = get_fresh_option_quotes(list(active_legs.values()))
+724:     if quotes:
+725:         last_live_prices = {
+726:             leg_name: float(quotes.get(token, 0.0) or 0.0)
+727:             for leg_name, token in active_legs.items()
+728:             if float(quotes.get(token, 0.0) or 0.0) > 0
+729:         }
+730:         if last_live_prices:
+731:             state_manager.update_many({
+732:                 "last_live_prices": last_live_prices,
+733:                 "feed_status": "RECONNECTED_REST_SYNC",
+734:             })
+735:     return active_legs
+736: 
+737: 
+738: def get_stock_expiry_date(now=None):
+739:     from datetime import datetime
+740:     import calendar
+741:     if now is None:
+742:         now = datetime.now()
+743:     year = now.year
+744:     month = now.month
+745:     
+746:     def last_thursday(y, m):
+747:         c = calendar.monthcalendar(y, m)
+748:         thursdays = []
+749:         for week in c:
+750:             if week[3] != 0:
+751:                 thursdays.append(week[3])
+752:         last_day = thursdays[-1]
+753:         return datetime(y, m, last_day)
+754:         
+755:     last_thurs_curr = last_thursday(year, month)
+756:     if now.date() > last_thurs_curr.date() or (now.date() == last_thurs_curr.date() and now.time() >= datetime.strptime("15:30", "%H:%M").time()):
+757:         if month == 12:
+758:             year += 1
+759:             month = 1
+760:         else:
+761:             month += 1
+762:         last_thurs_curr = last_thursday(year, month)
+763:         
+764:     return last_thurs_curr.strftime("%Y-%m-%d")
+765: 
+766: 
+767: def get_symbol_expiry_date(symbol, now=None):
+768:     symbol = str(symbol).upper().strip()
+769:     if symbol == "NIFTY":
+770:         return config._setting("NIFTY_EXPIRY")
+771:     elif symbol == "SENSEX":
+772:         return config._setting("SENSEX_EXPIRY")
+773:     elif symbol == "BANKNIFTY":
+774:         return config._setting("BANKNIFTY_EXPIRY") or config._setting("NIFTY_EXPIRY")
+775:     else:
+776:         return get_stock_expiry_date(now)
+777: 
+778: 
+779: def scan_market_and_execute_trades():
+780:     import json
+781:     import os
+782:     import pandas as pd
+783:     import math
+784:     import backtest_orderblock_mitigation as btom
+785:     import data_feed
+786:     import strategy
+787:     import execution
+788:     
+789:     active_state = state_manager.load_state()
+790:     if active_state and active_state.get("active"):
+791:         logging.info("Active trade exists. Scanner will only update screener_state.json.")
+792:         
+793:     symbols = config.MTF_SCREENER_SYMBOLS
+794:     screener_results = []
+795:     
+796:     params = btom.BacktestParams(
+797:         pivot_len=config.MTF_PIVOT_LEN,
+798:         displacement_multiplier=config.MTF_DISPLACEMENT_MULTIPLIER,
+799:         invalidation_buffer=config.MTF_INVALIDATION_BUFFER,
+800:         max_leg_age=config.MTF_MAX_LEG_AGE,
+801:         target_rr=config.MTF_TARGET_RR,
+802:         trigger_type=config.MTF_TRIGGER_TYPE,
+803:         stop_loss_type=config.MTF_STOP_LOSS_TYPE,
+804:         use_vwap_filter=config.MTF_USE_VWAP_FILTER,
+805:         max_trades_per_day=config.MTF_MAX_TRADES_PER_DAY,
+806:     )
+807:     
+808:     now = datetime.now()
+809:     from_date_5m = now - timedelta(days=5)
+810:     
+811:     best_candidate = None
+812:     best_score = -1
+813:     
+814:     for symbol in symbols:
+815:         symbol = symbol.strip().upper()
+816:         try:
+817:             # 5m candles (spaced to prevent rate limit 429)
+818:             time.sleep(2.0)
+819:             candles_5m = data_feed.get_broker().get_intraday_candles(symbol, minutes=5, from_date=from_date_5m)
+820:             if not candles_5m:
+821:                 logging.debug("No 5m candles returned for %s", symbol)
+822:                 continue
+823:                 
+824:             df_5m = pd.DataFrame(candles_5m, columns=["datetime", "open", "high", "low", "close", "volume", "oi"])
+825:             df_5m["dt"] = pd.to_datetime(df_5m["datetime"], unit="s").dt.tz_localize("UTC").dt.tz_convert("Asia/Kolkata").dt.tz_localize(None)
+826:             df_5m["date"] = df_5m["dt"].dt.date.astype(str)
+827:             df_5m["time"] = df_5m["dt"].dt.strftime("%H:%M")
+828:             df_5m["atr14"] = (df_5m["high"] - df_5m["low"]).rolling(14).mean().fillna(1.0)
+829:             
+830:             # 1m candles for today (spaced to prevent rate limit 429)
+831:             time.sleep(2.0)
+832:             from_date_1m = now.replace(hour=9, minute=15, second=0, microsecond=0)
+833:             candles_1m = data_feed.get_broker().get_intraday_candles(symbol, minutes=1, from_date=from_date_1m)
+834:             if not candles_1m:
+835:                 logging.debug("No 1m candles returned for %s", symbol)
+836:                 continue
+837:             df_1m = pd.DataFrame(candles_1m, columns=["datetime", "open", "high", "low", "close", "volume", "oi"])
+838:             df_1m["dt"] = pd.to_datetime(df_1m["datetime"], unit="s").dt.tz_localize("UTC").dt.tz_convert("Asia/Kolkata").dt.tz_localize(None)
+839:             df_1m["date"] = df_1m["dt"].dt.date.astype(str)
+840:             df_1m["time"] = df_1m["dt"].dt.strftime("%H:%M")
+841:             
+842:             typical = (df_1m["high"] + df_1m["low"] + df_1m["close"]) / 3.0
+843:             df_1m["pv"] = typical * df_1m["volume"].clip(lower=1.0)
+844:             df_1m["vwap"] = df_1m["pv"].cumsum() / df_1m["volume"].clip(lower=1.0).cumsum()
+845:             df_1m["volume_median20"] = df_1m["volume"].rolling(20, min_periods=5).median().fillna(1.0)
+846:             df_1m["atr14"] = (df_1m["high"] - df_1m["low"]).rolling(14).mean().fillna(1.0)
+847:             
+848:             df_state = btom.run_5m_ob_tracker(df_5m, params)
+849:             bull_trig, bear_trig = btom.compute_1m_triggers(df_1m, params.trigger_type)
+850:             df_1m["bull_trigger"] = bull_trig
+851:             df_1m["bear_trigger"] = bear_trig
+852:             
+853:             merged = pd.merge_asof(df_1m, df_state, on="dt", direction="backward")
+854:             if len(merged) < 2:
+855:                 continue
+856:                 
+857:             last_idx = -1
+858:             curr_price = float(merged.iloc[last_idx]["close"])
+859:             trend_5m = int(merged.iloc[last_idx]["trend"])
+860:             ob_low = float(merged.iloc[last_idx]["ob_low"])
+861:             ob_high = float(merged.iloc[last_idx]["ob_high"])
+862:             zone_entry = float(merged.iloc[last_idx]["zone_entry_price"])
+863:             stop_5m = float(merged.iloc[last_idx]["stop_loss_5m"])
+864:             target_5m = float(merged.iloc[last_idx]["take_profit_5m"])
+865:             vwap = float(merged.iloc[last_idx]["vwap"])
+866:             zone_time = str(merged.iloc[last_idx]["ob_time"]) if "ob_time" in merged.columns else ""
+867:             
+868:             low_price = float(merged.iloc[last_idx]["low"])
+869:             high_price = float(merged.iloc[last_idx]["high"])
+870:             
+871:             pullback_pending = False
+872:             pending_direction = None
+873:             
+874:             # Find the last exit time for this symbol today to avoid old pullbacks
+875:             last_exit_time = None
+876:             csv_path = os.path.join(BASE_DIR, "sandbox_trade_logs.csv")
+877:             if os.path.exists(csv_path):
+878:                 try:
+879:                     df_ledger = pd.read_csv(csv_path)
+880:                     if not df_ledger.empty and "Timestamp" in df_ledger.columns and "Index" in df_ledger.columns and "Action" in df_ledger.columns:
+881:                         df_ledger["Timestamp_dt"] = pd.to_datetime(df_ledger["Timestamp"], errors="coerce")
+882:                         today_str = now.strftime("%Y-%m-%d")
+883:                         symbol_exits = df_ledger[
+884:                             (df_ledger["Timestamp_dt"].dt.date.astype(str) == today_str) &
+885:                             (df_ledger["Index"].astype(str).str.upper() == symbol) &
+886:                             (df_ledger["Action"] == "EXIT")
+887:                         ]
+888:                         if not symbol_exits.empty:
+889:                             last_exit_time = symbol_exits["Timestamp_dt"].max()
+890:                 except Exception as e:
+891:                     logging.error("Failed to parse ledger for last exit of %s: %s", symbol, e)
+892: 
+893:             # Historical simulation of pullback within the current active OB trend cycle
+894:             if trend_5m != 0 and zone_time != "":
+895:                 # Filter merged to only include rows belonging to the current OB cycle
+896:                 df_cycle = merged[(merged["ob_time"] == zone_time) & (merged["trend"] == trend_5m)]
+897:                 if last_exit_time is not None:
+898:                     # Filter to candles after the last exit
+899:                     df_cycle = df_cycle[df_cycle["dt"] > last_exit_time]
+900:                 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

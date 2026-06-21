@@ -80,3 +80,35 @@
 2026-06-16 21:36:38,858 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
 2026-06-16 21:37:14,134 - INFO - OB Mitigation Portfolio Summary: trades=374 win_rate=84.76% expectancy=2.37R total=885.63R max_dd=-3.00R
 2026-06-16 21:37:14,135 - INFO - Reports written to data\backtests
+2026-06-21 21:22:11,279 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-21 21:22:48,870 - INFO - OB Mitigation Portfolio Summary: trades=374 win_rate=84.76% expectancy=2.37R total=885.63R max_dd=-3.00R
+2026-06-21 21:22:48,870 - INFO - Reports written to data\backtests
+2026-06-21 21:26:52,314 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-21 21:27:51,513 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-21 21:28:02,210 - INFO - [NIFTY] Rejected signals summary: time_window=0, score_gate=210, entry_drift=8, target_reached=190, remaining_rr=103, direction_violation=0
+2026-06-21 21:28:12,720 - INFO - [SENSEX] Rejected signals summary: time_window=0, score_gate=184, entry_drift=7, target_reached=234, remaining_rr=106, direction_violation=0
+2026-06-21 21:28:23,704 - INFO - [RELIANCE] Rejected signals summary: time_window=0, score_gate=147, entry_drift=70, target_reached=146, remaining_rr=107, direction_violation=0
+2026-06-21 21:28:23,709 - INFO - OB Mitigation Portfolio Summary: trades=6 win_rate=33.33% expectancy=0.15R total=0.88R max_dd=-3.00R
+2026-06-21 21:28:23,709 - INFO - Reports written to data\backtests
+2026-06-21 21:37:43,212 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-21 21:37:43,217 - INFO - Starting MTF Order Block & SFP Grid Search optimization on 3 symbols...
+2026-06-21 21:38:21,878 - INFO - [NIFTY] Rejected signals summary: time_window=0, score_gate=1830, entry_drift=66, target_reached=1259, remaining_rr=830, direction_violation=4
+2026-06-21 21:38:55,620 - INFO - [SENSEX] Rejected signals summary: time_window=0, score_gate=1573, entry_drift=51, target_reached=1429, remaining_rr=800, direction_violation=6
+2026-06-21 21:39:28,289 - INFO - [RELIANCE] Rejected signals summary: time_window=0, score_gate=1830, entry_drift=357, target_reached=807, remaining_rr=641, direction_violation=3
+2026-06-21 21:39:51,466 - INFO - [NIFTY] Rejected signals summary: time_window=0, score_gate=1830, entry_drift=66, target_reached=1259, remaining_rr=830, direction_violation=4
+2026-06-21 21:40:02,083 - INFO - [SENSEX] Rejected signals summary: time_window=0, score_gate=1573, entry_drift=51, target_reached=1429, remaining_rr=800, direction_violation=6
+2026-06-21 21:40:12,312 - INFO - [RELIANCE] Rejected signals summary: time_window=0, score_gate=1830, entry_drift=357, target_reached=807, remaining_rr=641, direction_violation=3
+2026-06-21 21:40:23,463 - INFO - [NIFTY] Rejected signals summary: time_window=0, score_gate=1830, entry_drift=66, target_reached=1259, remaining_rr=830, direction_violation=4
+2026-06-21 21:40:34,451 - INFO - [SENSEX] Rejected signals summary: time_window=0, score_gate=1573, entry_drift=51, target_reached=1429, remaining_rr=800, direction_violation=6
+2026-06-21 21:40:46,157 - INFO - [RELIANCE] Rejected signals summary: time_window=0, score_gate=1830, entry_drift=357, target_reached=807, remaining_rr=641, direction_violation=3
+2026-06-21 21:40:57,006 - INFO - [NIFTY] Rejected signals summary: time_window=0, score_gate=1830, entry_drift=66, target_reached=1259, remaining_rr=830, direction_violation=4
+2026-06-21 21:41:30,656 - INFO - [SENSEX] Rejected signals summary: time_window=0, score_gate=1573, entry_drift=51, target_reached=1429, remaining_rr=800, direction_violation=6
+2026-06-21 21:42:07,077 - INFO - [RELIANCE] Rejected signals summary: time_window=0, score_gate=1830, entry_drift=357, target_reached=807, remaining_rr=641, direction_violation=3
+2026-06-21 21:42:26,002 - INFO - [NIFTY] Rejected signals summary: time_window=0, score_gate=1830, entry_drift=66, target_reached=1259, remaining_rr=830, direction_violation=4
+2026-06-21 21:42:36,387 - INFO - [SENSEX] Rejected signals summary: time_window=0, score_gate=1573, entry_drift=51, target_reached=1429, remaining_rr=800, direction_violation=6
+2026-06-21 21:52:55,908 - INFO - Selected batch 1/1 with 3 instruments: NIFTY, SENSEX, RELIANCE
+2026-06-21 21:52:57,442 - INFO - [NIFTY] Rejected signals summary: time_window=0, score_gate=206, entry_drift=8, target_reached=188, remaining_rr=92, direction_violation=0
+2026-06-21 21:52:58,996 - INFO - [SENSEX] Rejected signals summary: time_window=0, score_gate=181, entry_drift=6, target_reached=232, remaining_rr=94, direction_violation=0
+2026-06-21 21:53:00,314 - INFO - [RELIANCE] Rejected signals summary: time_window=0, score_gate=118, entry_drift=65, target_reached=129, remaining_rr=85, direction_violation=0
+2026-06-21 21:53:00,324 - INFO - OB Mitigation Portfolio Summary: trades=29 win_rate=65.52% expectancy=0.51R total=14.84R max_dd=-3.59R
+2026-06-21 21:53:00,325 - INFO - Reports written to data\backtests

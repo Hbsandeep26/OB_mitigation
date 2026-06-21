@@ -822,8 +822,8 @@ def risk_management_evaluator(live_data, legs):
     if reversal_signal:
         return reversal_signal, reversal_prices
 
-    # MTF-OBLT spot-based exits (Ratio or Synthetic Future)
-    if strategy_type in ("Ratio", "Synthetic Future"):
+    # MTF-OBLT spot-based exits (Ratio or Synthetic Future) or Credit Sweep
+    if strategy_type in ("Ratio", "Synthetic Future") or str(strategy_type or "").startswith("CREDIT_SWEEP_"):
         metadata = state.get("metadata", {})
         direction = metadata.get("direction")
         entry_spot = float(metadata.get("entry_spot", 0.0))
@@ -886,6 +886,17 @@ def risk_management_evaluator(live_data, legs):
             threshold,
         )
         return "CATASTROPHE_KILL", current_prices
+
+    if str(strategy_type or "").startswith("CREDIT_SWEEP_"):
+        exit_time_str = config.CREDIT_SWEEP_EXIT_TIME
+        try:
+            exit_hour, exit_min = map(int, exit_time_str.split(":"))
+            now_dt = datetime.datetime.now()
+            if now_dt.hour > exit_hour or (now_dt.hour == exit_hour and now_dt.minute >= exit_min):
+                logging.critical("CREDIT_SWEEP TIME EXIT HIT")
+                return "TIME_EXIT", current_prices
+        except Exception:
+            pass
 
     now = datetime.datetime.now()
     if now.hour > 15 or (now.hour == 15 and now.minute >= 25):

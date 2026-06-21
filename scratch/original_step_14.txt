@@ -1,0 +1,159 @@
+Created At: 2026-06-21T15:49:09Z
+Completed At: 2026-06-21T15:49:09Z
+File Path: `file:///c:/Users/sande/Antigravity_upstox_selling/Dhan_Algo/main.py`
+Total Lines: 1457
+Total Bytes: 59886
+Showing lines 1100 to 1250
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1100: 
+1101: 
+1102: def trigger_manual_entry():
+1103:     logging.critical("Triggering manual entry from command center...")
+1104:     symbols = config.MTF_SCREENER_SYMBOLS
+1105:     if not symbols:
+1106:         return
+1107:         
+1108:     symbol = symbols[0].strip().upper()
+1109:     try:
+1110:         spot = get_spot_price(symbol)
+1111:         expiry_date = get_symbol_expiry_date(symbol)
+1112:         chain = data_feed.get_broker().get_option_chain(symbol, expiry_date)
+1113:         if not spot or not chain:
+1114:             logging.error("Manual entry failed: cannot fetch spot or chain.")
+1115:             return
+1116:             
+1117:         candidate = {
+1118:             "symbol": symbol,
+1119:             "direction": "BULLISH",
+1120:             "entry_price": spot,
+1121:             "stop_loss": spot - 50.0,
+1122:             "target": spot + 150.0,
+1123:             "score": 100
+1124:         }
+1125:         deploy_mtf_oblt_trade(candidate)
+1126:     except Exception as e:
+1127:         logging.error("Manual entry deployment failed: %s", e)
+1128: 
+1129: 
+1130: def monitor_with_reconnects(legs, index_symbol):
+1131:     reconnects = 0
+1132:     backoff_seconds = list(config.WEBSOCKET_RECONNECT_BACKOFF_SECONDS)
+1133:     while True:
+1134:         write_heartbeat("MONITORING")
+1135:         stop_loss_hit, exit_prices = monitor_live_prices(legs, risk_management_evaluator)
+1136:         if stop_loss_hit != "SOCKET_DEAD":
+1137:             return stop_loss_hit, exit_prices
+1138: 
+1139:         reconnects += 1
+1140:         state_manager.update_state("socket_reconnects", reconnects)
+1141:         logging.critical(
+1142:             "WebSocket died for %s; reconnect attempt %s/%s.",
+1143:             index_symbol,
+1144:             reconnects,
+1145:             len(backoff_seconds),
+1146:         )
+1147: 
+1148:         active_state = state_manager.load_state()
+1149:         if reconnects <= len(backoff_seconds) and active_state and active_state.get("active"):
+1150:             sleep_seconds = float(backoff_seconds[reconnects - 1])
+1151:             logging.info("Reconnecting WebSocket after %.1fs backoff.", sleep_seconds)
+1152:             time.sleep(sleep_seconds)
+1153:             active_state = state_manager.load_state()
+1154:             if active_state and active_state.get("active"):
+1155:                 legs = sync_open_position_after_reconnect(active_state) or legs
+1156:             continue
+1157: 
+1158:         fresh_exit_prices = exit_prices_from_rest(legs)
+1159:         if fresh_exit_prices:
+1160:             logging.critical("WebSocket failed repeatedly. Fresh REST quotes available; forcing square off.")
+1161:             return "SOCKET_DEAD_EXIT", fresh_exit_prices
+1162: 
+1163:         import notifier
+1164:         notifier.send_telegram_alert(
+1165:             f"<b>SOCKET DEAD: MANUAL ACTION REQUIRED</b>\n"
+1166:             f"{index_symbol}: monitor could not reconnect and REST quotes were unavailable."
+1167:         )
+1168:         return "SOCKET_DEAD_FATAL", {}
+1169: 
+1170: 
+1171: def _minutes_to_cutoff(cutoff_hour, cutoff_minute, now=None):
+1172:     now = now or datetime.now()
+1173:     cutoff = now.replace(hour=cutoff_hour, minute=cutoff_minute, second=0, microsecond=0)
+1174:     return (cutoff - now).total_seconds() / 60.0
+1175: 
+1176: 
+1177: def _combined_premium(prices):
+1178:     if not prices:
+1179:         return 0.0
+1180:     return sum(float(prices.get(key, 0.0) or 0.0) for key in ("sell_ce", "sell_pe", "buy_ce", "buy_pe"))
+1181: 
+1182: 
+1183: def _mapped_leg_prices(legs, quotes):
+1184:     prices = {
+1185:         leg_name: float(quotes.get(token, 0.0) or 0.0)
+1186:         for leg_name, token in legs.items()
+1187:     }
+1188:     return prices if all(value > 0 for value in prices.values()) else None
+1189: 
+1190: 
+1191: def post_emergency_reentry_allowed(
+1192:     index_symbol,
+1193:     legs,
+1194:     exit_prices,
+1195:     exit_reason,
+1196:     cutoff_hour,
+1197:     cutoff_minute,
+1198:     reference_spot=0.0,
+1199: ):
+1200:     if not config.POST_EMERGENCY_REENTRY_ENABLED:
+1201:         return True
+1202: 
+1203:     if fresh_entry_cutoff_reached():
+1204:         logging.critical(
+1205:             "%s re-entry blocked: fresh entry cutoff %s has passed.",
+1206:             exit_reason,
+1207:             config.FRESH_ENTRY_CUTOFF_TIME,
+1208:         )
+1209:         return False
+1210: 
+1211:     minutes_left = _minutes_to_cutoff(cutoff_hour, cutoff_minute)
+1212:     if minutes_left < config.POST_EMERGENCY_REENTRY_MIN_MINUTES_TO_CUTOFF:
+1213:         logging.critical(
+1214:             "%s re-entry blocked: %.1f minutes left before %02d:%02d cutoff.",
+1215:             exit_reason,
+1216:             minutes_left,
+1217:             cutoff_hour,
+1218:             cutoff_minute,
+1219:         )
+1220:         return False
+1221: 
+1222:     cooldown = float(config.POST_EMERGENCY_REENTRY_COOLDOWN_SECONDS)
+1223:     if cooldown > 0:
+1224:         logging.info("Cooling down %.0f seconds before post-%s re-entry check.", cooldown, exit_reason)
+1225:         time.sleep(cooldown)
+1226: 
+1227:     minutes_left = _minutes_to_cutoff(cutoff_hour, cutoff_minute)
+1228:     if minutes_left < config.POST_EMERGENCY_REENTRY_MIN_MINUTES_TO_CUTOFF:
+1229:         logging.critical(
+1230:             "%s re-entry blocked after cooldown: %.1f minutes left before cutoff.",
+1231:             exit_reason,
+1232:             minutes_left,
+1233:         )
+1234:         return False
+1235: 
+1236:     quotes = get_fresh_option_quotes(list(legs.values()))
+1237:     current_prices = _mapped_leg_prices(legs, quotes)
+1238:     if not current_prices:
+1239:         logging.critical("%s re-entry blocked: fresh option quotes unavailable.", exit_reason)
+1240:         return False
+1241: 
+1242:     exit_combined = _combined_premium(exit_prices)
+1243:     current_combined = _combined_premium(current_prices)
+1244:     premium_change = abs(current_combined - exit_combined) / exit_combined if exit_combined > 0 else 1.0
+1245: 
+1246:     state = state_manager.load_state() or {}
+1247:     reference_spot = float(reference_spot or state.get("last_spot") or state.get("entry_spot") or 0.0)
+1248:     current_spot = get_spot_price(index_symbol) or 0.0
+1249:     spot_change = abs(float(current_spot) - reference_spot) / reference_spot if reference_spot > 0 and current_spot else 0.0
+1250: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -104,6 +104,7 @@ HEARTBEAT_FILE = os.path.join(BASE_DIR, "engine_heartbeat.json")
 GRACEFUL_STOP_FILE = os.path.join(BASE_DIR, "graceful_stop_flag.txt")
 MANUAL_EXIT_FILE = os.path.join(BASE_DIR, "manual_exit_flag.txt")
 MANUAL_ENTRY_FILE = os.path.join(BASE_DIR, "manual_entry_flag.txt")
+CREDIT_SWEEP_STATE_FILE = os.path.join(BASE_DIR, "credit_sweep_state.json")
 
 def load_settings():
     if os.path.exists(SETTINGS_FILE):
@@ -357,8 +358,8 @@ with st.sidebar.form("config_form"):
     st.markdown("**MTF-OBLT Parameters**")
     
     mtf_strategy_type = st.selectbox("Strategy Type", ["Ratio", "Synthetic Future"], index=0 if settings.get("MTF_STRATEGY_TYPE", config.MTF_STRATEGY_TYPE) == "Ratio" else 1)
-    mtf_trigger_type = st.selectbox("Trigger Type", ["choch", "bos"], index=0 if settings.get("MTF_TRIGGER_TYPE", config.MTF_TRIGGER_TYPE) == "choch" else 1)
-    mtf_stop_loss_type = st.selectbox("Stop Loss Type", ["5m_origin", "ob_low"], index=0 if settings.get("MTF_STOP_LOSS_TYPE", config.MTF_STOP_LOSS_TYPE) == "5m_origin" else 1)
+    mtf_trigger_type = st.selectbox("Trigger Type", ["choch"], index=0)
+    mtf_stop_loss_type = st.selectbox("Stop Loss Type", ["5m_origin"], index=0)
     mtf_target_rr = st.number_input("Target RR", value=float(settings.get("MTF_TARGET_RR", config.MTF_TARGET_RR)), step=0.1, min_value=1.0)
     mtf_pivot_len = st.number_input("Pivot Length", value=int(settings.get("MTF_PIVOT_LEN", config.MTF_PIVOT_LEN)), step=1, min_value=1)
     mtf_disp_mult = st.number_input("Displacement Multiplier", value=float(settings.get("MTF_DISPLACEMENT_MULTIPLIER", config.MTF_DISPLACEMENT_MULTIPLIER)), step=0.1, min_value=0.5)
@@ -375,6 +376,28 @@ with st.sidebar.form("config_form"):
         mtf_symbols_str = str(mtf_symbols_list)
         
     mtf_symbols_input = st.text_input("Screener Symbols (comma separated)", value=mtf_symbols_str)
+
+    st.markdown("**Credit Sweep Strategy**")
+    credit_sweep_enabled = st.toggle(
+        "Enable Credit Sweep",
+        value=bool(settings.get("CREDIT_SWEEP_ENABLED", config.CREDIT_SWEEP_ENABLED)),
+    )
+    credit_sweep_paper_only = st.toggle(
+        "Paper Only Mode (Credit Sweep)",
+        value=bool(settings.get("CREDIT_SWEEP_PAPER_ONLY", config.CREDIT_SWEEP_PAPER_ONLY)),
+    )
+    credit_symbols_list = settings.get("CREDIT_SWEEP_SYMBOLS", config.CREDIT_SWEEP_SYMBOLS)
+    if isinstance(credit_symbols_list, list):
+        credit_symbols_str = ", ".join(credit_symbols_list)
+    else:
+        credit_symbols_str = str(credit_symbols_list)
+    credit_symbols_input = st.text_input("Credit Sweep Symbols", value=credit_symbols_str)
+    credit_entry_start = st.text_input("Credit Sweep Entry Start", value=str(settings.get("CREDIT_SWEEP_ENTRY_START", config.CREDIT_SWEEP_ENTRY_START)))
+    credit_entry_cutoff = st.text_input("Credit Sweep Entry Cutoff", value=str(settings.get("CREDIT_SWEEP_ENTRY_CUTOFF", config.CREDIT_SWEEP_ENTRY_CUTOFF)))
+    credit_exit_time = st.text_input("Credit Sweep Exit Time", value=str(settings.get("CREDIT_SWEEP_EXIT_TIME", config.CREDIT_SWEEP_EXIT_TIME)))
+    credit_min_score = st.number_input("Credit Sweep Min Score", value=int(settings.get("CREDIT_SWEEP_MIN_SCORE", config.CREDIT_SWEEP_MIN_SCORE)), step=1, min_value=0, max_value=100)
+    credit_rr_target = st.number_input("Credit Sweep RR Target", value=float(settings.get("CREDIT_SWEEP_RR_TARGET", config.CREDIT_SWEEP_RR_TARGET)), step=0.05, min_value=0.1)
+    credit_risk_budget = st.number_input("Credit Sweep Paper Risk Budget", value=float(settings.get("CREDIT_SWEEP_RISK_BUDGET", config.CREDIT_SWEEP_RISK_BUDGET)), step=50.0, min_value=0.0)
     
     if st.form_submit_button("💾 Save Settings"):
         settings["BROKER"] = broker_choice
@@ -395,6 +418,17 @@ with st.sidebar.form("config_form"):
         
         parsed_symbols = [s.strip().upper() for s in mtf_symbols_input.split(",") if s.strip()]
         settings["MTF_SCREENER_SYMBOLS"] = parsed_symbols
+
+        credit_symbols = [s.strip().upper() for s in credit_symbols_input.split(",") if s.strip()]
+        settings["CREDIT_SWEEP_ENABLED"] = credit_sweep_enabled
+        settings["CREDIT_SWEEP_PAPER_ONLY"] = credit_sweep_paper_only
+        settings["CREDIT_SWEEP_SYMBOLS"] = credit_symbols
+        settings["CREDIT_SWEEP_ENTRY_START"] = credit_entry_start
+        settings["CREDIT_SWEEP_ENTRY_CUTOFF"] = credit_entry_cutoff
+        settings["CREDIT_SWEEP_EXIT_TIME"] = credit_exit_time
+        settings["CREDIT_SWEEP_MIN_SCORE"] = credit_min_score
+        settings["CREDIT_SWEEP_RR_TARGET"] = credit_rr_target
+        settings["CREDIT_SWEEP_RISK_BUDGET"] = credit_risk_budget
         
         settings["NIFTY_EXPIRY"] = str(nifty_exp)
         settings["SENSEX_EXPIRY"] = str(sensex_exp)
@@ -771,6 +805,37 @@ with tab_dashboard:
         else:
             st.warning("🟡 SYSTEM IDLE: Waiting for schedule.")
 
+        st.markdown("---")
+        st.markdown("### Credit Sweep Paper")
+        credit_state = {}
+        if os.path.exists(CREDIT_SWEEP_STATE_FILE):
+            try:
+                with open(CREDIT_SWEEP_STATE_FILE, "r", encoding="utf-8") as cf:
+                    credit_state = json.load(cf)
+            except json.JSONDecodeError:
+                credit_state = {}
+
+        position = credit_state.get("position") or {}
+        if credit_state.get("active") and position:
+            st.success(
+                f"PAPER ACTIVE: {position.get('symbol', '')} {position.get('direction', '')} | "
+                f"{position.get('strategy_type', '')}"
+            )
+            cs_col1, cs_col2, cs_col3 = st.columns(3)
+            with cs_col1:
+                st.metric("Paper PnL", f"₹{float(position.get('paper_pnl', 0.0) or 0.0):.2f}", delta=f"{float(position.get('paper_rr', 0.0) or 0.0):.2f}R")
+            with cs_col2:
+                st.metric("Net Credit", f"{float(position.get('net_credit', 0.0) or 0.0):.2f}", delta=f"Loss {float(position.get('defined_loss', 0.0) or 0.0):.2f}", delta_color="off")
+            with cs_col3:
+                st.metric("Spot Path", f"{float(position.get('current_spot', position.get('entry_spot', 0.0)) or 0.0):.2f}", delta=f"T {float(position.get('target_price', 0.0) or 0.0):.2f} / S {float(position.get('stop_price', 0.0) or 0.0):.2f}", delta_color="off")
+        elif position.get("exit_reason"):
+            st.info(
+                f"Last paper exit: {position.get('symbol', '')} {position.get('exit_reason', '')} | "
+                f"PnL ₹{float(position.get('paper_pnl', 0.0) or 0.0):.2f}"
+            )
+        else:
+            st.caption("No active Credit Sweep paper trade.")
+
     with col_logs:
         st.subheader("🖥️ Live Engine Logs")
         if os.path.exists(LOG_FILE_PATH):
@@ -827,20 +892,106 @@ with tab_scanner:
             if scan_data:
                 import pandas as pd
                 df_scan = pd.DataFrame(scan_data)
+                
+                rename_dict = {
+                    "symbol": "Symbol",
+                    "price": "Price",
+                    "trend": "Trend (5m)",
+                    "zone_time": "Zone Time",
+                    "zone_entry": "Zone Entry",
+                    "stop_loss": "Stop Loss",
+                    "target": "Target",
+                    "pullback": "Pullback",
+                    "trigger": "Trigger Status",
+                    "score": "Score",
+                    "live_rr": "Live RR",
+                    "signal_age": "Age (s)",
+                    "reject_reason": "Reject Reason",
+                    "updated_at": "Updated At"
+                }
+                df_display = df_scan.rename(columns=rename_dict)
+                
                 def style_scanner(row):
                     color = ''
-                    if row['trigger'] == 'CONFIRMED':
+                    status = row.get('Trigger Status')
+                    pullback = row.get('Pullback')
+                    if status == 'CONFIRMED':
                         color = 'background-color: rgba(16, 185, 129, 0.2)'
-                    elif row['pullback'] == 'PENDING':
+                    elif status == 'REJECTED':
+                        color = 'background-color: rgba(239, 68, 68, 0.15)'
+                    elif pullback == 'PENDING':
                         color = 'background-color: rgba(59, 130, 246, 0.1)'
                     return [color] * len(row)
-                st.dataframe(df_scan.style.apply(style_scanner, axis=1), hide_index=True, width='stretch')
+                st.dataframe(df_display.style.apply(style_scanner, axis=1), hide_index=True, width='stretch')
             else:
                 st.info("No symbols currently scanned.")
         except Exception as e:
             st.error(f"Error loading screener state: {e}")
     else:
         st.info("Screener file not found. Make sure the trading engine is running and scanning.")
+
+    st.markdown("---")
+    st.subheader("Credit Sweep Paper Scanner")
+    if os.path.exists(CREDIT_SWEEP_STATE_FILE):
+        try:
+            with open(CREDIT_SWEEP_STATE_FILE, "r", encoding="utf-8") as cf:
+                credit_state = json.load(cf)
+            credit_rows = credit_state.get("scanner", [])
+            if credit_rows:
+                df_credit = pd.DataFrame(credit_rows)
+                credit_columns = [
+                    "symbol",
+                    "status",
+                    "direction",
+                    "score",
+                    "entry_price",
+                    "stop_price",
+                    "target_price",
+                    "rr_target",
+                    "fresh_spot",
+                    "net_credit",
+                    "defined_loss",
+                    "reject_reason",
+                    "updated_at",
+                ]
+                for col in credit_columns:
+                    if col not in df_credit.columns:
+                        df_credit[col] = ""
+                df_credit = df_credit[credit_columns].rename(columns={
+                    "symbol": "Symbol",
+                    "status": "Status",
+                    "direction": "Direction",
+                    "score": "Score",
+                    "entry_price": "Entry",
+                    "stop_price": "Stop",
+                    "target_price": "Target",
+                    "rr_target": "R:R",
+                    "fresh_spot": "Fresh Spot",
+                    "net_credit": "Net Credit",
+                    "defined_loss": "Defined Loss",
+                    "reject_reason": "Reject Reason",
+                    "updated_at": "Updated At",
+                })
+
+                def style_credit(row):
+                    status = row.get("Status")
+                    if status == "PAPER_ENTRY":
+                        color = "background-color: rgba(16, 185, 129, 0.22)"
+                    elif status == "CONFIRMED":
+                        color = "background-color: rgba(59, 130, 246, 0.14)"
+                    elif status == "REJECTED":
+                        color = "background-color: rgba(239, 68, 68, 0.14)"
+                    else:
+                        color = ""
+                    return [color] * len(row)
+
+                st.dataframe(df_credit.style.apply(style_credit, axis=1), hide_index=True, width='stretch')
+            else:
+                st.info("Credit Sweep has not scanned yet.")
+        except Exception as e:
+            st.error(f"Error loading Credit Sweep state: {e}")
+    else:
+        st.info("Credit Sweep state file not found yet.")
 
 auto_refresh = st.toggle("🔄 Auto Refresh Dashboard (3s)", value=True, help="Disable to interact with inputs without being interrupted.")
 if auto_refresh:
