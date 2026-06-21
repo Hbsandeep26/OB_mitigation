@@ -5,3 +5,5 @@ engine_heartbeat.json
 btst_flag.txt
 market_telemetry.db
 market_telemetry.db-journal
+console.log
+bot.log*

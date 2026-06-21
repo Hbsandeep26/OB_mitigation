@@ -44,9 +44,11 @@ _last_heartbeat_write = 0.0
 # ============================================================================
 # THE DOUBLE-LOG FIX: Only add StreamHandler when running in a real terminal.
 # When launched via dashboard's subprocess.Popen(stdout=log_file), stdout IS
-# bot.log, so StreamHandler + RotatingFileHandler both write to bot.log = dupes.
+# console.log, so StreamHandler + RotatingFileHandler both write to bot.log = dupes.
 # ============================================================================
 from logging.handlers import TimedRotatingFileHandler
+import threading
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.propagate = False
@@ -65,6 +67,23 @@ if sys.stdout.isatty():
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
+
+# Global excepthooks to capture uncaught exceptions in bot.log
+def handle_exception(exc_type, exc_value, exc_traceback):
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+
+sys.excepthook = handle_exception
+
+def handle_thread_exception(args):
+    logger.error(
+        "Uncaught thread exception in thread %s", args.thread.name,
+        exc_info=(args.exc_type, args.exc_value, args.exc_traceback)
+    )
+
+threading.excepthook = handle_thread_exception
 
 
 # ============================================================================

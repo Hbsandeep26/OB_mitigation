@@ -96,6 +96,7 @@ SETTINGS_FILE = os.path.join(BASE_DIR, "settings.json")
 PID_FILE = os.path.join(BASE_DIR, "engine_pid.txt")
 STATE_FILE = os.path.join(BASE_DIR, "trade_state.json")
 LOG_FILE_PATH = os.path.join(BASE_DIR, "bot.log")
+CONSOLE_LOG_PATH = os.path.join(BASE_DIR, "console.log")
 CSV_LOG_FILE = os.path.join(BASE_DIR, "sandbox_trade_logs.csv")
 BTST_FILE = os.path.join(BASE_DIR, "btst_flag.txt")
 PANIC_FILE = os.path.join(BASE_DIR, "panic_flag.txt")
@@ -458,13 +459,13 @@ with col_start:
                 remove_flag(GRACEFUL_STOP_FILE)
                 remove_flag(MANUAL_EXIT_FILE)
                 remove_flag(MANUAL_ENTRY_FILE)
-                log_file = open(LOG_FILE_PATH, "a")
-                process = subprocess.Popen(
-                    [sys.executable, "main.py"], 
-                    cwd=BASE_DIR, 
-                    stdout=log_file, 
-                    stderr=subprocess.STDOUT
-                )
+                with open(CONSOLE_LOG_PATH, "a", encoding="utf-8") as console_log:
+                    process = subprocess.Popen(
+                        [sys.executable, "main.py"], 
+                        cwd=BASE_DIR, 
+                        stdout=console_log, 
+                        stderr=subprocess.STDOUT
+                    )
                 atomic_write_text(PID_FILE, str(process.pid))
                 st.success("Engine Started! Check logs.")
 

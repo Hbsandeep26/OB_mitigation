@@ -283,3 +283,302 @@
 2026-06-21 23:48:00,125 - INFO - Selected Execution Legs: {'sell_ce': 'C100', 'sell_pe': 'P100', 'buy_ce': 'C150', 'buy_pe': 'P50'}
 2026-06-21 23:48:00,125 - INFO - Target Entry Prices: {'sell_ce': 20, 'sell_pe': 20, 'buy_ce': 2, 'buy_pe': 2}
 2026-06-21 23:48:00,125 - INFO - Selected Strikes: {'sell_ce': 100, 'sell_pe': 100, 'buy_ce': 150, 'buy_pe': 50}
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 74, in emit
+    self.doRollover()
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 446, in doRollover
+    self.rotate(self.baseFilename, dfn)
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 115, in rotate
+    os.rename(source, dest)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log' -> 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log.2026-06-21'
+Call stack:
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1717, in <module>
+    logging.info("Sniper & Shield Bot Initialized ó State Architecture Active \U0001f3db\ufe0f")
+Message: 'Sniper & Shield Bot Initialized ó State Architecture Active \U0001f3db\ufe0f'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 74, in emit
+    self.doRollover()
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 446, in doRollover
+    self.rotate(self.baseFilename, dfn)
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 115, in rotate
+    os.rename(source, dest)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log' -> 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log.2026-06-21'
+Call stack:
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1718, in <module>
+    logging.info(f"  Buy Leg Premium Target: {config.BUY_LEG_PERCENT}%")
+Message: '  Buy Leg Premium Target: 5.0%'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 74, in emit
+    self.doRollover()
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 446, in doRollover
+    self.rotate(self.baseFilename, dfn)
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 115, in rotate
+    os.rename(source, dest)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log' -> 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log.2026-06-21'
+Call stack:
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1719, in <module>
+    logging.info(
+Message: '  Sniper Target: ON (12.0%)'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 74, in emit
+    self.doRollover()
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 446, in doRollover
+    self.rotate(self.baseFilename, dfn)
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 115, in rotate
+    os.rename(source, dest)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log' -> 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log.2026-06-21'
+Call stack:
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1723, in <module>
+    logging.info(f"  ATM Drift Ejector: {config.ATM_DRIFT_EJECT_THRESHOLD:.2f}x")
+Message: '  ATM Drift Ejector: 0.20x'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 74, in emit
+    self.doRollover()
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 446, in doRollover
+    self.rotate(self.baseFilename, dfn)
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 115, in rotate
+    os.rename(source, dest)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log' -> 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log.2026-06-21'
+Call stack:
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1724, in <module>
+    logging.info(f"  Catastrophe Kill: {config.SNIPER_CATASTROPHE_MULTIPLIER:.2f}x entry net premium")
+Message: '  Catastrophe Kill: 1.30x entry net premium'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 74, in emit
+    self.doRollover()
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 446, in doRollover
+    self.rotate(self.baseFilename, dfn)
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 115, in rotate
+    os.rename(source, dest)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log' -> 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log.2026-06-21'
+Call stack:
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1725, in <module>
+    logging.info(f"  Opening Range Gap Filter: ON ({config.GAP_THRESHOLD_PCT*100:.1f}% threshold, {config.GAP_SETTLE_MINUTES}min settle)")
+Message: '  Opening Range Gap Filter: ON (0.8% threshold, 15min settle)'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 74, in emit
+    self.doRollover()
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 446, in doRollover
+    self.rotate(self.baseFilename, dfn)
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 115, in rotate
+    os.rename(source, dest)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log' -> 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log.2026-06-21'
+Call stack:
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1726, in <module>
+    logging.info(f"  Entry Standby Gate: fresh entries start at {config.ENTRY_STANDBY_TIME}")
+Message: '  Entry Standby Gate: fresh entries start at 09:45'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 74, in emit
+    self.doRollover()
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 446, in doRollover
+    self.rotate(self.baseFilename, dfn)
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 115, in rotate
+    os.rename(source, dest)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log' -> 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log.2026-06-21'
+Call stack:
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1727, in <module>
+    logging.info("  Expiry Day Strategy: 0-DTE chains skipped; next weekly expiry used")
+Message: '  Expiry Day Strategy: 0-DTE chains skipped; next weekly expiry used'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 74, in emit
+    self.doRollover()
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 446, in doRollover
+    self.rotate(self.baseFilename, dfn)
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 115, in rotate
+    os.rename(source, dest)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log' -> 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log.2026-06-21'
+Call stack:
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1728, in <module>
+    logging.info(f"  Weekend Guard: ON")
+Message: '  Weekend Guard: ON'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 74, in emit
+    self.doRollover()
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 446, in doRollover
+    self.rotate(self.baseFilename, dfn)
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 115, in rotate
+    os.rename(source, dest)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log' -> 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log.2026-06-21'
+Call stack:
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1734, in <module>
+    auto_authenticate_dhan()
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1653, in auto_authenticate_dhan
+    logging.info("Dhan TOTP auto-auth: Attempting programmatic token generation...")
+Message: 'Dhan TOTP auto-auth: Attempting programmatic token generation...'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 74, in emit
+    self.doRollover()
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 446, in doRollover
+    self.rotate(self.baseFilename, dfn)
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 115, in rotate
+    os.rename(source, dest)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log' -> 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log.2026-06-21'
+Call stack:
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1734, in <module>
+    auto_authenticate_dhan()
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1655, in auto_authenticate_dhan
+    token = generate_dhan_token_with_totp(client_id, pin, totp_secret)
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\auth.py", line 55, in generate_dhan_token_with_totp
+    logging.info("Requesting fresh Dhan Access Token using TOTP...")
+Message: 'Requesting fresh Dhan Access Token using TOTP...'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 74, in emit
+    self.doRollover()
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 446, in doRollover
+    self.rotate(self.baseFilename, dfn)
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 115, in rotate
+    os.rename(source, dest)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log' -> 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log.2026-06-21'
+Call stack:
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1734, in <module>
+    auto_authenticate_dhan()
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1655, in auto_authenticate_dhan
+    token = generate_dhan_token_with_totp(client_id, pin, totp_secret)
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\auth.py", line 65, in generate_dhan_token_with_totp
+    logging.info("Successfully generated Dhan access token via TOTP.")
+Message: 'Successfully generated Dhan access token via TOTP.'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 74, in emit
+    self.doRollover()
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 446, in doRollover
+    self.rotate(self.baseFilename, dfn)
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 115, in rotate
+    os.rename(source, dest)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log' -> 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log.2026-06-21'
+Call stack:
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1734, in <module>
+    auto_authenticate_dhan()
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1675, in auto_authenticate_dhan
+    logging.info("Dhan TOTP auto-auth: Programmatic token successfully updated & saved to settings.json!")
+Message: 'Dhan TOTP auto-auth: Programmatic token successfully updated & saved to settings.json!'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 74, in emit
+    self.doRollover()
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 446, in doRollover
+    self.rotate(self.baseFilename, dfn)
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 115, in rotate
+    os.rename(source, dest)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log' -> 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log.2026-06-21'
+Call stack:
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1735, in <module>
+    build_todays_schedule()
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1705, in build_todays_schedule
+    logging.info("Scheduling MTF-OBLT live scanner running every 1 minute.")
+Message: 'Scheduling MTF-OBLT live scanner running every 1 minute.'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 74, in emit
+    self.doRollover()
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 446, in doRollover
+    self.rotate(self.baseFilename, dfn)
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\logging\handlers.py", line 115, in rotate
+    os.rename(source, dest)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log' -> 'C:\\Users\\sande\\Antigravity_upstox_selling\\Dhan_Algo\\bot.log.2026-06-21'
+Call stack:
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1768, in <module>
+    logging.info("Waiting for scheduled events...")
+Message: 'Waiting for scheduled events...'
+Arguments: ()
+Traceback (most recent call last):
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\site-packages\urllib3\util\connection.py", line 73, in create_connection
+    sock.connect(sa)
+TimeoutError: timed out
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1771, in <module>
+    
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\site-packages\schedule\__init__.py", line 854, in run_pending
+    default_scheduler.run_pending()
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\site-packages\schedule\__init__.py", line 101, in run_pending
+    self._run_job(job)
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\site-packages\schedule\__init__.py", line 173, in _run_job
+    ret = job.run()
+          ^^^^^^^^^
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\site-packages\schedule\__init__.py", line 691, in run
+    ret = self.job_func()
+          ^^^^^^^^^^^^^^^
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\main.py", line 1043, in scan_market_and_execute_trades
+    max_leg_age=config.MTF_MAX_LEG_AGE,
+                     ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\broker.py", line 390, in get_intraday_candles
+    return self._charts_to_candles(self._post("/charts/intraday", payload))
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\Antigravity_upstox_selling\Dhan_Algo\broker.py", line 269, in _post
+    response = requests.post(
+               ^^^^^^^^^^^^^^
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\site-packages\requests\api.py", line 115, in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\site-packages\requests\api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\site-packages\requests\sessions.py", line 592, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\site-packages\requests\sessions.py", line 706, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\site-packages\requests\adapters.py", line 645, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\site-packages\urllib3\connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\site-packages\urllib3\connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\site-packages\urllib3\connectionpool.py", line 1093, in _validate_conn
+    conn.connect()
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\site-packages\urllib3\connection.py", line 753, in connect
+    self.sock = sock = self._new_conn()
+                       ^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\site-packages\urllib3\connection.py", line 198, in _new_conn
+    sock = connection.create_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\site-packages\urllib3\util\connection.py", line 81, in create_connection
+    sock.close()
+  File "C:\Users\sande\anaconda3\envs\python312\Lib\socket.py", line 501, in close
+    def close(self):
+
+KeyboardInterrupt
+2026-06-22 00:28:53,431 - INFO - Sniper & Shield Bot Initialized ‚Äî State Architecture Active üèõÔ∏è
+2026-06-22 00:28:53,431 - INFO -   Buy Leg Premium Target: 5.0%
+2026-06-22 00:28:53,431 - INFO -   Sniper Target: ON (12.0%)
+2026-06-22 00:28:53,431 - INFO -   ATM Drift Ejector: 0.20x
+2026-06-22 00:28:53,431 - INFO -   Catastrophe Kill: 1.30x entry net premium
+2026-06-22 00:28:53,431 - INFO -   Opening Range Gap Filter: ON (0.8% threshold, 15min settle)
+2026-06-22 00:28:53,431 - INFO -   Entry Standby Gate: fresh entries start at 09:45
+2026-06-22 00:28:53,431 - INFO -   Expiry Day Strategy: 0-DTE chains skipped; next weekly expiry used
+2026-06-22 00:28:53,431 - INFO -   Weekend Guard: ON
+2026-06-22 00:28:53,431 - INFO - Dhan TOTP auto-auth: Current saved access token is still valid. Skipping token generation.
+2026-06-22 00:28:53,437 - INFO - Scheduling MTF-OBLT live scanner running every 1 minute.
+2026-06-22 00:28:53,437 - INFO - Waiting for scheduled events...
