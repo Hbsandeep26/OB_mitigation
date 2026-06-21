@@ -1721,8 +1721,8 @@ def build_todays_schedule():
     if calendar_blocks_trading():
         return
 
-    logging.info("Scheduling MTF-OBLT live scanner running every 1 minute.")
-    schedule.every(1).minutes.do(scan_market_and_execute_trades).tag('trading_jobs')
+    logging.info("Scheduling Credit Sweep scanner running every 1 minute.")
+    schedule.every(1).minutes.do(scan_credit_sweep_and_paper_trades).tag('trading_jobs')
 
 
 # ============================================================================
@@ -1778,9 +1778,9 @@ if __name__ == "__main__":
     if not calendar_invalid and not (hasattr(config, 'MARKET_HOLIDAYS') and today_str in config.MARKET_HOLIDAYS) and now.weekday() < 5:
         current_time = now.time()
         if morning_start <= current_time < fresh_entry_cutoff:
-            logging.critical("🏃 LATE BOOT DETECTED! Running market scanner immediately on startup...")
+            logging.critical("🏃 LATE BOOT DETECTED! Running Credit Sweep scanner immediately on startup...")
             try:
-                scan_market_and_execute_trades()
+                scan_credit_sweep_and_paper_trades()
             except Exception as e:
                 logging.error("Startup scan failed: %s", e)
 

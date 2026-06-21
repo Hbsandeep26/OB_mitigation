@@ -582,3 +582,27 @@ KeyboardInterrupt
 2026-06-22 00:28:53,431 - INFO - Dhan TOTP auto-auth: Current saved access token is still valid. Skipping token generation.
 2026-06-22 00:28:53,437 - INFO - Scheduling MTF-OBLT live scanner running every 1 minute.
 2026-06-22 00:28:53,437 - INFO - Waiting for scheduled events...
+2026-06-22 00:33:34,380 - INFO - Sniper & Shield Bot Initialized — State Architecture Active 🏛️
+2026-06-22 00:33:34,381 - INFO -   Buy Leg Premium Target: 5.0%
+2026-06-22 00:33:34,381 - INFO -   Sniper Target: ON (12.0%)
+2026-06-22 00:33:34,381 - INFO -   ATM Drift Ejector: 0.20x
+2026-06-22 00:33:34,381 - INFO -   Catastrophe Kill: 1.30x entry net premium
+2026-06-22 00:33:34,381 - INFO -   Opening Range Gap Filter: ON (0.8% threshold, 15min settle)
+2026-06-22 00:33:34,381 - INFO -   Entry Standby Gate: fresh entries start at 09:45
+2026-06-22 00:33:34,381 - INFO -   Expiry Day Strategy: 0-DTE chains skipped; next weekly expiry used
+2026-06-22 00:33:34,381 - INFO -   Weekend Guard: ON
+2026-06-22 00:33:34,383 - INFO - Dhan TOTP auto-auth: Current saved access token is still valid. Skipping token generation.
+2026-06-22 00:33:34,385 - INFO - Scheduling Credit Sweep scanner running every 1 minute.
+2026-06-22 00:33:34,385 - INFO - Waiting for scheduled events...
+2026-06-22 00:35:35,360 - INFO - Sniper & Shield Bot Initialized — State Architecture Active 🏛️
+2026-06-22 00:35:35,361 - INFO -   Buy Leg Premium Target: 5.0%
+2026-06-22 00:35:35,361 - INFO -   Sniper Target: ON (12.0%)
+2026-06-22 00:35:35,361 - INFO -   ATM Drift Ejector: 0.20x
+2026-06-22 00:35:35,361 - INFO -   Catastrophe Kill: 1.30x entry net premium
+2026-06-22 00:35:35,361 - INFO -   Opening Range Gap Filter: ON (0.8% threshold, 15min settle)
+2026-06-22 00:35:35,361 - INFO -   Entry Standby Gate: fresh entries start at 09:45
+2026-06-22 00:35:35,361 - INFO -   Expiry Day Strategy: 0-DTE chains skipped; next weekly expiry used
+2026-06-22 00:35:35,361 - INFO -   Weekend Guard: ON
+2026-06-22 00:35:35,365 - INFO - Dhan TOTP auto-auth: Current saved access token is still valid. Skipping token generation.
+2026-06-22 00:35:35,366 - INFO - Scheduling Credit Sweep scanner running every 1 minute.
+2026-06-22 00:35:35,366 - INFO - Waiting for scheduled events...
