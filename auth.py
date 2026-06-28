@@ -2,6 +2,8 @@
 import requests
 import config
 import logging
+import time
+from datetime import datetime
 
 def get_daily_access_token(auth_code):
     """
@@ -43,6 +45,7 @@ def generate_dhan_token_with_totp(client_id, pin, totp_secret):
         clean_secret = str(totp_secret).replace(" ", "").strip()
         totp = pyotp.TOTP(clean_secret)
         current_totp = totp.now()
+        seconds_remaining = int(totp.interval - (time.time() % totp.interval))
         
         payload = {
             "dhanClientId": str(client_id).strip(),
@@ -52,11 +55,20 @@ def generate_dhan_token_with_totp(client_id, pin, totp_secret):
         headers = {
             "Accept": "application/json"
         }
-        logging.info("Requesting fresh Dhan Access Token using TOTP...")
+        logging.info(
+            "Requesting fresh Dhan Access Token using TOTP. local_time=%s totp_seconds_remaining=%s",
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            seconds_remaining,
+        )
         response = requests.post(url, params=payload, headers=headers, timeout=10)
         
         if response.status_code != 200:
-            logging.error("Dhan TOTP auth returned status %s: %s", response.status_code, response.text)
+            logging.error(
+                "Dhan TOTP auth returned status %s: %s. Check DHAN_CLIENT_ID, DHAN_PIN, "
+                "DHAN_TOTP_SECRET, and system clock sync.",
+                response.status_code,
+                response.text,
+            )
             return None
             
         data = response.json()
@@ -65,7 +77,11 @@ def generate_dhan_token_with_totp(client_id, pin, totp_secret):
             logging.info("Successfully generated Dhan access token via TOTP.")
             return token
             
-        logging.error("Dhan TOTP login response missing token field: %s", data)
+        logging.error(
+            "Dhan TOTP login response missing token field: %s. If message is Invalid TOTP, "
+            "refresh DHAN_TOTP_SECRET from Dhan and verify Windows clock is synced.",
+            data,
+        )
         return None
     except Exception as e:
         logging.error("Failed to generate Dhan access token via TOTP: %s", e)

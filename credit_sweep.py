@@ -98,16 +98,26 @@ def normalize_candles(candles: list | pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
 
+    numeric_datetime_source = False
     if "dt" not in df.columns:
         raw_dt = df["datetime"]
         if pd.api.types.is_numeric_dtype(raw_dt):
-            df["dt"] = pd.to_datetime(raw_dt, unit="s", errors="coerce")
+            numeric_datetime_source = True
+            df["dt"] = pd.to_datetime(raw_dt, unit="s", errors="coerce", utc=True)
         else:
             df["dt"] = pd.to_datetime(raw_dt, errors="coerce")
     else:
         df["dt"] = pd.to_datetime(df["dt"], errors="coerce")
 
     df = df.dropna(subset=["dt"]).sort_values("dt").copy()
+    try:
+        if not df.empty:
+            if numeric_datetime_source:
+                df["dt"] = df["dt"].dt.tz_convert("Asia/Kolkata").dt.tz_localize(None)
+            elif df["dt"].dt.tz is not None:
+                df["dt"] = df["dt"].dt.tz_convert("Asia/Kolkata").dt.tz_localize(None)
+    except Exception as e:
+        logging.warning("Failed to convert candle timezone to Asia/Kolkata: %s", e)
     for col in ("open", "high", "low", "close", "volume"):
         df[col] = pd.to_numeric(df[col], errors="coerce")
     df = df.dropna(subset=["open", "high", "low", "close"])
@@ -240,6 +250,10 @@ def evaluate_credit_sweep_signal(
 
     entry_start = str(config.CREDIT_SWEEP_ENTRY_START)
     opening = day[day["time"] < entry_start]
+    if opening.empty:
+        first_open = pd.Timestamp(day.iloc[0]["dt"]).to_pydatetime()
+        opening_cutoff = first_open + dt.timedelta(minutes=15)
+        opening = day[pd.to_datetime(day["dt"]) < opening_cutoff]
     if opening.empty:
         return _reject(symbol, "Opening range unavailable", status="NO_SIGNAL")
 

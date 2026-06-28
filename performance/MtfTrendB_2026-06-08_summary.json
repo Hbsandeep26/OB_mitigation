@@ -1,0 +1,14 @@
+{
+  "strategy": "MtfTrendB",
+  "week_start": "2026-06-08",
+  "week_end": "2026-06-14",
+  "total_trades": 8,
+  "wins": 4,
+  "losses": 4,
+  "win_loss_ratio": 1.0,
+  "win_rate": 50.0,
+  "gross_profit": 291.1772,
+  "gross_loss": 276.2215,
+  "max_drawdown": 269.1484,
+  "average_slippage": 0.0
+}

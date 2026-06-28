@@ -1,0 +1,14 @@
+{
+  "strategy": "PullbackSniper",
+  "week_start": "2026-01-19",
+  "week_end": "2026-01-25",
+  "total_trades": 2,
+  "wins": 2,
+  "losses": 0,
+  "win_loss_ratio": 2.0,
+  "win_rate": 100.0,
+  "gross_profit": 31.2972,
+  "gross_loss": 0,
+  "max_drawdown": 0.0,
+  "average_slippage": 0.0
+}

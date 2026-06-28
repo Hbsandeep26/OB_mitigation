@@ -3,7 +3,7 @@ import threading
 import time
 import urllib.parse
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, time as dt_time, timedelta
 from types import SimpleNamespace
 
 import requests
@@ -256,23 +256,144 @@ class DhanBroker:
             headers["dhanClientId"] = client_id
         return headers
 
+    @staticmethod
+    def _sanitize_for_log(value):
+        if isinstance(value, dict):
+            sanitized = {}
+            for key, item in value.items():
+                key_text = str(key).lower()
+                if any(secret in key_text for secret in ("token", "pin", "totp", "secret")):
+                    sanitized[key] = "***REDACTED***"
+                else:
+                    sanitized[key] = DhanBroker._sanitize_for_log(item)
+            return sanitized
+        if isinstance(value, list):
+            return [DhanBroker._sanitize_for_log(item) for item in value]
+        return value
+
+    @staticmethod
+    def _response_text(response):
+        try:
+            return (response.text or "")[:1200]
+        except Exception:
+            return ""
+
+    def _raise_for_status(self, response, method, path, payload=None):
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError:
+            body = self._response_text(response)
+            sanitized_payload = self._sanitize_for_log(payload or {})
+            message = (
+                f"Dhan API {method} {path} failed "
+                f"status={response.status_code} reason={response.reason} "
+                f"body={body} payload={sanitized_payload}"
+            )
+            logging.error(message)
+            raise requests.exceptions.HTTPError(message, response=response)
+
     def _get(self, path, include_client_id=False):
+        max_retries = 3
+        backoff = 1.5
+        for attempt in range(max_retries):
+            try:
+                response = requests.get(
+                    f"{self.BASE_URL}{path}",
+                    headers=self._headers(include_client_id=include_client_id),
+                    timeout=10,
+                )
+                if response.status_code == 429:
+                    logging.warning(
+                        "Dhan API returned 429 Too Many Requests on GET %s. Retrying attempt %d/%d after %.2fs...",
+                        path, attempt + 1, max_retries, backoff
+                    )
+                    time.sleep(backoff)
+                    backoff *= 1.5
+                    continue
+                self._raise_for_status(response, "GET", path)
+                return response.json()
+            except requests.exceptions.HTTPError as err:
+                if err.response is not None and err.response.status_code == 429:
+                    logging.warning(
+                        "Dhan API raised 429 HTTPError on GET %s. Retrying attempt %d/%d after %.2fs...",
+                        path, attempt + 1, max_retries, backoff
+                    )
+                    time.sleep(backoff)
+                    backoff *= 1.5
+                    continue
+                raise
+            except requests.exceptions.RequestException as err:
+                logging.warning(
+                    "Dhan API GET %s connection failed on attempt %d/%d: %s",
+                    path, attempt + 1, max_retries, err
+                )
+                if attempt < max_retries - 1:
+                    time.sleep(backoff)
+                    backoff *= 1.5
+                    continue
+                raise
+        # Final attempt
         response = requests.get(
             f"{self.BASE_URL}{path}",
             headers=self._headers(include_client_id=include_client_id),
             timeout=10,
         )
-        response.raise_for_status()
+        self._raise_for_status(response, "GET", path)
         return response.json()
 
     def _post(self, path, payload, include_client_id=True):
+        max_retries = 3
+        backoff = 1.5
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    f"{self.BASE_URL}{path}",
+                    headers=self._headers(include_client_id=include_client_id),
+                    json=payload,
+                    timeout=15,
+                )
+                if response.status_code == 429:
+                    logging.warning(
+                        "Dhan API returned 429 Too Many Requests on POST %s. Retrying attempt %d/%d after %.2fs...",
+                        path, attempt + 1, max_retries, backoff
+                    )
+                    time.sleep(backoff)
+                    backoff *= 1.5
+                    continue
+                self._raise_for_status(response, "POST", path, payload)
+                return response.json()
+            except requests.exceptions.HTTPError as err:
+                if err.response is not None and err.response.status_code == 429:
+                    logging.warning(
+                        "Dhan API raised 429 HTTPError on POST %s. Retrying attempt %d/%d after %.2fs...",
+                        path, attempt + 1, max_retries, backoff
+                    )
+                    time.sleep(backoff)
+                    backoff *= 1.5
+                    continue
+                raise
+            except requests.exceptions.RequestException as err:
+                logging.warning(
+                    "Dhan API POST %s connection failed on attempt %d/%d payload=%s error=%s",
+                    path,
+                    attempt + 1,
+                    max_retries,
+                    self._sanitize_for_log(payload),
+                    err,
+                )
+                if attempt < max_retries - 1:
+                    time.sleep(backoff)
+                    backoff *= 1.5
+                    continue
+                raise
+        # Final attempt
         response = requests.post(
             f"{self.BASE_URL}{path}",
             headers=self._headers(include_client_id=include_client_id),
             json=payload,
             timeout=15,
         )
-        response.raise_for_status()
+        self._raise_for_status(response, "POST", path, payload)
         return response.json()
 
     @classmethod
@@ -300,6 +421,26 @@ class DhanBroker:
             logging.debug("Error looking up symbol %s in liquidity universe: %s", index_symbol, err)
             
         raise ValueError(f"Invalid Dhan index or stock symbol: {index_symbol}")
+
+    @staticmethod
+    def _is_trading_day(day):
+        holiday_set = set(getattr(config, "MARKET_HOLIDAYS", []) or [])
+        return day.weekday() < 5 and day.strftime("%Y-%m-%d") not in holiday_set
+
+    @classmethod
+    def _last_market_datetime(cls, now=None):
+        now = now or datetime.now()
+        session_start = now.replace(hour=9, minute=15, second=0, microsecond=0)
+        session_end = now.replace(hour=15, minute=30, second=0, microsecond=0)
+        if cls._is_trading_day(now.date()) and session_start <= now <= session_end:
+            return now
+        if cls._is_trading_day(now.date()) and now > session_end:
+            return session_end
+
+        cursor_day = now.date() - timedelta(days=1)
+        while not cls._is_trading_day(cursor_day):
+            cursor_day = cursor_day - timedelta(days=1)
+        return datetime.combine(cursor_day, dt_time(15, 30))
 
 
     def _parse_instrument_key(self, instrument_key):
@@ -376,8 +517,10 @@ class DhanBroker:
 
     def get_intraday_candles(self, index_symbol, minutes=15, from_date=None):
         meta = self._index_meta(index_symbol)
-        now = datetime.now()
-        from_dt = from_date if from_date is not None else now.replace(hour=9, minute=15, second=0, microsecond=0)
+        to_dt = self._last_market_datetime()
+        from_dt = from_date if from_date is not None else to_dt.replace(hour=9, minute=15, second=0, microsecond=0)
+        if from_dt > to_dt:
+            from_dt = to_dt.replace(hour=9, minute=15, second=0, microsecond=0)
         payload = {
             "securityId": str(meta["security_id"]),
             "exchangeSegment": meta["segment"],
@@ -385,7 +528,7 @@ class DhanBroker:
             "interval": str(int(minutes)),
             "oi": False,
             "fromDate": from_dt.strftime("%Y-%m-%d %H:%M:%S"),
-            "toDate": now.strftime("%Y-%m-%d %H:%M:%S"),
+            "toDate": to_dt.strftime("%Y-%m-%d %H:%M:%S"),
         }
         return self._charts_to_candles(self._post("/charts/intraday", payload))
 

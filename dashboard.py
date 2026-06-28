@@ -107,6 +107,40 @@ MANUAL_EXIT_FILE = os.path.join(BASE_DIR, "manual_exit_flag.txt")
 MANUAL_ENTRY_FILE = os.path.join(BASE_DIR, "manual_entry_flag.txt")
 CREDIT_SWEEP_STATE_FILE = os.path.join(BASE_DIR, "credit_sweep_state.json")
 
+# --- STRATEGY SANDBOX PATHS & HELPMETHODS ---
+FRAMEWORK_PID_FILE = os.path.join(BASE_DIR, "strategy_framework_pid.txt")
+FRAMEWORK_CONSOLE_LOG_PATH = os.path.join(BASE_DIR, "strategy_framework_console.log")
+STRATEGY_ENGINE_CONFIG_FILE = os.path.join(BASE_DIR, "strategy_engine_config.json")
+FRAMEWORK_MASTER_LOG = os.path.join(BASE_DIR, "logs", "master_engine.log")
+FRAMEWORK_LOG_DIR = os.path.join(BASE_DIR, "logs")
+PERFORMANCE_DIR = os.path.join(BASE_DIR, "performance")
+
+def read_pid_file(path):
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "r") as f:
+            return int(f.read().strip())
+    except Exception:
+        return None
+
+def process_is_running(pid):
+    if not pid:
+        return False
+    return psutil.pid_exists(pid)
+
+def load_strategy_engine_config():
+    if os.path.exists(STRATEGY_ENGINE_CONFIG_FILE):
+        try:
+            with open(STRATEGY_ENGINE_CONFIG_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+def save_strategy_engine_config(config_data):
+    atomic_write_json(STRATEGY_ENGINE_CONFIG_FILE, config_data)
+
 def load_settings():
     if os.path.exists(SETTINGS_FILE):
         with open(SETTINGS_FILE, "r") as f:
@@ -492,10 +526,93 @@ with col_force:
 
 st.sidebar.caption("Stop is graceful. Kill is emergency-only and requires a broker position check.")
 
+# --- STRATEGY SANDBOX SIDEBAR UI ---
+st.sidebar.header("Strategy Sandbox")
+framework_config = load_strategy_engine_config()
+framework_pid = read_pid_file(FRAMEWORK_PID_FILE)
+framework_running = process_is_running(framework_pid)
+enabled_count = sum(1 for item in framework_config.get("strategies", []) if item.get("enabled", True))
+
+if framework_running:
+    st.sidebar.success(f"Sandbox running. PID {framework_pid}")
+else:
+    st.sidebar.info("Sandbox idle")
+
+with st.sidebar.expander("Sandbox Strategy Selection", expanded=False):
+    with st.form("strategy_sandbox_form"):
+        for idx, item in enumerate(framework_config.get("strategies", [])):
+            name = item.get("name", f"Strategy {idx}")
+            item["enabled"] = st.checkbox(
+                name,
+                value=bool(item.get("enabled", True)),
+                key=f"sandbox_strategy_enabled_{idx}",
+            )
+        replay_sleep = float((framework_config.get("data", {}) or {}).get("replay_sleep_seconds", 0.0))
+        replay_sleep = st.number_input(
+            "Replay Sleep Seconds",
+            value=replay_sleep,
+            min_value=0.0,
+            step=0.05,
+            help="0 runs the backtest-style replay as fast as possible.",
+        )
+        if st.form_submit_button("Save Sandbox Config"):
+            framework_config.setdefault("data", {})["replay_sleep_seconds"] = replay_sleep
+            save_strategy_engine_config(framework_config)
+            st.success("Sandbox strategy config saved.")
+            st.rerun()
+
+    col_all, col_none = st.columns(2)
+    with col_all:
+        if st.button("Enable All", key="sandbox_enable_all"):
+            for item in framework_config.get("strategies", []):
+                item["enabled"] = True
+            save_strategy_engine_config(framework_config)
+            st.rerun()
+    with col_none:
+        if st.button("Disable All", key="sandbox_disable_all"):
+            for item in framework_config.get("strategies", []):
+                item["enabled"] = False
+            save_strategy_engine_config(framework_config)
+            st.rerun()
+
+sandbox_start, sandbox_stop = st.sidebar.columns(2)
+with sandbox_start:
+    if st.button("Run Sandbox", disabled=framework_running or enabled_count == 0):
+        if enabled_count == 0:
+            st.error("Enable at least one sandbox strategy first.")
+        else:
+            with open(FRAMEWORK_CONSOLE_LOG_PATH, "a", encoding="utf-8") as console_log:
+                process = subprocess.Popen(
+                    [
+                        sys.executable,
+                        "main.py",
+                        "--framework",
+                        "--config",
+                        STRATEGY_ENGINE_CONFIG_FILE,
+                    ],
+                    cwd=BASE_DIR,
+                    stdout=console_log,
+                    stderr=subprocess.STDOUT,
+                )
+            atomic_write_text(FRAMEWORK_PID_FILE, str(process.pid))
+            st.success("Strategy sandbox started.")
+            st.rerun()
+
+with sandbox_stop:
+    if st.button("Stop Sandbox", disabled=not framework_running):
+        try:
+            psutil.Process(framework_pid).terminate()
+            st.warning("Strategy sandbox stop requested.")
+        except Exception as e:
+            st.error(f"Could not stop sandbox: {e}")
+        if os.path.exists(FRAMEWORK_PID_FILE):
+            os.remove(FRAMEWORK_PID_FILE)
+        st.rerun()
+
 # --- MAIN DASHBOARD ---
 st.title("ALGO COMMAND CENTER")
 
-tab_dashboard, tab_scanner = st.tabs(["📊 Performance Dashboard", "🔍 Market Scanner"])
+tab_dashboard, tab_scanner, tab_sandbox = st.tabs(["📊 Performance Dashboard", "🔍 Market Scanner", "Strategy Sandbox"])
 
 with tab_dashboard:
 
@@ -877,6 +994,38 @@ with tab_dashboard:
             total_pnl = df['PnL'].sum()
             color = "normal" if total_pnl >= 0 else "inverse"
             st.metric(label="Total Realized PnL", value=f"₹ {total_pnl:.2f}", delta=f"₹ {total_pnl:.2f}", delta_color=color)
+
+        # --- 4b. DAILY & WEEKLY PERFORMANCE SUMMARIES ---
+        try:
+            import sandbox_analyzer
+            daily_df = sandbox_analyzer.generate_daily_summary(df)
+            weekly_df = sandbox_analyzer.generate_weekly_summary(df)
+            
+            if not daily_df.empty or not weekly_df.empty:
+                st.markdown("#### 📅 Performance Reports")
+                sum_tab1, sum_tab2 = st.tabs(["Daily Performance Summary", "Weekly Performance Summary"])
+                
+                with sum_tab1:
+                    if not daily_df.empty:
+                        def highlight_daily(row):
+                            val = float(row['Net PnL (INR)'])
+                            color = 'color: #00ff00' if val > 0 else ('color: #ff0000' if val < 0 else '')
+                            return [color if col == 'Net PnL (INR)' else '' for col in row.index]
+                        st.dataframe(daily_df.style.apply(highlight_daily, axis=1), hide_index=True, width='stretch')
+                    else:
+                        st.info("No daily summaries available yet.")
+                        
+                with sum_tab2:
+                    if not weekly_df.empty:
+                        def highlight_weekly(row):
+                            val = float(row['Net PnL (INR)'])
+                            color = 'color: #00ff00' if val > 0 else ('color: #ff0000' if val < 0 else '')
+                            return [color if col == 'Net PnL (INR)' else '' for col in row.index]
+                        st.dataframe(weekly_df.style.apply(highlight_weekly, axis=1), hide_index=True, width='stretch')
+                    else:
+                        st.info("No weekly summaries available yet.")
+        except Exception as e:
+            st.error(f"Error generating performance summaries: {e}")
     else:
         st.info("No trades logged yet.")
 
@@ -993,6 +1142,86 @@ with tab_scanner:
             st.error(f"Error loading Credit Sweep state: {e}")
     else:
         st.info("Credit Sweep state file not found yet.")
+
+with tab_sandbox:
+    st.subheader("Strategy Sandbox Runner")
+    sandbox_pid = read_pid_file(FRAMEWORK_PID_FILE)
+    sandbox_running = process_is_running(sandbox_pid)
+    sandbox_config = load_strategy_engine_config()
+    strategies = sandbox_config.get("strategies", [])
+
+    status_col, enabled_col, mode_col = st.columns(3)
+    with status_col:
+        st.metric("Status", "RUNNING" if sandbox_running else "IDLE", delta=f"PID {sandbox_pid}" if sandbox_running else "")
+    with enabled_col:
+        st.metric("Enabled Strategies", str(sum(1 for item in strategies if item.get("enabled", True))))
+    with mode_col:
+        st.metric("Mode", str(sandbox_config.get("mode", "paper")).upper())
+
+    st.markdown("### Configured Strategies")
+    if strategies:
+        strategy_rows = []
+        for item in strategies:
+            strategy_rows.append({
+                "Name": item.get("name", ""),
+                "Enabled": bool(item.get("enabled", True)),
+                "Class": item.get("class", ""),
+                "Symbols": ", ".join(item.get("symbols", [])),
+                "Timeframes": ", ".join(item.get("timeframes", [])),
+            })
+        st.dataframe(pd.DataFrame(strategy_rows), hide_index=True, width="stretch")
+    else:
+        st.info("No strategies found in strategy_engine_config.json.")
+
+    st.markdown("### Weekly Performance Summaries")
+    summary_files = []
+    if os.path.exists(PERFORMANCE_DIR):
+        summary_files = sorted(
+            [name for name in os.listdir(PERFORMANCE_DIR) if name.endswith("_summary.json")],
+            reverse=True,
+        )
+    if summary_files:
+        summary_rows = []
+        for name in summary_files:
+            try:
+                with open(os.path.join(PERFORMANCE_DIR, name), "r", encoding="utf-8") as sf:
+                    summary_rows.append(json.load(sf))
+            except Exception:
+                pass
+        if summary_rows:
+            st.dataframe(pd.DataFrame(summary_rows), hide_index=True, width="stretch")
+        else:
+            st.info("Summary files exist but could not be read.")
+    else:
+        st.info("No sandbox summaries yet. Run Sandbox once to generate them.")
+
+    log_col1, log_col2 = st.columns(2)
+    with log_col1:
+        st.markdown("### Master Engine Log")
+        if os.path.exists(FRAMEWORK_MASTER_LOG):
+            with open(FRAMEWORK_MASTER_LOG, "r", encoding="utf-8", errors="replace") as mf:
+                st.code("".join(mf.readlines()[-80:]), language="text")
+        else:
+            st.code("No master_engine.log yet.", language="text")
+
+    with log_col2:
+        st.markdown("### Strategy Log")
+        log_files = []
+        if os.path.exists(FRAMEWORK_LOG_DIR):
+            log_files = sorted(name for name in os.listdir(FRAMEWORK_LOG_DIR) if name.startswith("strategy_") and name.endswith(".log"))
+        if log_files:
+            selected_log = st.selectbox("Select strategy log", log_files)
+            with open(os.path.join(FRAMEWORK_LOG_DIR, selected_log), "r", encoding="utf-8", errors="replace") as lf:
+                st.code("".join(lf.readlines()[-80:]), language="text")
+        else:
+            st.code("No strategy logs yet.", language="text")
+
+    with st.expander("Sandbox Console Output", expanded=False):
+        if os.path.exists(FRAMEWORK_CONSOLE_LOG_PATH):
+            with open(FRAMEWORK_CONSOLE_LOG_PATH, "r", encoding="utf-8", errors="replace") as cf:
+                st.code("".join(cf.readlines()[-120:]), language="text")
+        else:
+            st.code("No sandbox console output yet.", language="text")
 
 auto_refresh = st.toggle("🔄 Auto Refresh Dashboard (3s)", value=True, help="Disable to interact with inputs without being interrupted.")
 if auto_refresh:

@@ -1,0 +1,105 @@
+{
+  "mode": "live_sandbox",
+  "log_dir": "logs",
+  "performance_dir": "performance",
+  "paper_slippage_bps": 1.0,
+  "data": {
+    "provider": "csv",
+    "data_dir": "data/historical",
+    "replay_sleep_seconds": 0.0
+  },
+  "strategies": [
+    {
+      "name": "LiquiditySweepA",
+      "module": "strategies.liquidity_sweep_strategy",
+      "class": "LiquiditySweepStrategy",
+      "enabled": true,
+      "symbols": ["NIFTY", "RELIANCE"],
+      "timeframes": ["5m"],
+      "config": {
+        "quantity": 1,
+        "risk_reward": 2.0,
+        "opening_range_minutes": 15,
+        "swing_lookback": 5,
+        "volume_multiplier": 1.2,
+        "max_atr_pct": 0.018,
+        "min_score": 75,
+        "max_candles": 1500
+      }
+    },
+    {
+      "name": "MtfTrendB",
+      "module": "strategies.mtf_trend_following_strategy",
+      "class": "MtfTrendFollowingStrategy",
+      "enabled": true,
+      "symbols": ["NIFTY", "RELIANCE"],
+      "timeframes": ["5m", "60m"],
+      "config": {
+        "quantity": 1,
+        "execution_timeframe": "5m",
+        "trend_timeframe": "60m",
+        "fast_ema_length": 20,
+        "slow_ema_length": 50,
+        "pullback_ema_length": 20,
+        "risk_reward": 2.0,
+        "max_candles": 1500
+      }
+    },
+    {
+      "name": "PullbackSniper",
+      "module": "strategies.pullback_sniper_strategy",
+      "class": "PullbackSniperStrategy",
+      "enabled": true,
+      "symbols": ["NIFTY", "RELIANCE"],
+      "timeframes": ["5m"],
+      "config": {
+        "quantity": 1,
+        "timeframe": "5m",
+        "fast_ema_length": 50,
+        "slow_ema_length": 200,
+        "pullback_ema_length": 21,
+        "slope_lookback": 5,
+        "breakout_lookback": 20,
+        "invalidation_lookback": 12,
+        "min_bars_after_breakout": 2,
+        "max_bars_to_find_pullback": 60,
+        "confirmation_mode": "Balanced",
+        "atr_length": 14,
+        "min_breakout_body_atr": 0.2,
+        "min_confirm_body_atr": 0.25,
+        "max_entry_distance_atr": 1.0,
+        "use_cooldown": true,
+        "cooldown_bars": 20,
+        "use_mcginley_filter": true,
+        "mcginley_length": 100,
+        "mcginley_distance_atr": 0.25,
+        "use_rsi_filter": false,
+        "rsi_length": 14,
+        "rsi_long_min": 50.0,
+        "rsi_short_max": 50.0,
+        "trade_atr_length": 14,
+        "trade_atr_multiplier": 2.0,
+        "tp3_reward_r": 2.0,
+        "tp1_percent_of_tp3": 25.0,
+        "tp2_percent_of_tp3": 50.0,
+        "min_quality_score": 70,
+        "weak_pullback_volume_multiplier": 1.35,
+        "max_candles": 2000
+      }
+    },
+    {
+      "name": "CreditSweepPaper",
+      "module": "strategies.credit_sweep_strategy",
+      "class": "CreditSweepStrategy",
+      "enabled": false,
+      "symbols": ["NIFTY", "SENSEX", "RELIANCE"],
+      "timeframes": ["5m"],
+      "config": {
+        "quantity": 1,
+        "timeframe": "5m",
+        "paper_only": true,
+        "max_candles": 1500
+      }
+    }
+  ]
+}

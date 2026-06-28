@@ -1,6 +1,14 @@
 # main.py
 import os
 import sys
+
+if __name__ == "__main__" and "--framework" in sys.argv:
+    from async_engine import main as async_framework_main
+
+    framework_args = [arg for arg in sys.argv[1:] if arg != "--framework"]
+    async_framework_main(framework_args)
+    raise SystemExit(0)
+
 import logging
 import json
 import re
@@ -1645,10 +1653,30 @@ def is_dhan_token_valid(token):
         payload = json.loads(payload_json)
         
         exp = payload.get("exp")
-        if exp:
-            return float(exp) > time.time() + 43200
+        if exp and float(exp) <= time.time() + 43200:
+            return False
     except Exception:
-        pass
+        return False
+
+    # Verify with a quick request to Dhan API to ensure it's not revoked/invalid
+    try:
+        import requests
+        client_id = config.get_dhan_client_id()
+        if not client_id:
+            return False
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "access-token": token,
+            "client-id": client_id,
+            "dhanClientId": client_id,
+        }
+        response = requests.get("https://api.dhan.co/v2/fundlimit", headers=headers, timeout=5)
+        if response.status_code == 200:
+            return True
+        logging.warning("Dhan token validation request returned status %s: %s", response.status_code, response.text)
+    except Exception as e:
+        logging.warning("Failed to verify Dhan token via API: %s", e)
     return False
 
 
