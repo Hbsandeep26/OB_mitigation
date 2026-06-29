@@ -19,6 +19,12 @@ def timeframe_minutes(timeframe: str) -> int:
 def _parse_datetime(value: object) -> datetime:
     if isinstance(value, datetime):
         return value
+    try:
+        val_float = float(value)
+        if val_float > 1e8:
+            return pd.to_datetime(val_float, unit="s").to_pydatetime()
+    except (ValueError, TypeError):
+        pass
     return pd.to_datetime(value).to_pydatetime()
 
 
